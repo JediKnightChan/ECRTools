@@ -1,0 +1,26 @@
+{
+  "branch_prod": {
+    "version": "1.1.0",
+    "complete_archives": {
+      "Windows": {
+        "gdrive_id": "16weH4UZGRAtBAJ_ef0GD1l9PV6lMTmxl",
+        "github_chunk_urls": [
+          "https://github.com/EternalCrusadeResurrection/ECRGame/releases/download/game_dev_1.0.1/game.zip.chunk.0",
+          "https://github.com/EternalCrusadeResurrection/ECRGame/releases/download/game_dev_1.0.1/game.zip.chunk.1"
+        ],
+        "size": 2385523752,
+        "hash": "1a6ea969c0dbc20a9048f37d4dae35cb",
+        "verify_files": {
+          "ECR.exe": "a567c35700ff51ddce536e16d8611244",
+          "ECR/Binaries/Win64/ECR.exe": "590ff4c30a16a53234d11fe5474163de",
+          "ECR/Content/Paks/ECR-Windows.pak": "d86725fefcea66ee7d626409e118ff4f",
+          "ECR/Content/Paks/ECR-Windows.sig": "2b90411623817746015629c1c038057f",
+          "ECR/Content/Paks/ECR-Windows.ucas": "ac12e29dfa9e901b0fc863b71a2ff880",
+          "ECR/Content/Paks/ECR-Windows.utoc": "632a5b63a2b81532bbe08aca2b857734",
+          "ECR/Content/Paks/global.ucas": "07d6959e6e168d00def8d86641ab45d6",
+          "ECR/Content/Paks/global.utoc": "c53750cb569a0ed9b2752a9e713dba49"
+        }
+      }
+    }
+  }
+}
