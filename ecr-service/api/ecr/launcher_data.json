@@ -1,9 +1,12 @@
 {
-  "version": "1.0.2",
+  "version": "1.0.3",
   "complete_archives": {
     "Windows": {
-      "gdrive_id": "1W4pXnssxmUxCQ4ahILsehMl1Sko2KZAR",
-      "size": 48704737,
+      "github_chunk_urls": [
+        "https://github.com/EternalCrusadeResurrection/ECRGame/releases/download/launcher_1.0.3/launcher.zip"
+      ],
+      "gdrive_id": "15tr97I-kVbnq4NJ01SeZa8I4isO-bcF1",
+      "size": 87510170,
       "hash": ""
     }
   },
