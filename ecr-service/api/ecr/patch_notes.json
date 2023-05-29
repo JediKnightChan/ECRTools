@@ -1,5 +1,9 @@
 [
   {
+    "title": "ECR 1.1.1",
+    "content": "<html><head/><body>Minor updates:\n<ul><li>Health bars improvements (correct status)</li>\n<li>Melee changes (prediction is now on server)</li>\n<li>Capture Points widgets improvements (status and distance)</li>\n<li>Time check before entering the game</li>\n<li>Match started time and current amount of players in the match search</li>\n<li>Can now spawn on point D</li></ul></body></html>"
+  },
+  {
     "title": "ECR 1.1.0",
     "content": "<html><head/><body>The alpha-version of Eternal Crusade: Resurrection is finally released, one and a half year after the game shutdown.\nIt includes:\n<ul><li>1 map (point A of the EC Zedek map)</li>\n<li>1 game mission: Deep Strike, where attackers have to control at least 2 points to be able to capture the previous A point, now marked as D, and win the match</li>\n<li>3 classes: Tactical, Ground Assault and Jump Pack Assault</li>\n<li>2 factions: LSM and CSM, assigned randomly</li>\n<li>Advanced settings, including video settings, audio settings, keybindings and mouse sensitivity</li>\n<li>3 Space Marine Chapters (Blood Angels, Ultramarines and Dark Angels) and 3 Chaos Legions (Black Legion, Night Lords and Word Bearers)</li>\n<li>Matchmaking P2P system based on players hosting their own matches</li></ul></body></html>"
   }
