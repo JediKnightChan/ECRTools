@@ -1,7 +1,11 @@
 [
   {
+    "title": "ECR 1.1.2",
+    "content": "Minor updates to 1.1.1"
+  },
+  {
     "title": "ECR 1.1.1",
-    "content": "<html><head/><body>Minor updates:\n<ul><li>Health bars improvements (correct status)</li>\n<li>Melee changes (prediction is now on server)</li>\n<li>Capture Points widgets improvements (status and distance)</li>\n<li>Time check before entering the game</li>\n<li>Match started time and current amount of players in the match search</li>\n<li>Can now spawn on point D</li></ul></body></html>"
+    "content": "<html><head/><body>Updates:\n<ul><li>Health bars improvements (correct status)</li>\n<li>Melee changes (prediction is now on server)</li>\n<li>Capture Points widgets improvements (status and distance)</li>\n<li>Time check before entering the game</li>\n<li>Match started time and current amount of players in the match search</li>\n<li>Can now spawn on point D</li></ul></body></html>"
   },
   {
     "title": "ECR 1.1.0",

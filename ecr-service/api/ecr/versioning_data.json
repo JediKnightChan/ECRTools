@@ -2,8 +2,17 @@
   "branch_prod": {
     "1.1.1": {
       "Windows": {
-        "gdrive_id": "1KAxJ9eak3iZ1T7cWTAW7w5VqV4MNDj46-LFkPQR_VuGb",
+        "gdrive_id": "None",
         "size": 2105005295
+      }
+    },
+    "1.1.2": {
+      "Windows": {
+        "gdrive_id": "None",
+        "size": 122305549,
+        "github_chunk_urls": [
+          "https://github.com/EternalCrusadeResurrection/ECRGame/releases/download/game_prod_patch_1.1.2/patch.zip"
+        ]
       }
     }
   }
