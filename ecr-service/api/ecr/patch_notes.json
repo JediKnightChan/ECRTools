@@ -1,5 +1,9 @@
 [
   {
+    "title": "ECR 1.1.5",
+    "content": "<html> <head/> <body> New content: <ul> <li>Damage notifications in HUD</li> <li>Bleeding screen</li> <li>Your own health bar</li> <li>Space Wolves, Imperial Fists, Alpha Legion and Iron Warriors</li> <li>Team swap system</li> </ul> Fixes: <ul> <li>Melee networking changes</li> </ul> </body> </html>"
+  },
+  {
     "title": "ECR 1.1.4",
     "content": "Minor updates to 1.1.3"
   },
