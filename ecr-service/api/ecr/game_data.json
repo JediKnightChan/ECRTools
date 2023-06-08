@@ -1,18 +1,18 @@
 {
   "branch_prod": {
-    "version": "1.1.5",
+    "version": "1.1.6",
     "complete_archives": {
       "Windows": {
-        "gdrive_id": "19VNMQNaaj6gUaUYKwoYHKut8zEMGIcmL",
+        "gdrive_id": "1oJTk15CPZqT2-B0hnByvHVlsSgB-eg_3",
         "github_chunk_urls": [
-          "https://github.com/EternalCrusadeResurrection/ECRGame/releases/download/game_prod_1.1.5/game.zip.chunk.0",
-          "https://github.com/EternalCrusadeResurrection/ECRGame/releases/download/game_prod_1.1.5/game.zip.chunk.1"
+          "https://github.com/EternalCrusadeResurrection/ECRGame/releases/download/game_prod_1.1.6/game.zip.chunk.0",
+          "https://github.com/EternalCrusadeResurrection/ECRGame/releases/download/game_prod_1.1.6/game.zip.chunk.1"
         ],
-        "size": 2238023821,
-        "hash": "1012195ed0d191fc851a08e94b56277e",
+        "size": 2251598932,
+        "hash": "482c13227bcdd22fc583166d37e6514e",
         "verify_files": {
           "ECR.exe": "67e7c24e3430b41f334636772f116142",
-          "ECR/Binaries/Win64/ECR-Win64-Shipping.exe": "34ba3faa76fc8e2dca9055ad6e007ea1",
+          "ECR/Binaries/Win64/ECR-Win64-Shipping.exe": "2ca9bd04949237a18567ad359d3fe3bf",
           "ECR/Content/Paks/ECR-Windows.pak": "02c2996f489eb2a6774d32333b33940c",
           "ECR/Content/Paks/ECR-Windows.sig": "39bd4178e99742d7da283012ccc38e5c",
           "ECR/Content/Paks/ECR-Windows.ucas": "6eb42f09d18122a91349dd8e08faebcb",
@@ -33,6 +33,10 @@
           "ECR/Content/Paks/ECR-Windows_3_P.sig": "dec6d26c5813dd417377ac0195cde7d2",
           "ECR/Content/Paks/ECR-Windows_3_P.ucas": "c78fe9510a225b8a66c78b97f9c8839f",
           "ECR/Content/Paks/ECR-Windows_3_P.utoc": "1f5d44b5a043f58f2f829b0ab8574192",
+          "ECR/Content/Paks/ECR-Windows_4_P.pak": "00832bf23c139e0ca337a60dd045b12d",
+          "ECR/Content/Paks/ECR-Windows_4_P.sig": "63d71425005b71c6536ecba017535f68",
+          "ECR/Content/Paks/ECR-Windows_4_P.ucas": "855c8ce2bd4272b80b4187e9698489b1",
+          "ECR/Content/Paks/ECR-Windows_4_P.utoc": "4cd80563afd60a39a949b5d20e794238",
           "ECR/Content/Paks/global.ucas": "b90def48576626967984f3ca7f9db62b",
           "ECR/Content/Paks/global.utoc": "fbc7357a427fd2ac0aeb8acc4f2a9d3c"
         }

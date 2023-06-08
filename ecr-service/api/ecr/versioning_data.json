@@ -41,6 +41,15 @@
           "https://github.com/EternalCrusadeResurrection/ECRGame/releases/download/game_prod_patch_1.1.5/patch.zip"
         ]
       }
+    },
+    "1.1.6": {
+      "Windows": {
+        "gdrive_id": "None",
+        "size": 114748544,
+        "github_chunk_urls": [
+          "https://github.com/EternalCrusadeResurrection/ECRGame/releases/download/game_prod_patch_1.1.6/patch.zip"
+        ]
+      }
     }
   }
 }
