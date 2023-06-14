@@ -1,5 +1,9 @@
 [
   {
+    "title": "ECR 1.1.8",
+    "content": "Dedicated server support"
+  },
+  {
     "title": "ECR 1.1.7",
     "content": "<html> <head/> <body> Balance changes: <ul> <li>Amount of shield for Ground Assaults reduced</li> <li>Bolter fire rate is increased</li> <li>Ground Assault and Jump Pack Assault now have 1 grenade instead of 2</li> </ul> Fixes: <ul> <li>Networking fixes</li> <li>Rocks collision fixes</li> </ul> </body> </html>"
   },
