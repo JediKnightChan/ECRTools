@@ -1,0 +1,9 @@
+{
+  "missions": {
+    "ZedekSmallDeepStrike": {
+      "weight": 1,
+      "map": "/Game/Maps/ZedekNew_TH",
+      "mode": "pvp"
+    }
+  }
+}
