@@ -1,5 +1,9 @@
 [
   {
+    "title": "ECR 1.2.0",
+    "content": "<html> <head/> <body> New content: <ul> <li>New game class: Devastator with heavy bolter</li> </ul> Fixes: <ul> <li>Melee networking changes</li> <li>ADS mouse sensitivity now accounts for sensitivity settings</li> <li>Jump Pack now always lands softly</li> <li>Damage notification from fall damage removed</li> </ul> </body> </html>"
+  },
+  {
     "title": "ECR 1.1.8",
     "content": "Dedicated server support"
   },
