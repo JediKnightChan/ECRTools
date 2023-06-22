@@ -12,8 +12,8 @@ headers = {
 }
 
 json_data = {
-    "name": "start_ecr_server",
-    "description": "Starts ECR server for 2 hours",
+    "name": "stop_ecr_server",
+    "description": "Stops ECR server in the specified region",
     "options": [
         {
             "type": 3,
