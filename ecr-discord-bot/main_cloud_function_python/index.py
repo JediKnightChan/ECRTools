@@ -80,7 +80,7 @@ def command_handler(body):
     up = DiscordPermissions(body["member"])
 
     def get_server_instance_from_command_data(command_data_):
-        """Returns instance id and response if error"""
+        """Returns instance id, region and response if error"""
 
         def get_region_to_instance(region_):
             region_to_instance = {
@@ -90,43 +90,43 @@ def command_handler(body):
 
         region = get_command_option(command_data_, "region")
         if not region:
-            return None, discord_text_response("Error: unknown region")
+            return None, region, discord_text_response("Error: unknown region")
 
         instance = get_region_to_instance(region)
         if not instance:
-            return None, discord_text_response("Error: server for this region could not be found")
+            return None, region, discord_text_response("Error: server for this region could not be found")
 
-        return instance, None
+        return instance, region, None
 
     if command == 'start_ecr_server':
         if up.is_user_creator() or up.is_user_community_manager():
-            instance, error_response = get_server_instance_from_command_data(command_data)
+            instance, region, error_response = get_server_instance_from_command_data(command_data)
             if not instance:
                 return error_response
 
             yw = YandexWorker()
             res, _ = yw.start_instance(instance)
             if res.get("done", "") == False:
-                return discord_text_response("Starting ecr server")
+                return discord_text_response(f"Starting ecr server ({region})")
             else:
                 if res.get("code", None) == 9:
-                    return discord_text_response("Server already running")
+                    return discord_text_response(f"Server already running ({region})")
                 else:
-                    return discord_text_response("Unknown status")
+                    return discord_text_response(f"Unknown status ({region})")
         else:
             return discord_text_response("You are not allowed to use this command")
     elif command == "stop_ecr_server":
         if up.is_user_creator() or up.is_user_community_manager() or up.is_user_admin() or up.is_user_project_developer():
-            instance, error_response = get_server_instance_from_command_data(command_data)
+            instance, region, error_response = get_server_instance_from_command_data(command_data)
             if not instance:
                 return error_response
 
             yw = YandexWorker()
             res, _ = yw.stop_instance(instance)
             if res.get("done", "") == False:
-                return discord_text_response("Stopping ecr server")
+                return discord_text_response(f"Stopping ecr server ({region})")
             else:
-                return discord_text_response("Server already stopped")
+                return discord_text_response(f"Server already stopped ({region})")
         else:
             return discord_text_response("You are not allowed to use this command")
     else:
