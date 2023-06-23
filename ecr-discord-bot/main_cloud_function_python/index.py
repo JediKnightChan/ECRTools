@@ -154,8 +154,11 @@ def command_handler(body):
             if (_count == 5) :
                 new_match_data['missions']['mission']['map'] = '/Game/Maps/ZedekNew_TH'
                 new_match_data['missions']['mission']['mode'] = 'pvp'
-                
-            res = requests.put("https://ecr-service.website.yandexcloud.net/api/ecr/server_data/match_data.json", json=new_match_data)
+
+            _headers = {
+                'Content-Type': 'application/json',
+            }
+            res = requests.put("https://ecr-service.website.yandexcloud.net/api/ecr/server_data/match_data.json", headers=_headers, json=new_match_data)
             # auth=('USER ID', 'KEY') to authorise update?
             if (!(res.ok)):
                 return discord_text_response(f"Failed updating server data ({region})")
