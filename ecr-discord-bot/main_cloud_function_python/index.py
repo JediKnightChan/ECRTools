@@ -1,6 +1,7 @@
 import json
 import os
 import logging
+import requests
 
 from nacl.signing import VerifyKey
 from nacl.exceptions import BadSignatureError
@@ -104,6 +105,61 @@ def command_handler(body):
             if not instance:
                 return error_response
 
+            new_match_data = {
+              "missions": {
+                "mission_1": {
+                  "weight": 1,
+                  "map": "",
+                  "mode": ""
+                },
+                "mission_2": {
+                  "weight": 1,
+                  "map": "",
+                  "mode": ""
+                },
+                "mission_3": {
+                  "weight": 1,
+                  "map": "",
+                  "mode": ""
+                },
+                "mission_4": {
+                  "weight": 1,
+                  "map": "",
+                  "mode": ""
+                },
+                "mission_5": {
+                  "weight": 1,
+                  "map": "",
+                  "mode": ""
+                }
+              }
+            }
+            _count = 0
+            for i in range (1, 6):
+                _mission = get_command_option(command_data, 'mission_'+str(i))
+                if not _mission:
+                    del new_match_data['missions']['mission_'+str(i)]
+                    _count = _count + 1
+                else:
+                    if (_mission == 'zedek_a_deepstrike'):
+                        new_match_data['missions']['mission_'+str(i)]['map'] = '/Game/Maps/ZedekNew_TH'
+                    
+                    _gamemode = get_command_option(command_data, 'gamemode_'+str(i))
+                    if not _gamemode:
+                        new_match_data['missions']['mission_'+str(i)]['mode'] = 'pvp'
+                    else:
+                        new_match_data['missions']['mission_'+str(i)]['mode'] = _gamemode
+            
+            # No mission params, put default mission on
+            if (_count == 5) :
+                new_match_data['missions']['mission']['map'] = '/Game/Maps/ZedekNew_TH'
+                new_match_data['missions']['mission']['mode'] = 'pvp'
+                
+            res = requests.put("https://ecr-service.website.yandexcloud.net/api/ecr/server_data/match_data.json", json=new_match_data)
+            # auth=('USER ID', 'KEY') to authorise update?
+            if (!(res.ok)):
+                return discord_text_response(f"Failed updating server data ({region})")
+            
             yw = YandexWorker()
             res, _ = yw.start_instance(instance)
             if res.get("done", "") == False:
