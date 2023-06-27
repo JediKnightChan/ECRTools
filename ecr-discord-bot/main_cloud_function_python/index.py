@@ -1,4 +1,5 @@
 import json
+import string
 import os
 import logging
 import requests
@@ -105,60 +106,31 @@ def command_handler(body):
             if not instance:
                 return error_response
 
-            new_match_data = {
-              "missions": {
-                "mission_1": {
-                  "weight": 1,
-                  "map": "",
-                  "mode": ""
-                },
-                "mission_2": {
-                  "weight": 1,
-                  "map": "",
-                  "mode": ""
-                },
-                "mission_3": {
-                  "weight": 1,
-                  "map": "",
-                  "mode": ""
-                },
-                "mission_4": {
-                  "weight": 1,
-                  "map": "",
-                  "mode": ""
-                },
-                "mission_5": {
-                  "weight": 1,
-                  "map": "",
-                  "mode": ""
-                }
-              }
-            }
-            _count = 0
-            for i in range (1, 6):
-                _mission = get_command_option(command_data, 'mission_'+str(i))
-                if not _mission:
-                    del new_match_data['missions']['mission_'+str(i)]
-                    _count = _count + 1
-                else:
-                    if (_mission == 'zedek_a_deepstrike'):
-                        new_match_data['missions']['mission_'+str(i)]['map'] = '/Game/Maps/ZedekNew_TH'
-                    
-                    _gamemode = get_command_option(command_data, 'gamemode_'+str(i))
-                    if not _gamemode:
-                        new_match_data['missions']['mission_'+str(i)]['mode'] = 'pvp'
-                    else:
-                        new_match_data['missions']['mission_'+str(i)]['mode'] = _gamemode
+            new_match_data = { }
             
+            # Add all of the command's elements
+            for entry in command_data['options']:
+                split = entry['name'].split("_")
+                if (split[0] == "mission"):
+                    new_match_data['missions']['mission_'+split[1]]['map'] = entry['value']
+                elif (split[0] == "gamemode"):
+                    new_match_data['missions']['mission_'+split[1]]['gamemode'] = entry['value']
+                    
+            # Remove all missions entries without a map and sets the gamemode to pvp if there is none, also adds weight
+            for mission in list(new_match_data['missions'].keys()):
+                if (new_match_data['missions'][mission].get('map', None) == None):
+                    del new_match_data['missions'][mission]
+                else:
+                    if (new_match_data['missions'][mission].get('gamemode', None) == None):
+                        new_match_data['missions'][mission]['gamemode'] = "pvp"
+                    new_match_data['missions'][mission]['weight'] = 1
+                    
             # No mission params, put default mission on
-            if (_count == 5) :
+            if (len(new_match_data) == 0) :
                 new_match_data['missions']['mission']['map'] = '/Game/Maps/ZedekNew_TH'
-                new_match_data['missions']['mission']['mode'] = 'pvp'
-
-            _headers = {
-                'Content-Type': 'application/json',
-            }
-            res = requests.put("https://ecr-service.website.yandexcloud.net/api/ecr/server_data/match_data.json", headers=_headers, json=new_match_data)
+                new_match_data['missions']['mission']['mode'] = "pvp"
+                
+            res = requests.put("https://ecr-service.website.yandexcloud.net/api/ecr/server_data/match_data.json", json=new_match_data)
             # auth=('USER ID', 'KEY') to authorise update?
             if (!(res.ok)):
                 return discord_text_response(f"Failed updating server data ({region})")
