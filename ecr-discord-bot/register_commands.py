@@ -14,15 +14,15 @@ headers = {
 # Common values definition
 region_choices = [
                 {
-                    'name': 'RU',
+                    'name': 'Russian Region',
                     'value': 'ru',
                 },
                 {
-                    'name': 'EU',
+                    'name': 'European Region',
                     'value': 'eu',
                 },
                 {
-                    'name': 'US',
+                    'name': 'North American Region',
                     'value': 'us',
                 },
             ]
@@ -30,7 +30,7 @@ region_choices = [
 mission_choices = [
                 {
                     'name': 'Zedek (A) - Deepstrike',
-                    'value': 'zedek_a_deepstrike',
+                    'value': '/Game/Maps/ZedekNew_TH',
                 },
             ]
 
