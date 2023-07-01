@@ -9,6 +9,7 @@ from nacl.exceptions import BadSignatureError
 
 from permissions import DiscordPermissions
 from yandex_api import YandexWorker
+from aws_api import AWSWorker
 
 PUBLIC_KEY = os.getenv("PUBLIC_KEY", "")
 
@@ -87,6 +88,8 @@ def command_handler(body):
         def get_region_to_instance(region_):
             region_to_instance = {
                 "ru": "epdvna5is52f8i85vsst"
+                "eu": "TODO-EUINSTANCE"
+                "us": "TODO-USINSTANCE"
             }
             return region_to_instance.get(region_, None)
 
@@ -134,16 +137,36 @@ def command_handler(body):
             # auth=('USER ID', 'KEY') to authorise update?
             if (!(res.ok)):
                 return discord_text_response(f"Failed updating server data ({region})")
-            
-            yw = YandexWorker()
-            res, _ = yw.start_instance(instance)
-            if res.get("done", "") == False:
-                return discord_text_response(f"Starting ecr server ({region})")
-            else:
-                if res.get("code", None) == 9:
+
+            if (region == "ru"):
+                yw = YandexWorker()
+                res, _ = yw.start_instance(instance)
+                if res.get("done", "") == False:
+                    return discord_text_response(f"Starting ecr server ({region})")
+                else:
+                    if res.get("code", None) == 9:
+                        return discord_text_response(f"Server already running ({region})")
+                    else:
+                        return discord_text_response(f"Unknown status ({region})")
+            elif (region == "eu"):
+                aw = AWSWorker()
+                res = aw.start_instance("eu-central-1", instance)
+                if (res.get('StartingInstances')[0].get('CurrentState').get('Name')) == "pending":
+                    return discord_text_response(f"Starting ecr server ({region})")
+                elif (res.get('StartingInstances')[0].get('CurrentState').get('Name')) == "running":
                     return discord_text_response(f"Server already running ({region})")
                 else:
                     return discord_text_response(f"Unknown status ({region})")
+            elif (region == "us"):
+                aw = AWSWorker()
+                res = aw.start_instance("us-east-1", instance)
+                if (res.get('StartingInstances')[0].get('CurrentState').get('Name')) == "pending":
+                    return discord_text_response(f"Starting ecr server ({region})")
+                elif (res.get('StartingInstances')[0].get('CurrentState').get('Name')) == "running":
+                    return discord_text_response(f"Server already running ({region})")
+                else:
+                    return discord_text_response(f"Unknown status ({region})")
+                    
         else:
             return discord_text_response("You are not allowed to use this command")
     elif command == "stop_ecr_server":
@@ -152,12 +175,32 @@ def command_handler(body):
             if not instance:
                 return error_response
 
-            yw = YandexWorker()
-            res, _ = yw.stop_instance(instance)
-            if res.get("done", "") == False:
-                return discord_text_response(f"Stopping ecr server ({region})")
-            else:
-                return discord_text_response(f"Server already stopped ({region})")
+            if (region == "ru"):
+                yw = YandexWorker()
+                res, _ = yw.stop_instance(instance)
+                if res.get("done", "") == False:
+                    return discord_text_response(f"Stopping ecr server ({region})")
+                else:
+                    return discord_text_response(f"Server already stopped ({region})")
+            elif (region == "eu"):
+                aw = AWSWorker()
+                res = aw.stop_instance("eu-central-1", instance)
+                if (res.get('StoppingInstances')[0].get('CurrentState').get('Name')) == "stopping":
+                    return discord_text_response(f"Stopping ecr server ({region})")
+                elif (res.get('StoppingInstances')[0].get('CurrentState').get('Name')) == "stopped":
+                    return discord_text_response(f"Server already stopped ({region})")
+                else:
+                    return discord_text_response(f"Unknown status ({region})")
+            elif (region == "us"):
+                aw = AWSWorker()
+                res = aw.stop_instance("us-east-1", instance)
+                if (res.get('StoppingInstances')[0].get('CurrentState').get('Name')) == "stopping":
+                    return discord_text_response(f"Stopping ecr server ({region})")
+                elif (res.get('StoppingInstances')[0].get('CurrentState').get('Name')) == "stopped":
+                    return discord_text_response(f"Server already stopped ({region})")
+                else:
+                    return discord_text_response(f"Unknown status ({region})")
+                    
         else:
             return discord_text_response("You are not allowed to use this command")
     else:
