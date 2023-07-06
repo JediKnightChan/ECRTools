@@ -1,5 +1,9 @@
 [
   {
+    "title": "ECR 1.2.3",
+    "content": "<html> <head/> <body> New mechanics: <ul> <li>Stopping point capture grants XP to all players of the same faction near the point</li> <li>Killing and executing enemy veterans grants more XP than usual marines</li> <li>Penalty in XP for friendly fire kills and finishes reduced</li> <li>After certain amount of friendly fire kills the player will be banned from the match</li> </ul> Balance: <ul> <li>Grav gun damage reduced, heat gathering increased</li> <li>Autocannon spread reduced</li> </ul> Fixes: <ul> <li>Fix of melee character positions desync now also accounts for character rotations</li> </ul> </body> </html>"
+  },
+  {
     "title": "ECR 1.2.2",
     "content": "<html> <head/> <body> New 4 Veterans game classes: <ul> <li>Tactical Veteran (Plasmagun)</li> <li>Tactical Veteran (Gravgun)</li> <li>Jumppack Assault Veteran (Axe)</li> <li>Devastator Veteran (Autocannon)</li> </ul> Balance: <ul> <li>Heavy bolter damage reduced</li> <li>Devastators mobility reduced</li> <li>Bolter spread reduced</li> </ul> Fixes: <ul> <li>Finally assumed fix of melee character positions desync</li> <li>Assumed fix of no sprinting mode after exiting ADS</li> <li>Player hosts will now be asked to wait at least 10 seconds before destroying the session after match end</li> <li>Automatic swap of camera while bracing as Devastator</li> </ul> </body> </html>"
   },
