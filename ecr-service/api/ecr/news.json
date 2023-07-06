@@ -1,5 +1,10 @@
 [
   {
+    "title": "VETERAN SYSTEM",
+    "content": "Now you can exchange received XP for spawning as Veterans on the battle field.",
+    "image": "images/veterans.png"
+  },
+  {
     "title": "FIRST DEDICATED SERVERS (RU, EU)",
     "content": "We created first dedicated servers in Russia (Moscow) and Europe (Frankfurt). They will be available during planned game events",
     "image": "images/servers.jpg"
