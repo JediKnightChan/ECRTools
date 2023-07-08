@@ -1,6 +1,7 @@
 import requests
 import random
 import subprocess
+import os
 
 FALLBACK_REGION = "N/A"
 FALLBACK_MATCH_DATA = {
@@ -15,6 +16,10 @@ FALLBACK_MATCH_DATA = {
 
 
 def get_region():
+    env_value = os.getenv("REGION", "")
+    if env_value:
+        return env_value
+
     region = FALLBACK_REGION
 
     try:
