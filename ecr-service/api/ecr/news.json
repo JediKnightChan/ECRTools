@@ -1,5 +1,10 @@
 [
   {
+    "title": "NEW MAPS",
+    "content": "Completely new map is now available – Railgate Ravine. Along with it, Olipsis Refinery now appears in ECR.",
+    "image": "images/railgate.png"
+  },
+  {
     "title": "VETERAN SYSTEM",
     "content": "Now you can exchange received XP for spawning as Veterans on the battle field.",
     "image": "images/veterans.png"

@@ -4,6 +4,16 @@
       "weight": 1,
       "map": "/Game/Maps/ZedekNew_TH",
       "mode": "pvp"
+    },
+    "OlipsisSupremacy": {
+      "weight": 1,
+      "map": "/Game/Maps/Levels/RefineryOlipsis",
+      "mode": "pvp"
+    },
+    "RailgateSupremacy": {
+      "weight": 1,
+      "map": "/Game/Maps/Levels/RailgateRavine",
+      "mode": "pvp"
     }
   }
 }
