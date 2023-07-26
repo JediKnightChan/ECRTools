@@ -1,5 +1,13 @@
 [
   {
+    "title": "ECR 1.2.7",
+    "content": "<html> <head/> <body> Fixes: <ul> <li>Bug with character proxies (empty health bars redirecting damage to player) appearing after match start</li> <li>Problems with the wounded state and its consequences (slow walking, etc.)</li> </ul> Balance: <ul> <li>Bolter damaged increased</li> <li>Jump Pack HP and shield reduced</li> </ul> </body> </html>"
+  },
+  {
+    "title": "ECR 1.2.6",
+    "content": "<html> <head/> <body> Fixes: <ul> <li>Bugs with \"wounded\" state not applied to character</li> <li>Chaos Healing Beam now appears correctly</li> <li>Maps are no longer filled with the whispers of Warp</li> <li>Melee chance to evade after attacking Defensive Dash with fast attack increased</li> </ul> Balance: <ul> <li>Server side validation of non-projectile ranged weapon hits</li> </ul> </body> </html>"
+  },
+  {
     "title": "ECR 1.2.5",
     "content": "<html> <head/> <body> New content: <ul> <li>Apothecary class (F for narthecium healing, G for healing grenade)</li> <li>Sorcerer class (LMB for Healing Beam, F for AOE heal)</li> </ul> Fixes: <ul> <li>A bug with a \"wounded\" indicator over non-wounded players is no more</li> <li>Improvement of execution victim positioning</li> <li>Improvement of spawning to prevent spawning inside the floor</li> <li>Fixes for wrong character customizations</li> <li>Olipsis rain sounds volume is now controlled by Ambiance slider</li> <li>Fixes for new maps sometimes being completely dark</li> </ul> Balance: <ul> <li>Ground Assault now has a plasma pistol</li> <li>Plasma weapons charged shots now have a 2s cooldown</li> <li>Various changes on Railgate Ravine: new path for attackers to point C in the train, more open space</li> <li>Olipsis defenders now don't spawn on captured points near the terminal</li> <li>Melee clash time significantly reduced</li> <li>Melee chance to escape after attacking Defensive Dash with light attack significantly reduced</li> <li>Time to cancel Defensive Dash with evade reduced</li> </ul> </body> </html>"
   },
