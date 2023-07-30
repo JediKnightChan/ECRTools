@@ -13,6 +13,8 @@ from aws_api import AWSWorker
 
 PUBLIC_KEY = os.getenv("PUBLIC_KEY", "")
 
+#This is the webhook url of a webhook on the suggestions channel
+SUGGESTIONS_WEBHOOK_URL = os.getenv("SUGGESTIONS_WEBHOOK_URL", "")
 
 def json_response(dict_, status_code=200):
     return {
@@ -30,6 +32,15 @@ def discord_text_response(text):
         }
     })
 
+def send_to_discord_webhook(webhook_url, message):
+    # Posts a message to discord API via a Webhook.
+    payload = {
+        "content": message
+    }
+    headers = {
+        'Content-Type': 'application/json',
+    }
+    response = requests.post(webhook_url, data=json.dumps(payload), headers=headers)
 
 def get_command_option(command_data, name):
     options = command_data["options"]
@@ -103,6 +114,8 @@ def command_handler(body):
 
         return instance, region, None
 
+
+
     if command == 'start_ecr_server':
         if up.is_user_creator() or up.is_user_community_manager():
             instance, region, error_response = get_server_instance_from_command_data(command_data)
@@ -169,6 +182,9 @@ def command_handler(body):
                     
         else:
             return discord_text_response("You are not allowed to use this command")
+			
+			
+			
     elif command == "stop_ecr_server":
         if up.is_user_creator() or up.is_user_community_manager() or up.is_user_admin() or up.is_user_project_developer():
             instance, region, error_response = get_server_instance_from_command_data(command_data)
@@ -203,6 +219,20 @@ def command_handler(body):
                     
         else:
             return discord_text_response("You are not allowed to use this command")
+			
+			
+			
+	elif command == "suggest_improvement":
+		suggestion = get_command_option(command_data, "suggestion")
+		if suggestion:
+			response = send_to_discord_webhook(SUGGESTIONS_WEBHOOK_URL, 
+				"@" + body["member"]["user"]["username"] + get_command_option(command_data, "suggestion"))
+			if (response.status_code == 204):
+				return discord_text_response("Your suggestion has been added")
+		return discord_text_response("There seems to have been an issue with adding your suggestion")
+		
+	
+	
     else:
         logging.error(f"Unknown command {command}")
         return json_response({"error": "unhandled command"}, status_code=400)
