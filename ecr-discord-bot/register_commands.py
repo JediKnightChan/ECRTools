@@ -156,3 +156,29 @@ response = requests.post(
 )
 
 print(response.text)
+
+
+
+# Suggestion ECR server command
+/suggest_improvement {message}
+json_data_3 = {
+    'name': 'suggest_improvement',
+    'description': 'Suggest an improvement for ECR',
+    'options': [
+        {
+            'type': 3,
+            'name': 'suggestion',
+            'description': 'Your Suggestion',
+            'required': True
+        },
+    ],
+}
+
+# Add Suggestion ECR server command
+response = requests.post(
+    "https://discord.com/api/v8/applications/1121516250972041298/guilds/895445476969705473/commands",
+    headers=headers,
+    json=json_data_3,
+)
+
+print(response.text)
