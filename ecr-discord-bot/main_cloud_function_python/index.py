@@ -13,8 +13,13 @@ from aws_api import AWSWorker
 
 PUBLIC_KEY = os.getenv("PUBLIC_KEY", "")
 
-#This is the webhook url of a webhook on the suggestions channel
-SUGGESTIONS_WEBHOOK_URL = os.getenv("SUGGESTIONS_WEBHOOK_URL", "")
+# /suggest_improvement suggestion Credentials and Data
+BOT_TOKEN = os.getenv("BOT_TOKEN", "")
+SUGGESTION_CHANNEL_ID = os.getenv("SUGGESTION_CHANNEL_ID", "")
+
+# Yandex Credentials
+YANDEX_IAM_TOKEN = os.getenv("YANDEX_IAM_TOKEN", "")
+YANDEX_FOLDER_ID = os.getenv("YANDEX_FOLDER_ID", "")
 
 def json_response(dict_, status_code=200):
     return {
@@ -22,7 +27,6 @@ def json_response(dict_, status_code=200):
         'headers': {"Content-Type": "application/json"},
         'body': json.dumps(dict_)
     }
-
 
 def discord_text_response(text):
     return json_response({
@@ -32,16 +36,6 @@ def discord_text_response(text):
         }
     })
 
-def send_to_discord_webhook(webhook_url, message):
-    # Posts a message to discord API via a Webhook.
-    payload = {
-        "content": message
-    }
-    headers = {
-        'Content-Type': 'application/json',
-    }
-    response = requests.post(webhook_url, data=json.dumps(payload), headers=headers)
-
 def get_command_option(command_data, name):
     options = command_data["options"]
     for option in options:
@@ -49,6 +43,23 @@ def get_command_option(command_data, name):
             return option["value"]
     return None
 
+def yandex_translate(text, lang):
+    body = {
+        "targetLanguageCode": lang,
+        "texts": [text],
+        "folderId": YANDEX_FOLDER_ID,
+    }
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer {0}".format(YANDEX_IAM_TOKEN)
+    }
+    response = requests.post('https://translate.api.cloud.yandex.net/translate/v2/translate',
+        json = body,
+        headers = headers
+    )
+    if response:
+        return response.text
+    return None
 
 def lambda_handler(event, context):
     try:
@@ -225,10 +236,31 @@ def command_handler(body):
     elif command == "suggest_improvement":
         suggestion = get_command_option(command_data, "suggestion")
         if suggestion:
-            response = send_to_discord_webhook(SUGGESTIONS_WEBHOOK_URL, 
-                "@" + body["member"]["user"]["username"] + get_command_option(command_data, "suggestion"))
-            if (response.status_code == 204):
-                return discord_text_response("Your suggestion has been added")
+            # Treat suggestion for it to be in English and Russian
+            message_en = yandex_translate(suggestion, 'en')
+            message_ru = yandex_translate(suggestion, 'ru')
+            if message_en and message_ru:
+                message = "@" + body["member"]["user"]["username"] + " suggested : \n" + message_en + "\n" + message_ru
+                POSTedJSON =  json.dumps ( {"content":message} )
+                
+                # Header for bot exchange
+                headers = { "Authorization":"Bot {}".format(BOT_TOKEN),
+                    "User-Agent":"myBotThing (http://some.url, v0.1)",
+                    "Content-Type":"application/json", }
+                baseURL = "https://discordapp.com/api/channels/{}/messages".format(SUGGESTION_CHANNEL_ID)
+                
+                # Send message
+                response = requests.post(baseURL, headers = headers, data = POSTedJSON)
+                
+                if (response.status_code == 200):
+                    # Add reactions
+                    message_id = response.json()['id']
+                    response1 = requests.put("https://discordapp.com/api/channels/{}/messages/{}/reactions/🟩/@me".format(SUGGESTION_CHANNEL_ID, message_id), headers=headers)
+                    response2 = requests.put("https://discordapp.com/api/channels/{}/messages/{}/reactions/🟥/@me".format(SUGGESTION_CHANNEL_ID, message_id), headers=headers)
+                
+                    if ((response1.status_code == 204) and (response2.status_code == 204)):
+                        return discord_text_response("Your suggestion has been added")
+                    
         return discord_text_response("There seems to have been an issue with adding your suggestion")
         
     
