@@ -1,34 +1,22 @@
 {
   "branch_prod": {
-    "version": "1.2.7",
+    "version": "1.2.8",
     "complete_archives": {
       "Windows": {
-        "gdrive_id": "1FOyKpPL_j0f8JGgSYN-QZyDaQ94UhKE8",
+        "gdrive_id": "1VCgDotzB6vB0yGJxG-Jeg-pE9LojDMe6",
         "github_chunk_urls": [
-          "https://github.com/EternalCrusadeResurrection/ECRGame/releases/download/game_prod_1.2.7/game.zip.chunk.0",
-          "https://github.com/EternalCrusadeResurrection/ECRGame/releases/download/game_prod_1.2.7/game.zip.chunk.1"
+          "https://github.com/EternalCrusadeResurrection/ECRGame/releases/download/game_prod_1.2.8/game.zip.chunk.0",
+          "https://github.com/EternalCrusadeResurrection/ECRGame/releases/download/game_prod_1.2.8/game.zip.chunk.1"
         ],
-        "size": 2609252311,
-        "hash": "6db91838c412bc47d0dcea5ecaf0b8f9",
+        "size": 3014091074,
+        "hash": "c5166b941bbfe0611f2cb353ebc9d83c",
         "verify_files": {
           "ECR.exe": "456ff9b87db7f529d870c4737d0e95bc",
-          "ECR/Binaries/Win64/ECR-Win64-Shipping.exe": "6c04ff588fe72842296a8ee22f3249a3",
-          "ECR/Content/Paks/ECR-Windows.pak": "79be62f5a33e684816f892de3ecda1ab",
-          "ECR/Content/Paks/ECR-Windows.sig": "4d7e63d1982a7f7671bb1eae693a8e0f",
-          "ECR/Content/Paks/ECR-Windows.ucas": "5bbf552257c82521f1ae3c29a679b895",
-          "ECR/Content/Paks/ECR-Windows.utoc": "fda46322e3634f4ef0d53a55b923ba5a",
-          "ECR/Content/Paks/ECR-Windows_0_P.pak": "f0d91a9cea1b6abaf696e0fdfda8b198",
-          "ECR/Content/Paks/ECR-Windows_0_P.sig": "373e375973d4a6b186abe80792b9bcbf",
-          "ECR/Content/Paks/ECR-Windows_0_P.ucas": "115fe289475c2445c9c05cbf0d28ddf9",
-          "ECR/Content/Paks/ECR-Windows_0_P.utoc": "94d368eaf063d95cd8fd8abdbdb2d4fd",
-          "ECR/Content/Paks/ECR-Windows_1_P.pak": "cef17f611887e8ae7bd58de2e105755a",
-          "ECR/Content/Paks/ECR-Windows_1_P.sig": "ed0e09428962d9f4f76cb833542bab77",
-          "ECR/Content/Paks/ECR-Windows_1_P.ucas": "4594e40471fd97cf8b74c8741a97615d",
-          "ECR/Content/Paks/ECR-Windows_1_P.utoc": "fd37b48d1260c844cea2810f71aa74f6",
-          "ECR/Content/Paks/ECR-Windows_2_P.pak": "596193b7b5dbdb2b92d405b0ca5044d5",
-          "ECR/Content/Paks/ECR-Windows_2_P.sig": "75c563721d72bd87ffa7e64bd91efc52",
-          "ECR/Content/Paks/ECR-Windows_2_P.ucas": "cb09f439e44dce01c4321269f5cfed8a",
-          "ECR/Content/Paks/ECR-Windows_2_P.utoc": "40507fa2c8143938eb32c3c75821233b",
+          "ECR/Binaries/Win64/ECR-Win64-Shipping.exe": "1e90802ae63e553fac4217b4578c1be0",
+          "ECR/Content/Paks/ECR-Windows.pak": "5d74a27355291bc2f43be31ee9e9b804",
+          "ECR/Content/Paks/ECR-Windows.sig": "ff3e59e040ff34640f045cbbcc6def06",
+          "ECR/Content/Paks/ECR-Windows.ucas": "db634e3f1f5ac3abc2c89383edc7dcac",
+          "ECR/Content/Paks/ECR-Windows.utoc": "b073fe50988129b50c537833612863b1",
           "ECR/Content/Paks/global.ucas": "9151a2a0044232eb39bf089d8b961476",
           "ECR/Content/Paks/global.utoc": "baaa3ffd0c4c8668e9d799d9bb12e2ea"
         }

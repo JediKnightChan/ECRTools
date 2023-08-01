@@ -11,7 +11,7 @@ def md5(filename):
     return hash_md5.hexdigest()
 
 
-tag = "prod_1.2.5"
+tag = "prod_1.2.8"
 root_root_dir = f"C:/Users/JediKnight/Documents/Unreal Projects/ECRPackagedShipping/{tag}/"
 game_dir = os.path.join(root_root_dir, "Windows")
 archive = os.path.join(root_root_dir, "game.zip")
