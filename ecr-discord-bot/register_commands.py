@@ -12,10 +12,6 @@ headers = {
 }
 
 # Common values definition
-# europe-west3-a is Frankfurt zone a (West Germany)
-# us-central1-a is Dallas zone a (Texas)
-# Eventually to modify if the servers are setup in another region/zone
-# Zones are sub units inside a region (exemple : another datacenter in the same city)
 region_choices = [
                 {
                     'name': 'Russian Region',
@@ -23,11 +19,11 @@ region_choices = [
                 },
                 {
                     'name': 'European Region',
-                    'value': 'europe-west3-a',
+                    'value': 'eu',
                 },
                 {
                     'name': 'North American Region',
-                    'value': 'us-central1-a',
+                    'value': 'us',
                 },
             ]
 
