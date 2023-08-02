@@ -9,7 +9,8 @@ from nacl.exceptions import BadSignatureError
 
 from permissions import DiscordPermissions
 from yandex_api import YandexWorker
-from aws_api import AWSWorker
+# from aws_api import AWSWorker
+from google_api import GoogleWorker
 
 PUBLIC_KEY = os.getenv("PUBLIC_KEY", "")
 
@@ -110,8 +111,8 @@ def command_handler(body):
         def get_region_to_instance(region_):
             region_to_instance = {
                 "ru": "epdvna5is52f8i85vsst"
-                "eu": "TODO-EUINSTANCE"
-                "us": "TODO-USINSTANCE"
+                "eu": "TODO-EUINSTANCE_NAME"
+                "us": "TODO-USINSTANCE_NAME"
             }
             return region_to_instance.get(region_, None)
 
@@ -172,24 +173,39 @@ def command_handler(body):
                         return discord_text_response(f"Server already running ({region})")
                     else:
                         return discord_text_response(f"Unknown status ({region})")
+            # AWS Version
+            # elif (region == "eu"):
+                # aw = AWSWorker()
+                # res = aw.start_instance("eu-central-1", instance)
+                # if (res.get('StartingInstances')[0].get('CurrentState').get('Name')) == "pending":
+                    # return discord_text_response(f"Starting ecr server ({region})")
+                # elif (res.get('StartingInstances')[0].get('CurrentState').get('Name')) == "running":
+                    # return discord_text_response(f"Server already running ({region})")
+                # else:
+                    # return discord_text_response(f"Unknown status ({region})")
+            # elif (region == "us"):
+                # aw = AWSWorker()
+                # res = aw.start_instance("us-east-1", instance)
+                # if (res.get('StartingInstances')[0].get('CurrentState').get('Name')) == "pending":
+                    # return discord_text_response(f"Starting ecr server ({region})")
+                # elif (res.get('StartingInstances')[0].get('CurrentState').get('Name')) == "running":
+                    # return discord_text_response(f"Server already running ({region})")
+                # else:
+                    # return discord_text_response(f"Unknown status ({region})")    
+                    
+            # Google Version
+            # europe-west3-a is Frankfurt zone a (West Germany)
+            # us-central1-a is Dallas zone a (Texas)
+            # Eventually to modify if the servers are setup in another region/zone
+            # Zones are sub units inside a region (exemple : another datacenter in the same city)
             elif (region == "eu"):
-                aw = AWSWorker()
-                res = aw.start_instance("eu-central-1", instance)
-                if (res.get('StartingInstances')[0].get('CurrentState').get('Name')) == "pending":
-                    return discord_text_response(f"Starting ecr server ({region})")
-                elif (res.get('StartingInstances')[0].get('CurrentState').get('Name')) == "running":
-                    return discord_text_response(f"Server already running ({region})")
-                else:
-                    return discord_text_response(f"Unknown status ({region})")
+                g = GoogleWorker()
+                g.start_instance("europe-west3-a", instance)
+                return discord_text_response(f"Starting ecr server ({region})")
             elif (region == "us"):
-                aw = AWSWorker()
-                res = aw.start_instance("us-east-1", instance)
-                if (res.get('StartingInstances')[0].get('CurrentState').get('Name')) == "pending":
-                    return discord_text_response(f"Starting ecr server ({region})")
-                elif (res.get('StartingInstances')[0].get('CurrentState').get('Name')) == "running":
-                    return discord_text_response(f"Server already running ({region})")
-                else:
-                    return discord_text_response(f"Unknown status ({region})")
+                g = GoogleWorker()
+                g.start_instance("us-central1-a", instance)
+                return discord_text_response(f"Starting ecr server ({region})")
                     
         else:
             return discord_text_response("You are not allowed to use this command")
@@ -209,24 +225,39 @@ def command_handler(body):
                     return discord_text_response(f"Stopping ecr server ({region})")
                 else:
                     return discord_text_response(f"Server already stopped ({region})")
+            # AWS Version
+            # elif (region == "eu"):
+                # aw = AWSWorker()
+                # res = aw.stop_instance("eu-central-1", instance)
+                # if (res.get('StoppingInstances')[0].get('CurrentState').get('Name')) == "stopping":
+                    # return discord_text_response(f"Stopping ecr server ({region})")
+                # elif (res.get('StoppingInstances')[0].get('CurrentState').get('Name')) == "stopped":
+                    # return discord_text_response(f"Server already stopped ({region})")
+                # else:
+                    # return discord_text_response(f"Unknown status ({region})")
+            # elif (region == "us"):
+                # aw = AWSWorker()
+                # res = aw.stop_instance("us-east-1", instance)
+                # if (res.get('StoppingInstances')[0].get('CurrentState').get('Name')) == "stopping":
+                    # return discord_text_response(f"Stopping ecr server ({region})")
+                # elif (res.get('StoppingInstances')[0].get('CurrentState').get('Name')) == "stopped":
+                    # return discord_text_response(f"Server already stopped ({region})")
+                # else:
+                    # return discord_text_response(f"Unknown status ({region})")
+                    
+            # Google Version
+            # europe-west3-a is Frankfurt zone a (West Germany)
+            # us-central1-a is Dallas zone a (Texas)
+            # Eventually to modify if the servers are setup in another region/zone
+            # Zones are sub units inside a region (exemple : another datacenter in the same city)
             elif (region == "eu"):
-                aw = AWSWorker()
-                res = aw.stop_instance("eu-central-1", instance)
-                if (res.get('StoppingInstances')[0].get('CurrentState').get('Name')) == "stopping":
-                    return discord_text_response(f"Stopping ecr server ({region})")
-                elif (res.get('StoppingInstances')[0].get('CurrentState').get('Name')) == "stopped":
-                    return discord_text_response(f"Server already stopped ({region})")
-                else:
-                    return discord_text_response(f"Unknown status ({region})")
+                g = GoogleWorker()
+                g.stop_instance("europe-west3-a", instance)
+                return discord_text_response(f"Stopping ecr server ({region})")
             elif (region == "us"):
-                aw = AWSWorker()
-                res = aw.stop_instance("us-east-1", instance)
-                if (res.get('StoppingInstances')[0].get('CurrentState').get('Name')) == "stopping":
-                    return discord_text_response(f"Stopping ecr server ({region})")
-                elif (res.get('StoppingInstances')[0].get('CurrentState').get('Name')) == "stopped":
-                    return discord_text_response(f"Server already stopped ({region})")
-                else:
-                    return discord_text_response(f"Unknown status ({region})")
+                g = GoogleWorker()
+                g.stop_instance("us-central1-a", instance)
+                return discord_text_response(f"Stopping ecr server ({region})")
                     
         else:
             return discord_text_response("You are not allowed to use this command")
