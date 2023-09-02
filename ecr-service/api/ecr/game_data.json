@@ -1,28 +1,24 @@
 {
   "branch_prod": {
-    "version": "1.2.3",
+    "version": "1.2.9",
     "complete_archives": {
       "Windows": {
-        "gdrive_id": "1OMjNEjE5dq4tKnwcbd_sh1SaltCz2s93",
+        "gdrive_id": "1WEfvjfx9KLGU6IDM3ajamvCnGy8udlE2",
         "github_chunk_urls": [
-          "https://github.com/EternalCrusadeResurrection/ECRGame/releases/download/game_prod_1.2.3/game.zip.chunk.0",
-          "https://github.com/EternalCrusadeResurrection/ECRGame/releases/download/game_prod_1.2.3/game.zip.chunk.1"
+          "https://github.com/EternalCrusadeResurrection/ECRGame/releases/download/game_prod_1.2.9/game.zip.chunk.0",
+          "https://github.com/EternalCrusadeResurrection/ECRGame/releases/download/game_prod_1.2.9/game.zip.chunk.1"
         ],
-        "size": 2460117454,
-        "hash": "19b5447468080fafca93d162cfb84020",
+        "size": 3019669903,
+        "hash": "537c308dd8fcab55298ef42f5a22b8bf",
         "verify_files": {
-          "ECR.exe": "456ff9b87db7f529d870c4737d0e95bc",
-          "ECR/Binaries/Win64/ECR-Win64-Shipping.exe": "fe1febc23e0af646fb5cdc955187e443",
-          "ECR/Content/Paks/ECR-Windows.pak": "2f5fe9822455fbc5b123f7fe3fe1c27a",
-          "ECR/Content/Paks/ECR-Windows.sig": "9900db704335b0b2ec72246d61bac00f",
-          "ECR/Content/Paks/ECR-Windows.ucas": "036551bebea3e4225cc944c691cef8ef",
-          "ECR/Content/Paks/ECR-Windows.utoc": "943c6621b1913d050898c63e7c927f72",
-          "ECR/Content/Paks/ECR-Windows_0_P.pak": "04779936bbc1ce9bab853ac2a673cfdc",
-          "ECR/Content/Paks/ECR-Windows_0_P.sig": "94cd59efddfc803a6273cf485cb4aef9",
-          "ECR/Content/Paks/ECR-Windows_0_P.ucas": "d4bbe1f7e29ea95f1115a2d33d948aef",
-          "ECR/Content/Paks/ECR-Windows_0_P.utoc": "a696e371b98889e6f20b6a86ef23c69b",
-          "ECR/Content/Paks/global.ucas": "36ad10c3e8f6dd514eb69e7eb68e0260",
-          "ECR/Content/Paks/global.utoc": "48f98e704d3bcbd3911f6ece619b0d30"
+          "ECR.exe": "23a2e544391724be4e9402d24e668725",
+          "ECR/Binaries/Win64/ECR-Win64-Shipping.exe": "2d3c2b553fc85e007afefa73af16228b",
+          "ECR/Content/Paks/ECR-Windows.pak": "f6fc33b42c4b997cd0ebac847b5f673b",
+          "ECR/Content/Paks/ECR-Windows.sig": "b70245ea42504dc26ff0f544d4454231",
+          "ECR/Content/Paks/ECR-Windows.ucas": "359426acb436d8605e69eead938bc195",
+          "ECR/Content/Paks/ECR-Windows.utoc": "00bd882a6e644645f5aed08182febd6c",
+          "ECR/Content/Paks/global.ucas": "031f1af49e907dab9446733e57a47dac",
+          "ECR/Content/Paks/global.utoc": "70335e486a070d8c2c87c428bd15c8d8"
         }
       }
     }

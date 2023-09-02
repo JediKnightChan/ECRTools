@@ -1,5 +1,29 @@
 [
   {
+    "title": "ECR 1.2.9",
+    "content": "<html> <head/> <body> Fixes: <ul> <li>Logging is now enabled for debugging problems with the game</li> <li>Replay system is now available for the same purposes</li> <li>Spawn logic improved to fix bug with characters not spawning</li> <li>Infinite gameplay effects logic improved to fix bugs with characters not exiting ADS</li> </ul> Balance: <ul> <li>Changes on Olipsis, Railgate, major changes on Zedek</li> </ul> </body> </html>"
+  },
+  {
+    "title": "ECR 1.2.8",
+    "content": "<html> <head/> <body> New content: <ul> <li>New map: Maccrage's Fury and a new game mode: Boarding Action</li> <li>New game classes: Plasma Cannon Devastator / Havoc and Melee Veteran with axe and shield</li> </ul> Fixes: <ul> <li>Falling is now more forgivable considering stun and idle animations time</li> <li>Plasma mechanic reworked: there is now minimum and maximum time for charging a shot</li> <li>Dark maps on \"Servitor\" graphics settings should finally be fixed</li> </ul> Balance: <ul> <li>Increased amount of XP for starting and finishing point capture</li> </ul> </body> </html>"
+  },
+  {
+    "title": "ECR 1.2.7",
+    "content": "<html> <head/> <body> Fixes: <ul> <li>Bug with character proxies (empty health bars redirecting damage to player) appearing after match start</li> <li>Problems with the wounded state and its consequences (slow walking, etc.)</li> </ul> Balance: <ul> <li>Bolter damaged increased</li> <li>Jump Pack HP and shield reduced</li> </ul> </body> </html>"
+  },
+  {
+    "title": "ECR 1.2.6",
+    "content": "<html> <head/> <body> Fixes: <ul> <li>Bugs with \"wounded\" state not applied to character</li> <li>Chaos Healing Beam now appears correctly</li> <li>Maps are no longer filled with the whispers of Warp</li> <li>Melee chance to evade after attacking Defensive Dash with fast attack increased</li> </ul> Balance: <ul> <li>Server side validation of non-projectile ranged weapon hits</li> </ul> </body> </html>"
+  },
+  {
+    "title": "ECR 1.2.5",
+    "content": "<html> <head/> <body> New content: <ul> <li>Apothecary class (F for narthecium healing, G for healing grenade)</li> <li>Sorcerer class (LMB for Healing Beam, F for AOE heal)</li> </ul> Fixes: <ul> <li>A bug with a \"wounded\" indicator over non-wounded players is no more</li> <li>Improvement of execution victim positioning</li> <li>Improvement of spawning to prevent spawning inside the floor</li> <li>Fixes for wrong character customizations</li> <li>Olipsis rain sounds volume is now controlled by Ambiance slider</li> <li>Fixes for new maps sometimes being completely dark</li> </ul> Balance: <ul> <li>Ground Assault now has a plasma pistol</li> <li>Plasma weapons charged shots now have a 2s cooldown</li> <li>Various changes on Railgate Ravine: new path for attackers to point C in the train, more open space</li> <li>Olipsis defenders now don't spawn on captured points near the terminal</li> <li>Melee clash time significantly reduced</li> <li>Melee chance to escape after attacking Defensive Dash with light attack significantly reduced</li> <li>Time to cancel Defensive Dash with evade reduced</li> </ul> </body> </html>"
+  },
+  {
+    "title": "ECR 1.2.4.",
+    "content": "<html> <head/> <body> New content &mdash; two maps: <ul> <li>New map: Railgate Ravine</li> <li>Old EC map restored: Olipsis Refinery</li> </ul> Fixes: <ul> <li>Incorrect camera inversion while bracing and shooting fixed for Devastator</li> </ul> Balance: <ul> <li>Grav gun damage increased</li> <li>Auto cannon spread reduced</li> <li>Grenade can now be exploded by shooting faster than earlier</li> <li>Granted XP amount for a number of actions was reduced</li> </ul> </body> </html>"
+  },
+  {
     "title": "ECR 1.2.3",
     "content": "<html> <head/> <body> New mechanics: <ul> <li>Stopping point capture grants XP to all players of the same faction near the point</li> <li>Killing and executing enemy veterans grants more XP than usual marines</li> <li>Penalty in XP for friendly fire kills and finishes reduced</li> <li>After certain amount of friendly fire kills the player will be banned from the match</li> </ul> Balance: <ul> <li>Grav gun damage reduced, heat gathering increased</li> <li>Autocannon spread reduced</li> </ul> Fixes: <ul> <li>Fix of melee character positions desync now also accounts for character rotations</li> </ul> </body> </html>"
   },

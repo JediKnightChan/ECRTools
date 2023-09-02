@@ -1,3 +1,6 @@
+# Upload ecr-service index.json and api folder to S3,
+# used on Windows because of problems with the aws cli on it
+
 import os
 
 import boto3

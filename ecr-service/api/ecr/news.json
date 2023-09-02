@@ -1,22 +1,32 @@
 [
   {
+    "title": "BOARDING ACTION",
+    "content": "In patch 1.2.8 along with 2 new classes appears a new game mode – Boarding Action, on the board of the frigate Maccrage's Fury.",
+    "image": "images/maccrages_fury.png"
+  },
+  {
+    "title": "NEW MAPS",
+    "content": "Completely new map is now available – Railgate Ravine. Along with it, Olipsis Refinery now appears in ECR.",
+    "image": "images/railgate.png"
+  },
+  {
     "title": "VETERAN SYSTEM",
     "content": "Now you can exchange received XP for spawning as Veterans on the battle field.",
     "image": "images/veterans.png"
   },
   {
     "title": "FIRST DEDICATED SERVERS (RU, EU)",
-    "content": "We created first dedicated servers in Russia (Moscow) and Europe (Frankfurt). They will be available during planned game events",
+    "content": "We created first dedicated servers in Russia (Moscow) and Europe (Frankfurt). They will be available during planned game events.",
     "image": "images/servers.jpg"
   },
   {
     "title": "WELCOME BACK, CRUSADERS",
-    "content": "On May 28, 2023, one and a half year after the game shutdown, Eternal Crusade: Resurrection is finally available for everyone",
+    "content": "On May 28, 2023, one and a half year after the game shutdown, Eternal Crusade: Resurrection is finally available for everyone.",
     "image": "images/ec_welcome.jpg"
   },
   {
     "title": "ECR OPEN ALPHA TRAILER IS LIVE",
-    "content": "<html><head/><body>The trailer of Eternal Crusade: Resurrection alpha is available on <a href='https://www.youtube.com/watch?v=oxWmVLufGuo' style='color: #8B0000; text-decoration: none'>YouTube</a></body></html>",
+    "content": "<html><head/><body>The trailer of Eternal Crusade: Resurrection alpha is available on <a href='https://www.youtube.com/watch?v=oxWmVLufGuo' style='color: #8B0000; text-decoration: none'>YouTube</a>.</body></html>",
     "image": "images/ecr_trailer_preview.jpg"
   }
 ]
