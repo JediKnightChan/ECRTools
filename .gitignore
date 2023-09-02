@@ -3,3 +3,4 @@ __pycache__
 ecr-server/key.json
 *.env
 *.pem
+temp.py
