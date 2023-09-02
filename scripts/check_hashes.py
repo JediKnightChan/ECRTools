@@ -1,3 +1,6 @@
+# Checks hash of most important game content,
+# then should place this info to ecr-service/api/game_data.json
+
 import os.path
 import hashlib
 import json
@@ -11,7 +14,7 @@ def md5(filename):
     return hash_md5.hexdigest()
 
 
-tag = "prod_1.2.8"
+tag = "prod_1.2.9"
 root_root_dir = f"C:/Users/JediKnight/Documents/Unreal Projects/ECRPackagedShipping/{tag}/"
 game_dir = os.path.join(root_root_dir, "Windows")
 archive = os.path.join(root_root_dir, "game.zip")

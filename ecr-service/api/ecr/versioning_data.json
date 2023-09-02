@@ -1,9 +1,9 @@
 {
   "branch_prod": {
-    "1.2.8": {
+    "1.2.9": {
       "Windows": {
         "gdrive_id": "None",
-        "size": 3014091074
+        "size": 3019669903
       }
     }
   }
