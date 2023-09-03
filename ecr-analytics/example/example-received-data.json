@@ -156,12 +156,22 @@
     },
     {
       "t": "CH_1",
-      "value": "-17",
+      "value": "100",
       "tps": "PS_0",
       "tf": "CSM",
       "tl": "TacS",
       "tc": "X=1253.549 Y=1144.859 Z=97.213",
-      "action": "Friendly fire",
+      "action": "Enemy down",
+      "Type": "XP"
+    },
+    {
+      "t": "CH_1",
+      "value": "100",
+      "tps": "PS_0",
+      "tf": "CSM",
+      "tl": "TacS",
+      "tc": "X=1253.549 Y=1144.859 Z=97.213",
+      "action": "Enemy down",
       "Type": "XP"
     },
     {
