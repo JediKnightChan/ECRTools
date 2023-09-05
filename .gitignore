@@ -5,3 +5,4 @@ ecr-analytics/example/data/
 *.env
 *.pem
 temp.py
+scripts/credentials.json
