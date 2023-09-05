@@ -1,6 +1,7 @@
 .idea/
 __pycache__
 ecr-server/key.json
+ecr-analytics/example/data/
 *.env
 *.pem
 temp.py
