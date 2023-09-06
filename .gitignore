@@ -6,3 +6,4 @@ ecr-analytics/example/data/
 *.pem
 temp.py
 scripts/credentials.json
+scripts/github_token.txt
