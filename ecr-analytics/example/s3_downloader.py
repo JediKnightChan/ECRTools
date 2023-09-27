@@ -3,6 +3,7 @@
 import os
 from collections import namedtuple
 from operator import attrgetter
+from tqdm import tqdm
 
 import boto3
 
