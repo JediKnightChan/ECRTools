@@ -1,22 +1,26 @@
 {
   "branch_prod": {
-    "version": "1.3.0",
+    "version": "1.3.1",
     "complete_archives": {
       "Windows": {
-        "gdrive_id": "1i7Bxk0-Hc9xERx8BO_qtQ4bJvxwrvNUS",
+        "gdrive_id": "1Mhyevqq6-5P81jASEwa_1z54hVCxJVwJ",
         "github_chunk_urls": [
-          "https://github.com/EternalCrusadeResurrection/ECRGame/releases/download/game_prod_1.3.0/game.zip.chunk.0",
-          "https://github.com/EternalCrusadeResurrection/ECRGame/releases/download/game_prod_1.3.0/game.zip.chunk.1"
+          "https://github.com/EternalCrusadeResurrection/ECRGame/releases/download/game_prod_1.3.1/game.zip.chunk.0",
+          "https://github.com/EternalCrusadeResurrection/ECRGame/releases/download/game_prod_1.3.1/game.zip.chunk.1"
         ],
-        "size": 3054438032,
-        "hash": "48b8e20aa3ba2715d345396acf0509d3",
+        "size": 3080659562,
+        "hash": "58466376d50270fc151708f9e1962e94",
         "verify_files": {
           "ECR.exe": "23a2e544391724be4e9402d24e668725",
-          "ECR/Binaries/Win64/ECR-Win64-Shipping.exe": "4ccdce90f17d531ff08869ab9d647350",
+          "ECR/Binaries/Win64/ECR-Win64-Shipping.exe": "2a9c88cfd0d88c58d4d5f223550be344",
           "ECR/Content/Paks/ECR-Windows.pak": "0db20bb9591ca0927c7011f7df418b1a",
           "ECR/Content/Paks/ECR-Windows.sig": "154b063b51bbc45311e3c92163b189b4",
           "ECR/Content/Paks/ECR-Windows.ucas": "5be29d738c532fec9c6b9cf1beb6647c",
           "ECR/Content/Paks/ECR-Windows.utoc": "1667e9633fb53f37728690a68d063421",
+          "ECR/Content/Paks/ECR-Windows_0_P.pak": "ae60760f2da467c290e14c521cb03c0a",
+          "ECR/Content/Paks/ECR-Windows_0_P.sig": "4ea34cd0293dc80ee0902972492f9308",
+          "ECR/Content/Paks/ECR-Windows_0_P.ucas": "3d39c1238ebc452a473be394a145e1cc",
+          "ECR/Content/Paks/ECR-Windows_0_P.utoc": "441ac225cd377089c9e559e06ea2190d",
           "ECR/Content/Paks/global.ucas": "7132a98e0324111f8aa7452faeaa617b",
           "ECR/Content/Paks/global.utoc": "801005b2667b4bb0bf5a0737c9f66914"
         }
