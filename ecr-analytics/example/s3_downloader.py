@@ -109,14 +109,14 @@ def __prev_str(s):
 
 
 contour = "prod"
-patch = "1.2.11"
+patch = "1.3.2"
 s3_keys = s3list(f"ecr-game/{contour}/{patch}/raw", recursive=False)
 
 for fn in os.listdir("./data/"):
     fp = os.path.join("./data", fn)
     os.remove(fp)
 
-for s3_key in s3_keys:
+for s3_key in tqdm(s3_keys):
     s3_key = s3_key.key
     content = get_file_from_s3(s3_key)
     with open(f"./data/{os.path.basename(s3_key).replace(':', '-')}", "wb") as f:
