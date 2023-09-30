@@ -19,6 +19,16 @@
       "weight": 1,
       "map": "/Game/Maps/Levels/MaccragesFury",
       "mode": "pvp"
+    },
+    "CycladonComplexSupremacy": {
+      "weight": 1,
+      "map": "/Game/Maps/Levels/CycladonComplex",
+      "mode": "pvp"
+    },
+    "CarmineAscentHoldTheLine": {
+      "weight": 1,
+      "map": "/Game/Maps/Levels/CarmineAscent",
+      "mode": "pvp"
     }
   }
 }

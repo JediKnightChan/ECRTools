@@ -1,15 +1,15 @@
 {
   "branch_prod": {
-    "version": "1.3.2",
+    "version": "1.3.3",
     "complete_archives": {
       "Windows": {
-        "gdrive_id": "1ml1oeOOIZ1l05ha6O0ogF7FwMGL9FLVh",
+        "gdrive_id": "1CK_KBGlwFTwLL8EV8-ryJ8R_mybDQ2EV",
         "github_chunk_urls": [
-          "https://github.com/EternalCrusadeResurrection/ECRGame/releases/download/game_prod_1.3.2/game.zip.chunk.0",
-          "https://github.com/EternalCrusadeResurrection/ECRGame/releases/download/game_prod_1.3.2/game.zip.chunk.1"
+          "https://github.com/EternalCrusadeResurrection/ECRGame/releases/download/game_prod_1.3.3/game.zip.chunk.0",
+          "https://github.com/EternalCrusadeResurrection/ECRGame/releases/download/game_prod_1.3.3/game.zip.chunk.1"
         ],
-        "size": 3055156651,
-        "hash": "77e37d7365c2bda1f5aea8784c3afd5d",
+        "size": 3092485415,
+        "hash": "e7d9f5e728c62409b7f71b92d70ae6ee",
         "verify_files": {
           "ECR.exe": "23a2e544391724be4e9402d24e668725",
           "ECR/Binaries/Win64/ECR-Win64-Shipping.exe": "a33ddf6147ed8aa031570c142a9b6ede",
@@ -17,6 +17,10 @@
           "ECR/Content/Paks/ECR-Windows.sig": "42fcb8c03c287f6282b30cc7361b2496",
           "ECR/Content/Paks/ECR-Windows.ucas": "dbecc9f89c37ecf9edfb0eaa31bfb3ff",
           "ECR/Content/Paks/ECR-Windows.utoc": "8d86b6058c04a2bf350b1ea532ca69da",
+          "ECR/Content/Paks/ECR-Windows_0_P.pak": "ec65808138ff7dbbd57edfc70934d819",
+          "ECR/Content/Paks/ECR-Windows_0_P.sig": "6385b1273f053670fc2cd0eba2793988",
+          "ECR/Content/Paks/ECR-Windows_0_P.ucas": "99bbf4b93bf7b04266b21137cc6cdb97",
+          "ECR/Content/Paks/ECR-Windows_0_P.utoc": "0f1a46f5342ade8c2eba57f9c426899f",
           "ECR/Content/Paks/global.ucas": "7132a98e0324111f8aa7452faeaa617b",
           "ECR/Content/Paks/global.utoc": "801005b2667b4bb0bf5a0737c9f66914"
         }
