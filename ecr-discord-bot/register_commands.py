@@ -160,7 +160,7 @@ print(response.text)
 
 
 # Suggestion ECR server command
-/suggest_improvement {message}
+# /suggest_improvement {message}
 json_data_3 = {
     'name': 'suggest_improvement',
     'description': 'Suggest an improvement for ECR',
