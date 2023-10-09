@@ -15,7 +15,7 @@ def md5(filename):
 
 
 DO_OVERWRITE_GAME_DATA = True
-tag = "prod_1.3.2"
+tag = "prod_1.4.0"
 root_root_dir = f"C:/Users/JediKnight/Documents/Unreal Projects/ECRPackagedShipping/{tag}/"
 game_dir = os.path.join(root_root_dir, "Windows")
 archive = os.path.join(root_root_dir, "game.zip")

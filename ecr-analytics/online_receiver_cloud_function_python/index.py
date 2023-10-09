@@ -21,8 +21,15 @@ s3 = s3_session.client(
 )
 
 
-def send_online_update_request():
-    requests.get("https://functions.yandexcloud.net/d4e49uhbphl49mn0pot5?integration=raw")
+def send_online_update_request(raw_online_data, just_created=False):
+    params = {
+        "integration": "raw"
+    }
+    data = {
+        "created": "1" if just_created else "0",
+        "raw_online_data": raw_online_data
+    }
+    requests.post("https://functions.yandexcloud.net/d4e49uhbphl49mn0pot5", params=params, json=data)
 
 
 def upload_content_to_s3(content, s3_key):
@@ -45,7 +52,9 @@ def json_response(dict_, status_code=200):
 
 
 def update_online_stats(raw_online_data, destroy=False):
-    unique_match_id = raw_online_data["owner"]
+    just_created = True
+    match_owner = raw_online_data["owner"]
+
     raw_online_data["latest_match_update_ts"] = time.time()
 
     try:
@@ -53,7 +62,11 @@ def update_online_stats(raw_online_data, destroy=False):
     except Exception as e:
         latest_matches_data = {}
 
-    latest_matches_data[unique_match_id] = raw_online_data
+    for v in latest_matches_data.values():
+        if v["owner"] == raw_online_data["owner"] and v["match_creation_ts"] == raw_online_data["match_creation_ts"]:
+            just_created = False
+
+    latest_matches_data[match_owner] = raw_online_data
     new_latest_matches_data = {}
     for k, v in latest_matches_data.items():
         if time.time() - v.get("latest_match_update_ts", 0) > 60 * 30:
@@ -63,9 +76,10 @@ def update_online_stats(raw_online_data, destroy=False):
         new_latest_matches_data[k] = v
 
     if destroy:
-        new_latest_matches_data.pop(unique_match_id)
+        new_latest_matches_data.pop(match_owner)
 
     upload_content_to_s3(json.dumps(new_latest_matches_data, indent=4), LATEST_MATCHES_S3_PATH)
+    return just_created
 
 
 def handler(event, context):
@@ -99,14 +113,15 @@ def handler(event, context):
 
         print("Processing", raw_online_data)
 
+        just_created = False
         action = raw_online_data.get("action", "update")
         if action == "update":
-            update_online_stats(raw_online_data)
+            just_created = update_online_stats(raw_online_data)
         elif action == "destroy":
             update_online_stats(raw_online_data, destroy=True)
 
-        send_online_update_request()
-        
+        send_online_update_request(raw_online_data, just_created)
+
         return json_response({"status": "success"})
     except Exception as e:
         traceback.print_exc()

@@ -109,7 +109,7 @@ def __prev_str(s):
 
 
 contour = "prod"
-patch = "1.3.2"
+patch = "1.3.3"
 s3_keys = s3list(f"ecr-game/{contour}/{patch}/raw", recursive=False)
 
 for fn in os.listdir("./data/"):

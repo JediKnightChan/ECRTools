@@ -1,6 +1,4 @@
-import datetime
 import json
-import math
 import os
 import time
 
@@ -19,13 +17,18 @@ s3 = s3_session.client(
 )
 
 # ID of the channel and message you want to update
-CHANNEL_ID = os.getenv('CHANNEL_ID')
-MESSAGE_ID = '1157786150379991131'
+CURRENT_ONLINE_CHANNEL_ID = os.getenv('CURRENT_ONLINE_CHANNEL_ID')
+CURRENT_ONLINE_MESSAGE_ID = os.getenv('CURRENT_ONLINE_MESSAGE_ID')
+
+MATCHES_CREATED_CHANNEL_ID = os.getenv('MATCHES_CREATED_CHANNEL_ID')
 LATEST_MATCHES_S3_PATH = "ecr-online/latest_matches.json"
 
 
-def convert_dt_to_string(dt, template="%H:%M %d/%m/%y"):
-    return dt.strftime(template)
+def send_match_created_message(raw_match_data):
+    dw = DiscordWorker()
+    message = f"{raw_match_data['owner_display_name']} created mission {raw_match_data['mission']} " \
+              f"on map {raw_match_data['map']}, region {raw_match_data['region']}"
+    dw.send_message(MATCHES_CREATED_CHANNEL_ID, dw.build_message(message, ""))
 
 
 def update_match_message(match_data):
@@ -42,12 +45,12 @@ def update_match_message(match_data):
         return eb.build_field("-" * 83, "")
 
     def get_match_part(host_name, region, player_amount, started_ts, match_creation_ts, map_name):
-        created = f"created {math.ceil((time.time() - match_creation_ts) / 60)} min ago"
+        created = f"created <t:{int(match_creation_ts)}:R>"
 
         if started_ts == 0:
             started = "not started"
         else:
-            started = f"started {math.ceil((time.time() - started_ts) / 60)} min ago"
+            started = f"started <t:{int(started_ts)}:R>"
 
         match_info = f"{map_name} ({started}, {created})"
         return [
@@ -75,7 +78,7 @@ def update_match_message(match_data):
                                               match["map"])
             embed["fields"].append(eb.build_field("\u200B", ""))
 
-    data, _ = dw.update_message(MESSAGE_ID, CHANNEL_ID, dw.build_message("", embed))
+    data, _ = dw.update_message(CURRENT_ONLINE_MESSAGE_ID, CURRENT_ONLINE_CHANNEL_ID, dw.build_message("", embed))
     print("Discord response", data)
 
 
@@ -113,13 +116,22 @@ def get_online_stats():
 
 
 def handler(event, context):
+    # Updating discord current online
     matches = get_online_stats()
-    print("Macthes", matches)
+    print("Matches", matches)
     update_match_message(matches)
-    return {
-        "statusCode": 200
-    }
+
+    try:
+        if event.get("created", "0") == "1":
+            send_match_created_message(event.get('raw_online_data', {}))
+        return {
+            "statusCode": 200
+        }
+    except Exception as e:
+        return {
+            "statusCode": 400
+        }
 
 
 if __name__ == '__main__':
-    handler(None, None)
+    handler({}, {})
