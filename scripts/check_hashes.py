@@ -48,15 +48,15 @@ folders = [
 result = {}
 for file in files:
     fp = os.path.join(game_dir, file)
-    hash = md5(fp)
-    result[file] = hash
+    hash_ = md5(fp)
+    result[file] = hash_
 
 for folder in folders:
     files = os.listdir(os.path.join(game_dir, folder))
     for file in files:
         fp = os.path.join(game_dir, folder, file)
-        hash = md5(fp)
-        result[os.path.join(folder, file)] = hash
+        hash_ = md5(fp)
+        result[os.path.join(folder, file)] = hash_
 
 print(json.dumps(result, indent=5))
 
