@@ -5,17 +5,17 @@
 docker stop $(docker ps -a -q)
 docker rm $(docker ps -a -q)
 
-LATEST_IMAGE_HASH=$(curl -s https://ecr-service.website.yandexcloud.net/api/ecr/server_data/latest_server_image_hash.txt)
+LATEST_IMAGE_HASH_RAW=$(docker manifest inspect cr.yandex/crp110tk8f32a48oaeqo/ecr-server:latest -v | jq -r .Descriptor.digest)
 IMAGE_HASH_RAW=$(docker inspect --format='{{index .RepoDigests 0}}' cr.yandex/crp110tk8f32a48oaeqo/ecr-server:latest)
-IMAGE_HASH="${IMAGE_HASH_RAW#*:}"
+IMAGE_HASH_RAW="${IMAGE_HASH_RAW#*@}"
 
 date
 
-if [[ "$IMAGE_HASH" == "$LATEST_IMAGE_HASH" ]]; then
-  echo "$IMAGE_HASH is latest hash, skipping updating"
+if [[ "$IMAGE_HASH_RAW" == "$LATEST_IMAGE_HASH_RAW" ]]; then
+  echo "$IMAGE_HASH_RAW is latest hash, skipping updating"
 else
   # Small disk space servers, remove image before re downloading
-  echo "New hash is available, $LATEST_IMAGE_HASH, reinstalling"
+  echo "New hash is available, $LATEST_IMAGE_HASH_RAW, reinstalling"
   docker rmi -f $(docker images -aq)
   docker pull cr.yandex/crp110tk8f32a48oaeqo/ecr-server:latest
 fi
