@@ -14,16 +14,16 @@ class DiscordWorker:
             "Authorization": f"Bot {self.bot_token}"
         }
 
-    def __make_api_request(self, url, data, method="GET"):
+    def __make_api_request(self, url, data, method="GET", files=None):
         endpoint = self.API_ENDPOINT + url
         if method == "GET":
-            r = requests.get(endpoint, params=data, headers=self.headers)
+            r = requests.get(endpoint, params=data, headers=self.headers, files=files)
         elif method == "POST":
-            r = requests.post(endpoint, json=data, headers=self.headers)
+            r = requests.post(endpoint, json=data, headers=self.headers, files=files)
         elif method == "PATCH":
-            r = requests.patch(endpoint, json=data, headers=self.headers)
+            r = requests.patch(endpoint, json=data, headers=self.headers, files=files)
         elif method == "DELETE":
-            r = requests.delete(endpoint, json=data, headers=self.headers)
+            r = requests.delete(endpoint, json=data, headers=self.headers, files=files)
         else:
             raise NotImplementedError
 
@@ -32,8 +32,8 @@ class DiscordWorker:
     def get_user_data(self, member, server="895445476969705473"):
         return self.__make_api_request(f"guilds/{server}/members/{member}", {})
 
-    def send_message(self, channel_id, message):
-        return self.__make_api_request(f"channels/{channel_id}/messages", message, method="POST")
+    def send_message(self, channel_id, message, files=None):
+        return self.__make_api_request(f"channels/{channel_id}/messages", message, method="POST", files=files)
 
     def update_message(self, message_id, channel_id, message):
         return self.__make_api_request(f"channels/{channel_id}/messages/{message_id}", message, method="PATCH")

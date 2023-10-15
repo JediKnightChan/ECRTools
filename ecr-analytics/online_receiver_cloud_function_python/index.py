@@ -1,3 +1,4 @@
+import datetime
 import re
 import time
 import requests
@@ -9,6 +10,7 @@ import traceback
 PLAYER_API_KEY = os.getenv("PLAYER_API_KEY", "")
 SERVER_API_KEY = os.getenv("SERVER_API_KEY", "")
 LATEST_MATCHES_S3_PATH = "ecr-online/latest_matches.json"
+MATCHES_ONLINE_S3_DIR = "ecr-online/match-online"
 
 # Connecting to S3 Object Storage
 s3_session = boto3.session.Session()
@@ -51,7 +53,9 @@ def json_response(dict_, status_code=200):
     }
 
 
-def update_online_stats(raw_online_data, destroy=False):
+def update_current_online_stats(raw_online_data, destroy=False):
+    """Update current match data for current online stats"""
+
     just_created = True
     match_owner = raw_online_data["owner"]
 
@@ -80,6 +84,25 @@ def update_online_stats(raw_online_data, destroy=False):
 
     upload_content_to_s3(json.dumps(new_latest_matches_data, indent=4), LATEST_MATCHES_S3_PATH)
     return just_created
+
+
+def update_overall_online_stats(raw_online_data):
+    """Add raw online data to dict of today matches if player amount increased"""
+
+    dt = datetime.datetime.fromtimestamp(float(raw_online_data["match_creation_ts"]))
+    s3_file = f"{MATCHES_ONLINE_S3_DIR}/{dt.year}/{dt.year}-{dt.month}-{dt.day}.json"
+    match_id = raw_online_data["owner"] + "_" + raw_online_data["match_creation_ts"]
+
+    try:
+        latest_matches_data = json.loads(get_file_from_s3(s3_file))
+    except Exception as e:
+        latest_matches_data = {}
+
+    latest_player_amount = latest_matches_data.get(match_id, {"player_amount": "0"}).get("player_amount", "0")
+    if int(raw_online_data["player_amount"]) >= int(latest_player_amount):
+        latest_matches_data[match_id] = raw_online_data
+
+    upload_content_to_s3(json.dumps(latest_matches_data, indent=4), s3_file)
 
 
 def handler(event, context):
@@ -113,14 +136,19 @@ def handler(event, context):
 
         print("Processing", raw_online_data)
 
+        # Update current online
         just_created = False
         action = raw_online_data.get("action", "update")
         if action == "update":
-            just_created = update_online_stats(raw_online_data)
+            just_created = update_current_online_stats(raw_online_data)
         elif action == "destroy":
-            update_online_stats(raw_online_data, destroy=True)
+            update_current_online_stats(raw_online_data, destroy=True)
 
+        # Send request to discord bot to update current online
         send_online_update_request(raw_online_data, just_created)
+
+        # Update overall today matches statistics
+        update_overall_online_stats(raw_online_data)
 
         return json_response({"status": "success"})
     except Exception as e:
