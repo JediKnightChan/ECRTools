@@ -53,7 +53,7 @@ def build_online_image_for_dt(dt):
     try:
         data = json.loads(get_file_from_s3(s3_file))
     except Exception as e:
-        data = {}
+        raise ValueError(f"S3 file not found: {s3_file}")
 
     start_times = [datetime.utcfromtimestamp(float(match["match_creation_ts"])) for match in data.values()]
     end_times = [datetime.utcfromtimestamp(float(match["latest_match_update_ts"])) for match in data.values()]
@@ -145,4 +145,4 @@ def handler(event, context):
 
 
 if __name__ == '__main__':
-    handler({}, {})
+    handler({"ts": 1697447843}, {})
