@@ -29,6 +29,26 @@
       "weight": 1,
       "map": "/Game/Maps/Levels/CarmineAscent",
       "mode": "pvp"
+    },
+    "BlackboltSupremacy": {
+      "weight": 1,
+      "map": "/Game/Maps/BlackboltDefense",
+      "mode": "pvp"
+    },
+    "NexusElimination": {
+      "weight": 1,
+      "map": "/Game/Maps/NexusCitadel",
+      "mode": "pvp"
+    },
+    "NexusDuel": {
+      "weight": 1,
+      "map": "/Game/Maps/NexusCitadel",
+      "mode": "pvp"
+    },
+    "MaccragesFuryDuel": {
+      "weight": 1,
+      "map": "/Game/Maps/Levels/MaccragesFury",
+      "mode": "pvp"
     }
   }
 }

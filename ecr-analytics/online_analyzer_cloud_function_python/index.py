@@ -145,4 +145,4 @@ def handler(event, context):
 
 
 if __name__ == '__main__':
-    handler({"ts": 1697447843}, {})
+    handler({"ts": time.time()}, {})
