@@ -1,5 +1,10 @@
 [
   {
+    "title": "TACTICAL DREADNOUGHT",
+    "content": "With 1.5.0 two new veteran classes appear: Devastator (ATGM) and Terminator with storm bolter and power fist!",
+    "image": "images/terminators.png"
+  },
+  {
     "title": "NEW PHYSICS & 3 EC MAPS",
     "content": "1.4.3 brings new character and vehicles physics and 3 nice maps from Eternal Crusade: Promethium Mine, Canyon Wasteyard and Torias Refinery.",
     "image": "images/canyon_preview.png"

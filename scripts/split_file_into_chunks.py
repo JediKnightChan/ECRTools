@@ -36,7 +36,7 @@ def split_file_into_chunks(fp_, chunk_size=2_000_000_000, piece_size=10_000_000)
 
 if __name__ == '__main__':
     root_dir = "C:/Users/JediKnight/Documents/Unreal Projects/ECRPackagedShipping/"
-    end_path = "prod_1.4.3/game.zip"
+    end_path = "prod_1.5.0/game.zip"
     fp = os.path.join(root_dir, end_path)
 
     split_file_into_chunks(fp)

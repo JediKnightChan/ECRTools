@@ -110,7 +110,7 @@ def __prev_str(s):
 
 contour = "prod"
 do_remove = True
-patch = "1.4.3"
+patch = "1.4.4"
 s3_keys = s3list(f"ecr-game/{contour}/{patch}/raw", recursive=False)
 
 if do_remove:
