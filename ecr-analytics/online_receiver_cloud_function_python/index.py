@@ -75,7 +75,7 @@ def update_current_online_stats(raw_online_data, destroy=False):
     for k, v in latest_matches_data.items():
         if time.time() - v.get("latest_match_update_ts", 0) > 60 * 5:
             continue
-        if time.time() - float(v.get("match_creation_ts", 0)) > 60 * 30:
+        if time.time() - float(v.get("started_ts", 0)) > 60 * 30:
             continue
         new_latest_matches_data[k] = v
 
