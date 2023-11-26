@@ -1,5 +1,9 @@
 [
   {
+    "title": "ECR 1.5.2",
+    "content": "<html> <head/> <body> Fixes: <ul> <li>Some networks optimizations</li> <li>Some RU localization fixes</li> </ul> Balance: <ul> <li>Missile speed decreased in non-guided mode</li> <li>Fixed a mistake with swapped Terminator and ATGM prices on Chaos</li> </ul> </body> </html>"
+  },
+  {
     "title": "ECR 1.5.1",
     "content": "<html> <head/> <body> New content: <ul> <li>Russian localization</li> </ul> Fixes: <ul> <li>Some fixes on Promethium and Canyon</li> <li>Cache reset for interactions now happens every second instead of 5 seconds</li> <li>Changed ADS exiting method to fight non-exiting ADS bug</li> <li>Terminator shoulders no longer penetrate armor in walking animations</li> <li>Terminators now can be revived</li> <li>In Promethium \"Hold The Line\" mode point order displayed is now more comfortable</li> </ul> Balance: <ul> <li>Missile warnings from ATGM are now present for infantry</li> <li>ATGM can be exploded in the air by shooting at them</li> <li>ATGM speed reduced for infantry launcher</li> <li>ATGM ammo amount is now 15 instead of 20</li> <li>Terminator now costs 2500 XP</li> </ul> </body> </html>"
   },
