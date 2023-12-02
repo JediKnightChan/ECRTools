@@ -55,8 +55,6 @@ def json_response(dict_, status_code=200):
 
 def update_current_online_stats(raw_online_data, destroy=False):
     """Update current match data for current online stats"""
-
-    just_created = True
     match_owner = raw_online_data["owner"]
 
     raw_online_data["latest_match_update_ts"] = time.time()
@@ -66,14 +64,10 @@ def update_current_online_stats(raw_online_data, destroy=False):
     except Exception as e:
         latest_matches_data = {}
 
-    for v in latest_matches_data.values():
-        if v["owner"] == raw_online_data["owner"] and v["match_creation_ts"] == raw_online_data["match_creation_ts"]:
-            just_created = False
-
     latest_matches_data[match_owner] = raw_online_data
     new_latest_matches_data = {}
     for k, v in latest_matches_data.items():
-        if time.time() - v.get("latest_match_update_ts", 0) > 60 * 10:
+        if time.time() - v.get("latest_match_update_ts", 0) > 60 * 7:
             continue
         if time.time() - float(v.get("started_ts", 0)) > 60 * 30:
             continue
@@ -83,7 +77,6 @@ def update_current_online_stats(raw_online_data, destroy=False):
         new_latest_matches_data.pop(match_owner)
 
     upload_content_to_s3(json.dumps(new_latest_matches_data, indent=4), LATEST_MATCHES_S3_PATH)
-    return just_created
 
 
 def update_overall_online_stats(raw_online_data):
@@ -140,9 +133,12 @@ def handler(event, context):
         just_created = False
         action = raw_online_data.get("action", "update")
         if action == "update":
-            just_created = update_current_online_stats(raw_online_data)
+            update_current_online_stats(raw_online_data)
         elif action == "destroy":
             update_current_online_stats(raw_online_data, destroy=True)
+        elif action == "create":
+            just_created = True
+            update_current_online_stats(raw_online_data)
 
         # Send request to discord bot to update current online
         send_online_update_request(raw_online_data, just_created)

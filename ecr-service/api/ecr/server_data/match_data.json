@@ -32,22 +32,27 @@
     },
     "BlackboltSupremacy": {
       "weight": 1,
-      "map": "/Game/Maps/BlackboltDefense",
-      "mode": "pvp"
-    },
-    "NexusElimination": {
-      "weight": 1,
-      "map": "/Game/Maps/NexusCitadel",
-      "mode": "pvp"
-    },
-    "NexusDuel": {
-      "weight": 1,
-      "map": "/Game/Maps/NexusCitadel",
+      "map": "/Game/Maps/Levels/BlackboltDefense",
       "mode": "pvp"
     },
     "MaccragesFuryDuel": {
       "weight": 1,
       "map": "/Game/Maps/Levels/MaccragesFury",
+      "mode": "pvp"
+    },
+    "PromethiumMineSupremacy": {
+      "weight": 1,
+      "map": "/Game/Maps/Levels/PromethiumMine",
+      "mode": "pvp"
+    },
+    "CanyonWasteyardSupremacy": {
+      "weight": 1,
+      "map": "/Game/Maps/Levels/CanyonWasteyard",
+      "mode": "pvp"
+    },
+    "ToriasRefinerySupremacy": {
+      "weight": 1,
+      "map": "/Game/Maps/Levels/ToriasRefinery",
       "mode": "pvp"
     }
   }
