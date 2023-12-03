@@ -16,7 +16,6 @@ COPY docker/requirements.txt .
 RUN pip install -r requirements.txt
 
 COPY docker/ .
-RUN pip install -r requirements.txt
 
 RUN useradd -ms /bin/bash ecr-server
 RUN chown -R ecr-server:ecr-server .
