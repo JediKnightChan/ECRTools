@@ -41,6 +41,9 @@ class DiscordWorker:
     def delete_message(self, message_id, channel_id):
         return self.__make_api_request(f"channels/{channel_id}/messages/{message_id}", {}, method="DELETE")
 
+    def respond_to_interaction(self, app_id, interaction_token, message):
+        return self.__make_api_request(f"webhooks/{app_id}/{interaction_token}", message, method="POST")
+
     @staticmethod
     def build_message(content, embed):
         message = {
@@ -51,14 +54,16 @@ class DiscordWorker:
 
 
 class EmbedBuilder:
-    def build_embed(self, title, color, fields):
+    @staticmethod
+    def build_embed(title, color, fields):
         return {
             "title": title,
             "color": color,
             "fields": fields
         }
 
-    def build_field(self, name, value, inline=False):
+    @staticmethod
+    def build_field(name, value, inline=False):
         return {
             "name": name,
             "value": value,

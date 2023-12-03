@@ -12,30 +12,8 @@ headers = {
 }
 
 json_data = {
-    "name": "stop_ecr_server",
-    "description": "Stops ECR server in the specified region",
-    "options": [
-        {
-            "type": 3,
-            "name": "region",
-            "description": "Server Region",
-            "required": True,
-            "choices": [
-                {
-                    "name": "RU",
-                    "value": "ru",
-                },
-                {
-                    "name": "EU",
-                    "value": "eu",
-                },
-                {
-                    "name": "US",
-                    "value": "us",
-                },
-            ],
-        },
-    ],
+    "name": "get_ecr_server_missions",
+    "description": "Gets available missions for ECR server"
 }
 
 response = requests.post(
