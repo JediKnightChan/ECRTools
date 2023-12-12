@@ -1,5 +1,10 @@
 [
   {
+    "title": "MOTORIZED ONSLAUGHT",
+    "content": "1.5.3 introduces an old map from EC, Maggon Station, and a new vehicle class: bike with 2 heavy bolters!",
+    "image": "images/bike.png"
+  },
+  {
     "title": "TACTICAL DREADNOUGHT",
     "content": "With 1.5.0 two new veteran classes appear: Devastator (ATGM) and Terminator with storm bolter and power fist!",
     "image": "images/terminators.png"

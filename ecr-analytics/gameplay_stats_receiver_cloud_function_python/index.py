@@ -1,4 +1,5 @@
 import datetime
+import logging
 import re
 
 import boto3
@@ -39,10 +40,13 @@ def handler(event, context):
     auth_header = headers.get("Ecr-Authorization", "")
     if auth_header == "Api-Key " + PLAYER_API_KEY and PLAYER_API_KEY:
         sender = "player"
+        logging.warning(f"Accepting data from player")
     elif auth_header == "Api-Key " + SERVER_API_KEY and SERVER_API_KEY:
         sender = "server"
+        logging.warning(f"Accepting data from server")
     else:
-        return json_response({"error": "Not authorized"}, status_code=400)
+        sender = "no-auth"
+        logging.warning(f"Accepting data from non authorized")
 
     # Checking game version
     game_version = headers.get("Game-Version", "")
@@ -67,5 +71,5 @@ def handler(event, context):
 
         return json_response({"status": "success"})
     except Exception as e:
-        traceback.print_exc()
+        logging.error(traceback.format_exc())
         return json_response({"error": "internal"}, status_code=500)
