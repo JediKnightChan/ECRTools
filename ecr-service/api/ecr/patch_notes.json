@@ -1,5 +1,13 @@
 [
   {
+    "title": "ECR 1.6.1",
+    "content": "<html> <head/> <body> Fixes: <ul> <li>Issue with stun immunity in melee fixed</li> <li>Blood Angel tactical squad was removed from Maccrage's Fury</li> <li>Scaling on player amount in PvE now doesn't account for observers</li> <li>Full matches are no longer shown in match search</li> <li>Ally Watch camera mode was changed</li> <li>Replays are once again recorded, if you are not a host</li> </ul> </body> </html>"
+  },
+  {
+    "title": "ECR 1.6.0: TYRANID INFESTATION",
+    "content": "<html> <head/> <body> New content: <ul> <li>New PvE mode: \"Horde\" on new map \"Forge of The Molten Vein\"</li> <li>A lot of UX improvements for shooting, reloading, health control, etc.</li> </ul> Fixes: <ul> <li>Nicknames in Ally Watch System fixed</li> <li>Multi kills of one character fixed</li> <li>For players who couldn't connect to Yandex infrastructure it's no longer required in-game</li> <li>Melta bomb lack of damage to vehicles fixed</li> <li>ATGM SFX and VFX fixes, cooldown fixed</li> <li>Friendly fire damage on wounded XP penalty is no longer applied</li> <li>For Duel mode victory condition fixed: team with biggest player amount wins if timer reaches zero</li> <li>Tried to fix visibility issues on vehicles</li> <li>Melee hit registration fixed</li> <li>On Valorant Salvation spawn points for attackers are no longer mixed up</li> <li>Improved item usage on other players distance</li> </ul> Balance: <ul> <li>Heavy bolter and Autocannon accuracy improved</li> <li>ATGM speed increased, cooldown increased</li> </ul> </body> </html>"
+  },
+  {
     "title": "ECR 1.5.4",
     "content": "<html> <head/> <body> New content: <ul> <li>New map: Blood Angels Battle Barge \"Valorous Salvation\"</li> </ul> Fixes: <ul> <li>Stamina loss during clashes fixed</li> <li>Watching enemies and bots via Ally Watch System fixed</li> <li>Invisibility of characters while possessing a vehicle fixed</li> <li>No cursor for Ally Watch System fixed</li> <li>Fixed soft impact for Jump Packs</li> </ul> </body> </html>"
   },

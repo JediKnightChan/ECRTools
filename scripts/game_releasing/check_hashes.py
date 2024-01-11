@@ -15,7 +15,7 @@ def md5(filename):
 
 
 DO_OVERWRITE_GAME_DATA = True
-tag = "prod_1.5.4"
+tag = "prod_1.6.0"
 root_root_dir = f"C:/Users/JediKnight/Documents/Unreal Projects/ECRPackagedShipping/{tag}/"
 game_dir = os.path.join(root_root_dir, "Windows")
 archive = os.path.join(root_root_dir, "game.zip")
@@ -61,7 +61,7 @@ for folder in folders:
 print(json.dumps(result, indent=5))
 
 if DO_OVERWRITE_GAME_DATA:
-    with open("../ecr-service/api/ecr/game_data.json", "r") as f:
+    with open("../../ecr-service/api/ecr/game_data.json", "r") as f:
         data = json.load(f)
 
     tag_contour, tag_version = tag.split("_")
@@ -82,5 +82,5 @@ if DO_OVERWRITE_GAME_DATA:
         f"https://github.com/EternalCrusadeResurrection/ECRGame/releases/download/game_{tag}/{chunk_fn}" for chunk_fn in
         chunk_filenames]
 
-    with open("../ecr-service/api/ecr/game_data.json", "w") as f:
+    with open("../../ecr-service/api/ecr/game_data.json", "w") as f:
         json.dump(data, f, indent=2)

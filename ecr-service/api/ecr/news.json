@@ -1,5 +1,10 @@
 [
   {
+    "title": "TYRANID INFESTATION",
+    "content": "1.6.0 brings the first PvE mode into ECR, Horde, on a new map, Forge Of The Molten Vein!",
+    "image": "images/vein_preview.png"
+  },
+  {
     "title": "MOTORIZED ONSLAUGHT",
     "content": "1.5.3 introduces an old map from EC, Maggon Station, and a new vehicle class: bike with 2 heavy bolters!",
     "image": "images/bike.png"
