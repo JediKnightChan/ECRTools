@@ -11,6 +11,7 @@ IMAGE_HASH_RAW="${IMAGE_HASH_RAW#*@}"
 
 date
 
+: '
 if [[ "$IMAGE_HASH_RAW" == "$LATEST_IMAGE_HASH_RAW" ]]; then
   echo "$IMAGE_HASH_RAW is latest hash, skipping updating"
 else
@@ -19,6 +20,7 @@ else
   docker rmi -f $(docker images -aq)
   docker pull cr.yandex/crp110tk8f32a48oaeqo/ecr-server:latest
 fi
+'
 
 WANTED_REGION=""
 if test -f "/home/pchela/region.txt"; then

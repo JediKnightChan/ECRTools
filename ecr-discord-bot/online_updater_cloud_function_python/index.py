@@ -28,7 +28,7 @@ def send_match_created_message(raw_match_data):
     dw = DiscordWorker()
     message = f"{raw_match_data['owner_display_name']} created mission {raw_match_data['mission']} " \
               f"on map {raw_match_data['map']}, region {raw_match_data['region']}"
-    dw.send_message(MATCHES_CREATED_CHANNEL_ID, dw.build_message(message, ""))
+    dw.send_message(MATCHES_CREATED_CHANNEL_ID, dw.build_message(message, None))
 
 
 def update_match_message(match_data):

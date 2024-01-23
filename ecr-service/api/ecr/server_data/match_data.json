@@ -41,18 +41,33 @@
       "mode": "pvp"
     },
     "PromethiumMineSupremacy": {
-      "weight": 1,
+      "weight": 0.5,
+      "map": "/Game/Maps/Levels/PromethiumMine",
+      "mode": "pvp"
+    },
+    "PromethiumMineHoldTheLine": {
+      "weight": 0.5,
       "map": "/Game/Maps/Levels/PromethiumMine",
       "mode": "pvp"
     },
     "CanyonWasteyardSupremacy": {
-      "weight": 1,
+      "weight": 0.5,
+      "map": "/Game/Maps/Levels/CanyonWasteyard",
+      "mode": "pvp"
+    },
+    "CanyonWasteyardHoldTheLine": {
+      "weight": 0.5,
       "map": "/Game/Maps/Levels/CanyonWasteyard",
       "mode": "pvp"
     },
     "ToriasRefinerySupremacy": {
       "weight": 1,
       "map": "/Game/Maps/Levels/ToriasRefinery",
+      "mode": "pvp"
+    },
+    "ValorousSalvationSupremacy": {
+      "weight": 1,
+      "map": "/Game/Maps/Levels/ValorousSalvation",
       "mode": "pvp"
     }
   }
