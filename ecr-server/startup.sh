@@ -13,11 +13,11 @@ date
 
 HASHES_EQUAL_RESULT=$(/usr/bin/python3 /home/pchela/string_comparer.py "$IMAGE_HASH_RAW" "$LATEST_IMAGE_HASH_RAW")
 
-if [ "$HASHES_EQUAL_RESULT" == "Same!" ]; then
+if [ $? -eq 0 ]; then
   echo "$IMAGE_HASH_RAW is latest hash, skipping updating"
 else
   # Small disk space servers, remove image before re downloading
-  echo "New hash is available, $LATEST_IMAGE_HASH_RAW, reinstalling (old one is $IMAGE_HASH_RAW)"
+  echo "Output of comparer is $HASHES_EQUAL_RESULT: new hash is available, $LATEST_IMAGE_HASH_RAW, reinstalling (old one is $IMAGE_HASH_RAW)"
   docker rmi -f $(docker images -aq)
   docker pull cr.yandex/crp110tk8f32a48oaeqo/ecr-server:latest
 fi

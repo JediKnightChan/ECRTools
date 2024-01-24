@@ -5,6 +5,15 @@
         "gdrive_id": "None",
         "size": 3605076721
       }
+    },
+    "1.6.3": {
+      "Windows": {
+        "gdrive_id": "None",
+        "size": 3319824,
+        "github_chunk_urls": [
+          "https://github.com/EternalCrusadeResurrection/ECRGame/releases/download/game_prod_patch_1.6.3/patch.zip"
+        ]
+      }
     }
   }
 }

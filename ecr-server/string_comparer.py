@@ -32,9 +32,11 @@ if __name__ == "__main__":
     if string1 == string2:
         print("Same!")
         log_equal_strings(string1, string2)
+        sys.exit(0)
     else:
         print("Different!")
         for position, (char1, char2) in enumerate(zip_longest(string1, string2, fillvalue=' '), start=1):
             if char1 != char2:
                 log_different_strings(string1, string2, position, char1, char2)
                 break
+        sys.exit(1)

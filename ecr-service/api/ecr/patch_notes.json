@@ -1,5 +1,9 @@
 [
   {
+    "title": "ECR 1.6.3",
+    "content": "<html> <head/> <body> Fixes: <ul> <li>Animation update rate fixed</li> <li>Added custom keybinds for camera distance and switching weapons</li> <li>Weapons can now be switched while sprinting</li> <li>Attempts to fix nameplates while in vehicle and turret detachments</li> <li>Sensitivity on vehicles reduced</li> </ul> Balance: <ul> <li>Bolter pistol spread reduced</li> <li>Auto cannon armor penetration increased</li> </ul> </body> </html>"
+  },
+  {
     "title": "ECR 1.6.2",
     "content": "<html> <head/> <body> New content: <ul> <li>Weapon recoil</li> <li>Secondary weapons are given to more than half of the classes</li> </ul> Fixes: <ul> <li>Tyranids now have names</li> <li>Problem with strong attack and defense dash interaction solved</li> <li>Main menu music problems fixed (such as playing 2 tracks in the same time)</li> <li>No more falling Devastators: vault over keybinding changed to Shift+Space</li> <li>Issues with discord notifications about matches fixed</li> <li>It's no more possible to use shield when stamina reaches 0</li> <li>Point widgets transparency is now 0.5</li> </ul> Balance: <ul> <li>New stamina penalties: when it reaches 0, it's now no more possible to use melee attacks for 5 seconds</li> <li>Grav Cannon spread reduced</li> <li>Grav Cannon and Heavy Bolter heat removal rate increased</li> <li>Grenade stun distance reduced</li> <li>Healing rates increased</li> </ul> </body> </html>"
   },
