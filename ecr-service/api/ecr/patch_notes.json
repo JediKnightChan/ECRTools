@@ -1,5 +1,9 @@
 [
   {
+    "title": "ECR 1.6.4",
+    "content": "<html>\n<head/>\n<body>\n\nFixes:\n<ul>\n    <li>A more successful attempt to fix turret detachment</li>\n    <li>Fixed a possibility to fire an ATGM without cooldown</li>\n    <li>On Valorant Salvation added crates and fixed Terminator not being able to walk upstairs</li>\n    <li>Some new localization updates</li>\n</ul>\n\n</body>\n</html>"
+  },
+  {
     "title": "ECR 1.6.3",
     "content": "<html> <head/> <body> Fixes: <ul> <li>Animation update rate fixed</li> <li>Added custom keybinds for camera distance and switching weapons</li> <li>Weapons can now be switched while sprinting</li> <li>Attempts to fix nameplates while in vehicle and turret detachments</li> <li>Sensitivity on vehicles reduced</li> </ul> Balance: <ul> <li>Bolter pistol spread reduced</li> <li>Auto cannon armor penetration increased</li> </ul> </body> </html>"
   },
