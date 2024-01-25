@@ -1,43 +1,28 @@
 {
   "missions": {
-    "ZedekSmallDeepStrike": {
-      "weight": 1,
-      "map": "/Game/Maps/ZedekNew_TH",
+    "NexusDuel": {
+      "weight": 0.5,
+      "map": "/Game/Maps/Levels/NexusCitadel",
       "mode": "pvp"
     },
-    "OlipsisSupremacy": {
-      "weight": 1,
-      "map": "/Game/Maps/Levels/RefineryOlipsis",
+    "NexusElimination": {
+      "weight": 0.5,
+      "map": "/Game/Maps/Levels/NexusCitadel",
       "mode": "pvp"
     },
-    "RailgateHoldTheLine": {
-      "weight": 1,
-      "map": "/Game/Maps/Levels/RailgateRavine",
+    "ValorousSalvationSupremacy": {
+      "weight": 0.33,
+      "map": "/Game/Maps/Levels/ValorousSalvation",
       "mode": "pvp"
     },
-    "MaccragesFuryBoardingAction": {
-      "weight": 1,
-      "map": "/Game/Maps/Levels/MaccragesFury",
+    "ValorousSalvationElimination": {
+      "weight": 0.33,
+      "map": "/Game/Maps/Levels/ValorousSalvation",
       "mode": "pvp"
     },
-    "CycladonComplexSupremacy": {
-      "weight": 1,
-      "map": "/Game/Maps/Levels/CycladonComplex",
-      "mode": "pvp"
-    },
-    "CarmineAscentHoldTheLine": {
-      "weight": 1,
-      "map": "/Game/Maps/Levels/CarmineAscent",
-      "mode": "pvp"
-    },
-    "BlackboltSupremacy": {
-      "weight": 1,
-      "map": "/Game/Maps/Levels/BlackboltDefense",
-      "mode": "pvp"
-    },
-    "MaccragesFuryDuel": {
-      "weight": 1,
-      "map": "/Game/Maps/Levels/MaccragesFury",
+    "ValorousSalvationDuel": {
+      "weight": 0.33,
+      "map": "/Game/Maps/Levels/ValorousSalvation",
       "mode": "pvp"
     },
     "PromethiumMineSupremacy": {
@@ -51,23 +36,98 @@
       "mode": "pvp"
     },
     "CanyonWasteyardSupremacy": {
-      "weight": 0.5,
+      "weight": 0.33,
       "map": "/Game/Maps/Levels/CanyonWasteyard",
       "mode": "pvp"
     },
     "CanyonWasteyardHoldTheLine": {
-      "weight": 0.5,
+      "weight": 0.33,
       "map": "/Game/Maps/Levels/CanyonWasteyard",
       "mode": "pvp"
     },
-    "ToriasRefinerySupremacy": {
+    "CanyonWasteyardElimination": {
+      "weight": 0.33,
+      "map": "/Game/Maps/Levels/CanyonWasteyard",
+      "mode": "pvp"
+    },
+    "CycladonComplexSupremacy": {
+      "weight": 0.5,
+      "map": "/Game/Maps/Levels/CycladonComplex",
+      "mode": "pvp"
+    },
+    "CycladonComplexDuel": {
+      "weight": 0.5,
+      "map": "/Game/Maps/Levels/CycladonComplex",
+      "mode": "pvp"
+    },
+    "RailgateHoldTheLine": {
+      "weight": 0.5,
+      "map": "/Game/Maps/Levels/RailgateRavine",
+      "mode": "pvp"
+    },
+    "RailgateDuel": {
+      "weight": 0.5,
+      "map": "/Game/Maps/Levels/RailgateRavine",
+      "mode": "pvp"
+    },
+    "MaccragesFuryBoardingAction": {
+      "weight": 0.33,
+      "map": "/Game/Maps/Levels/MaccragesFury",
+      "mode": "pvp"
+    },
+    "MaccragesFuryDuel": {
+      "weight": 0.33,
+      "map": "/Game/Maps/Levels/MaccragesFury",
+      "mode": "pvp"
+    },
+    "MaccragesFuryElimination": {
+      "weight": 0.33,
+      "map": "/Game/Maps/Levels/MaccragesFury",
+      "mode": "pvp"
+    },
+    "OlipsisSupremacy": {
       "weight": 1,
+      "map": "/Game/Maps/Levels/RefineryOlipsis",
+      "mode": "pvp"
+    },
+    "BlackboltSupremacy": {
+      "weight": 0.5,
+      "map": "/Game/Maps/Levels/BlackboltDefense",
+      "mode": "pvp"
+    },
+    "BlackboltHoldTheLine": {
+      "weight": 0.5,
+      "map": "/Game/Maps/Levels/BlackboltDefense",
+      "mode": "pvp"
+    },
+    "ToriasRefinerySupremacy": {
+      "weight": 0.5,
       "map": "/Game/Maps/Levels/ToriasRefinery",
       "mode": "pvp"
     },
-    "ValorousSalvationSupremacy": {
+    "ToriasRefineryHoldTheLine": {
+      "weight": 0.5,
+      "map": "/Game/Maps/Levels/ToriasRefinery",
+      "mode": "pvp"
+    },
+    "CarmineAscentHoldTheLine": {
       "weight": 1,
-      "map": "/Game/Maps/Levels/ValorousSalvation",
+      "map": "/Game/Maps/Levels/CarmineAscent",
+      "mode": "pvp"
+    },
+    "MaggonStationHoldTheLine": {
+      "weight": 1,
+      "map": "/Game/Maps/Levels/MaggonStation",
+      "mode": "pvp"
+    },
+    "ZedekSmallDeepStrike": {
+      "weight": 0.5,
+      "map": "/Game/Maps/ZedekNew_TH",
+      "mode": "pvp"
+    },
+    "ZedekSmallDuel": {
+      "weight": 0.5,
+      "map": "/Game/Maps/ZedekNew_TH",
       "mode": "pvp"
     }
   }
