@@ -1,5 +1,9 @@
 [
   {
+    "title": "ECR 1.6.5",
+    "content": "<html> <head/> <body> New content: <ul> <li>Grenade and plasma trajectory</li> <li>Markers for Jump Pack attacks from above</li> <li>Camera mode now switches automatically near railings for non-Devastators</li> </ul> Fixes: <ul> <li>Duel round is now 3 minute, after 2 minutes all enemies become visible</li> <li>Item usage on allies improved</li> <li>Improvements to an issue with visibly not rotating turrets</li> <li>Improvements to an issue with vaulting non happening</li> <li>Fixed bolter shells staying in air</li> <li>Vehicle movement input network optimizations</li> <li>Fall damage now shouldn't kill players</li> </ul> </body> </html>"
+  },
+  {
     "title": "ECR 1.6.4",
     "content": "<html>\n<head/>\n<body>\n\nFixes:\n<ul>\n    <li>A more successful attempt to fix turret detachment</li>\n    <li>Fixed a possibility to fire an ATGM without cooldown</li>\n    <li>On Valorant Salvation added crates and fixed Terminator not being able to walk upstairs</li>\n    <li>Some new localization updates</li>\n</ul>\n\n</body>\n</html>"
   },
