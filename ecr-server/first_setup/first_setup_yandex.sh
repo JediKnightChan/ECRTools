@@ -7,4 +7,3 @@ newgrp docker
 cat key.json | docker login --username json_key --password-stdin cr.yandex
 
 sudo apt install python3-pip
-pip3 install docker

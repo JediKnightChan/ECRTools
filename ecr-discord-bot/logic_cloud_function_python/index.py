@@ -3,8 +3,16 @@ import logging
 import traceback
 
 from yandex_api import YandexWorker
+from google_api import GoogleWorker
+
 from discord_api import DiscordWorker
 from missions_logic import get_available_missions, get_wanted_mission, set_wanted_mission
+
+
+google_servers_data = {
+    "us": {"zone": "us-central1-a", "name": "instance-1"},
+    "eu": {"zone": "europe-west3-c", "name": "instance-20240219-143622"}
+}
 
 
 def get_command_option(command_data, name):
@@ -29,8 +37,6 @@ def get_server_instance_from_command_data(command_data_):
         return None, region, "Error: unknown region"
 
     instance = get_region_to_instance(region)
-    if not instance:
-        return None, region, "Error: server for this region could not be found"
 
     return instance, region, None
 
@@ -63,29 +69,52 @@ def handler(event, context):
 
     if command_name == "start_ecr_server":
         instance, region, error_response = get_server_instance_from_command_data(command_data)
-        if not instance:
+        if error_response:
             return discord_text_response(error_response)
 
-        yw = YandexWorker()
-        res, _ = yw.start_instance(instance)
-        if not res.get("done", ""):
-            return discord_text_response(f"Starting ecr server ({region})")
-        else:
-            if res.get("code", None) == 9:
-                return discord_text_response(f"Server already running ({region})")
+        if region.lower() in ['ru']:
+            yw = YandexWorker()
+            res, _ = yw.start_instance(instance)
+            if not res.get("done", ""):
+                return discord_text_response(f"Starting {region.upper()}")
             else:
-                return discord_text_response(f"Unknown status ({region})")
+                if res.get("code", None) == 9:
+                    return discord_text_response(f"{region.upper()} already running")
+                else:
+                    return discord_text_response(f"Unknown status: {region.upper()}")
+        elif region.lower() in google_servers_data:
+            gw = GoogleWorker()
+            sd = google_servers_data[region.lower()]
+            try:
+                gw.start_instance(sd["zone"], sd["name"])
+                return discord_text_response(f"Starting {region.upper()}")
+            except Exception as e:
+                return discord_text_response(f"Couldn't start {region.upper()} ({e})")
+        else:
+            return discord_text_response(f"Don't know region: {region.upper()}")
+
     elif command_name == "stop_ecr_server":
         instance, region, error_response = get_server_instance_from_command_data(command_data)
-        if not instance:
+        if error_response:
             return discord_text_response(error_response)
 
-        yw = YandexWorker()
-        res, _ = yw.stop_instance(instance)
-        if res.get("done", "") == False:
-            return discord_text_response(f"Stopping ecr server ({region})")
+        if region.lower() in ["ru"]:
+            yw = YandexWorker()
+            res, _ = yw.stop_instance(instance)
+            if res.get("done", "") == False:
+                return discord_text_response(f"Stopping {region.upper()}")
+            else:
+                return discord_text_response(f"Server already stopped: {region.upper()}")
+        elif region.lower() in google_servers_data:
+            gw = GoogleWorker()
+            sd = google_servers_data[region.lower()]
+            try:
+                gw.stop_instance(sd["zone"], sd["name"])
+                return discord_text_response(f"Stopping {region.upper()}")
+            except Exception as e:
+                return discord_text_response(f"Couldn't stop {region.upper()} ({e})")
         else:
-            return discord_text_response(f"Server already stopped ({region})")
+            return discord_text_response(f"Don't know region: {region.upper()}")
     elif command_name == "set_ecr_server_mission":
         available_missions = get_available_missions()
         mission = get_command_option(command_data, "mission")
