@@ -1,5 +1,9 @@
 [
   {
+    "title": "ECR 1.7.3",
+    "content": "<html> <head/> <body> Fixes: <ul> <li>Moved from Unreal Engine 5.1 to 5.3</li> <li>Second wave of fixes for interactions</li> <li>Wave of fixes for performance optimization</li> <li>Fixes for player table</li> </ul> </body> </html>"
+  },
+  {
     "title": "ECR 1.7.2",
     "content": "<html> <head/> <body> Fixes: <ul> <li>Series of fixes for interaction bug</li> <li>Fixes for player table</li> <li>Localization fixes</li> </ul> </body> </html>"
   },
