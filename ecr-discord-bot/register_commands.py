@@ -12,8 +12,22 @@ headers = {
 }
 
 json_data = {
-    "name": "get_ecr_server_missions",
-    "description": "Gets available missions for ECR server"
+    "name": "suggest_ecr_change",
+    "description": "Suggest one gameplay change for ECR and put it to a vote",
+    "options": [
+        {
+            "type": 3,
+            "name": "title",
+            "description": "Title",
+            "required": True
+        },
+        {
+            "type": 3,
+            "name": "desc",
+            "description": "Description and reasoning",
+            "required": True
+        }
+    ]
 }
 
 response = requests.post(

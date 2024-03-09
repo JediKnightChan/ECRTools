@@ -1,13 +1,14 @@
 import json
 import logging
+import os
 import traceback
 
 from yandex_api import YandexWorker
 from google_api import GoogleWorker
 
-from discord_api import DiscordWorker
+from discord_api import DiscordWorker, EmbedBuilder
 from missions_logic import get_available_missions, get_wanted_mission, set_wanted_mission
-
+from yandex_translate_logic import YandexTranslator
 
 google_servers_data = {
     "us": {"zone": "us-central1-a", "name": "instance-1"},
@@ -55,6 +56,7 @@ def handler(event, context):
     command_name = command_data.get("name")
 
     dw = DiscordWorker()
+    eb = EmbedBuilder()
 
     def discord_text_response(text):
         dw.respond_to_interaction(
@@ -132,5 +134,28 @@ def handler(event, context):
     elif command_name == "get_ecr_server_missions":
         available_missions = get_available_missions()
         return discord_text_response("Available missions:\n\n" + "\n".join(available_missions))
+    elif command_name == "suggest_ecr_change":
+        yt = YandexTranslator()
+        title = get_command_option(command_data, "title")
+        desc = get_command_option(command_data, "desc")
+        title_en, desc_en = yt.translate_texts([title, desc])
+        final_title = title if title == title_en else f"{title_en} ({title})"
+        final_desc = desc if desc == desc_en else f"{desc_en}\n\n({desc})"
+
+        author = interaction_data.get("member").get("user").get("id")
+
+        embed = {
+            "title": f"VOTE FOR: {final_title.upper()}",
+            "color": 16753152,
+            "fields": []
+        }
+
+        embed["fields"].append(eb.build_field("Description", final_desc))
+
+        data, _ = dw.send_message(os.getenv("DISCORD_CHANGES_VOTE_CHANNEL_ID"), dw.build_message(f"<@{author}>", embed))
+        dw.react_to_message(data.get("id"), data.get("channel_id"), "🟩")
+        dw.react_to_message(data.get("id"), data.get("channel_id"), "🟥")
+        dw.create_thread_from_message(data.get("id"), data.get("channel_id"), f"DISCUSSION: {title_en}")
+        return discord_text_response("Your gameplay change has been put to a vote")
     else:
         return discord_text_response("Can't handle: unknown command")

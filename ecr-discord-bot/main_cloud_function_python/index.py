@@ -94,12 +94,23 @@ def command_handler(body):
         "get_ecr_server_missions": "Getting ECR server missions queued"
     }
 
+    all_server_members_commands_to_banned_roles_and_responses = {
+        "suggest_ecr_change": ("1216132337134473288", "Your suggested ECR gameplay change is queued for processing")
+    }
+
     if command in community_manager_commands_to_responses:
         if up.is_user_creator() or up.is_user_admin() or up.is_user_community_manager():
             queue_sender.send_message_to_discord_commands_queue(body)
             return discord_text_response(community_manager_commands_to_responses[command])
         else:
             return discord_text_response("You are not allowed to use this command")
+    elif command in all_server_members_commands_to_banned_roles_and_responses:
+        banned_role, response = all_server_members_commands_to_banned_roles_and_responses[command]
+        if up.has_role(banned_role):
+            return discord_text_response("You are not allowed to use this command")
+        else:
+            queue_sender.send_message_to_discord_commands_queue(body)
+            return discord_text_response(response)
     else:
         logger.fatal(f"Unknown command {command}")
         return json_response({"error": "unhandled command"}, status_code=400)
