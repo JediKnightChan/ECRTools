@@ -35,19 +35,29 @@
       "map": "/Game/Maps/Levels/PromethiumMine",
       "mode": "pvp"
     },
+    "CanyonWasteyardDomination": {
+      "weight": 0.25,
+      "map": "/Game/Maps/Levels/CanyonWasteyard",
+      "mode": "pvp"
+    },
     "CanyonWasteyardSupremacy": {
-      "weight": 0.33,
+      "weight": 0.25,
       "map": "/Game/Maps/Levels/CanyonWasteyard",
       "mode": "pvp"
     },
     "CanyonWasteyardHoldTheLine": {
-      "weight": 0.33,
+      "weight": 0.25,
       "map": "/Game/Maps/Levels/CanyonWasteyard",
       "mode": "pvp"
     },
     "CanyonWasteyardElimination": {
-      "weight": 0.33,
+      "weight": 0.25,
       "map": "/Game/Maps/Levels/CanyonWasteyard",
+      "mode": "pvp"
+    },
+    "ZedekHoldTheLine": {
+      "weight": 1,
+      "map": "/Game/Maps/Levels/Zedek",
       "mode": "pvp"
     },
     "CycladonComplexSupremacy": {
@@ -60,13 +70,18 @@
       "map": "/Game/Maps/Levels/CycladonComplex",
       "mode": "pvp"
     },
+    "RailgateDomination": {
+      "weight": 0.33,
+      "map": "/Game/Maps/Levels/RailgateRavine",
+      "mode": "pvp"
+    },
     "RailgateHoldTheLine": {
-      "weight": 0.5,
+      "weight": 0.33,
       "map": "/Game/Maps/Levels/RailgateRavine",
       "mode": "pvp"
     },
     "RailgateDuel": {
-      "weight": 0.5,
+      "weight": 0.33,
       "map": "/Game/Maps/Levels/RailgateRavine",
       "mode": "pvp"
     },
@@ -90,13 +105,18 @@
       "map": "/Game/Maps/Levels/RefineryOlipsis",
       "mode": "pvp"
     },
+    "BlackboltDomination": {
+      "weight": 0.33,
+      "map": "/Game/Maps/Levels/BlackboltDefense",
+      "mode": "pvp"
+    },
     "BlackboltSupremacy": {
-      "weight": 0.5,
+      "weight": 0.33,
       "map": "/Game/Maps/Levels/BlackboltDefense",
       "mode": "pvp"
     },
     "BlackboltHoldTheLine": {
-      "weight": 0.5,
+      "weight": 0.33,
       "map": "/Game/Maps/Levels/BlackboltDefense",
       "mode": "pvp"
     },

@@ -108,10 +108,11 @@ def __prev_str(s):
     return s
 
 
-contour = "prod"
 do_remove = True
 patch = "1.7.4"
-s3_keys = s3list(f"ecr-game/{contour}/{patch}/raw", recursive=False)
+
+s3_keys = s3list(f"ecr-game/prod/{patch}/raw", recursive=False)
+s3_keys_dev = s3list(f"ecr-game/dev/{patch}/raw", recursive=False)
 
 if do_remove:
     for fn in os.listdir("data/"):
@@ -119,6 +120,12 @@ if do_remove:
         os.remove(fp)
 
 for s3_key in tqdm(s3_keys):
+    s3_key = s3_key.key
+    content = get_file_from_s3(s3_key)
+    with open(f"./data/{os.path.basename(s3_key).replace(':', '-')}", "wb") as f:
+        f.write(content)
+
+for s3_key in tqdm(s3_keys_dev):
     s3_key = s3_key.key
     content = get_file_from_s3(s3_key)
     with open(f"./data/{os.path.basename(s3_key).replace(':', '-')}", "wb") as f:
