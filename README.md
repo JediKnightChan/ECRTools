@@ -12,6 +12,11 @@ from the game (compute additional dataframes, put them and raw one to s3)
 A bot that currently can start and stop ECR server instance in Yandex Cloud via slash
 commands in Discord
 
+## `ecr-progression-backend`
+
+A serverless function that connects to S3 and YDB to process online character creation and progression, including
+in-game currency granting, buying items, unlocks and cosmetics
+
 ## `ecr-server`
 
 Wrapper of UE Linux game server into Docker, scripts for the first setup in different clouds
