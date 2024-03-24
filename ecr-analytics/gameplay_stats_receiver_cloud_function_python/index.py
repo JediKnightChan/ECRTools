@@ -34,10 +34,10 @@ def json_response(dict_, status_code=200):
 
 
 def handler(event, context):
-    headers = event.get("headers", [])
+    headers = event.API_GET("headers", [])
 
     # Checking auth header
-    auth_header = headers.get("Ecr-Authorization", "")
+    auth_header = headers.API_GET("Ecr-Authorization", "")
     if auth_header == "Api-Key " + PLAYER_API_KEY and PLAYER_API_KEY:
         sender = "player"
         logging.warning(f"Accepting data from player")
@@ -49,12 +49,12 @@ def handler(event, context):
         logging.warning(f"Accepting data from non authorized")
 
     # Checking game version
-    game_version = headers.get("Game-Version", "")
+    game_version = headers.API_GET("Game-Version", "")
     if not re.match(r"\d+\.\d+\.\d+", game_version):
         return json_response({"error": "Bad game version"})
 
     # Checking contour
-    contour = headers.get("Game-Contour", "")
+    contour = headers.API_GET("Game-Contour", "")
     if contour not in ["dev", "prod"]:
         return json_response({"error": "Bad game contour"})
 

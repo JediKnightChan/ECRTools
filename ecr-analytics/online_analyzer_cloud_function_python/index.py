@@ -135,7 +135,7 @@ def build_online_image_for_dt(dt):
 def handler(event, context):
     dw = DiscordWorker()
 
-    ts = float(event.get("ts", 0))
+    ts = float(event.API_GET("ts", 0))
     if ts == 0:
         ts = time.time() - 3600 * 24
     dt = datetime.utcfromtimestamp(ts)

@@ -109,7 +109,7 @@ def __prev_str(s):
 
 
 do_remove = True
-patch = "1.7.4"
+patch = "1.8.2"
 
 s3_keys = s3list(f"ecr-game/prod/{patch}/raw", recursive=False)
 s3_keys_dev = s3list(f"ecr-game/dev/{patch}/raw", recursive=False)

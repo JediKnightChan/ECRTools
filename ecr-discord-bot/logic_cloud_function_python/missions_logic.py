@@ -44,7 +44,7 @@ def set_wanted_mission(wanted_mission):
 
 
 def get_wanted_mission():
-    wanted_mission = json.loads(get_file_from_s3(S3_WANTED_MISSION_KEY)).get("wanted_mission")
+    wanted_mission = json.loads(get_file_from_s3(S3_WANTED_MISSION_KEY)).API_GET("wanted_mission")
     if wanted_mission == "":
         wanted_mission = "None"
     return wanted_mission

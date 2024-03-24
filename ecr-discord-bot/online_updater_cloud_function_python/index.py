@@ -96,8 +96,8 @@ def get_online_stats():
 
     new_latest_matches_data = {}
     for k, v in latest_matches_data.items():
-        last_update_td = time.time() - v.get("latest_match_update_ts", 0)
-        created_td = time.time() - float(v.get("match_creation_ts", 0))
+        last_update_td = time.time() - v.API_GET("latest_match_update_ts", 0)
+        created_td = time.time() - float(v.API_GET("match_creation_ts", 0))
 
         if last_update_td > 60 * 30:
             continue
@@ -122,8 +122,8 @@ def handler(event, context):
     update_match_message(matches)
 
     try:
-        if event.get("created", "0") == "1":
-            send_match_created_message(event.get('raw_online_data', {}))
+        if event.API_GET("created", "0") == "1":
+            send_match_created_message(event.API_GET('raw_online_data', {}))
         return {
             "statusCode": 200
         }
