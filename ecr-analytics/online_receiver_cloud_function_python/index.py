@@ -67,9 +67,9 @@ def update_current_online_stats(raw_online_data, destroy=False):
     latest_matches_data[match_owner] = raw_online_data
     new_latest_matches_data = {}
     for k, v in latest_matches_data.items():
-        if time.time() - v.API_GET("latest_match_update_ts", 0) > 60 * 7:
+        if time.time() - v.get("latest_match_update_ts", 0) > 60 * 7:
             continue
-        if time.time() - float(v.API_GET("started_ts", 0)) > 60 * 30:
+        if time.time() - float(v.get("started_ts", 0)) > 60 * 30:
             continue
         new_latest_matches_data[k] = v
 
@@ -99,10 +99,10 @@ def update_overall_online_stats(raw_online_data):
 
 
 def handler(event, context):
-    headers = event.API_GET("headers", [])
+    headers = event.get("headers", [])
 
     # Checking auth header
-    auth_header = headers.API_GET("Ecr-Authorization", "")
+    auth_header = headers.get("Ecr-Authorization", "")
     if auth_header == "Api-Key " + PLAYER_API_KEY and PLAYER_API_KEY:
         sender = "player"
     elif auth_header == "Api-Key " + SERVER_API_KEY and SERVER_API_KEY:
@@ -111,12 +111,12 @@ def handler(event, context):
         return json_response({"error": "Not authorized"}, status_code=400)
 
     # Checking game version
-    game_version = headers.API_GET("Game-Version", "")
+    game_version = headers.get("Game-Version", "")
     if not re.match(r"\d+\.\d+\.\d+", game_version):
         return json_response({"error": "Bad game version"})
 
     # Checking contour
-    contour = headers.API_GET("Game-Contour", "")
+    contour = headers.get("Game-Contour", "")
     if contour not in ["dev", "prod"]:
         return json_response({"error": "Bad game contour"})
 
@@ -131,7 +131,7 @@ def handler(event, context):
 
         # Update current online
         just_created = False
-        action = raw_online_data.API_GET("action", "update")
+        action = raw_online_data.get("action", "update")
         if action == "update":
             update_current_online_stats(raw_online_data)
         elif action == "destroy":

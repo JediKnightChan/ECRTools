@@ -12,19 +12,13 @@ headers = {
 }
 
 json_data = {
-    "name": "suggest_ecr_change",
-    "description": "Suggest one gameplay change for ECR and put it to a vote",
+    "name": "set_match_creation_forbidden",
+    "description": "During planned games prohibit hosting from players, make sure to reset it in the end of event",
     "options": [
         {
-            "type": 3,
-            "name": "title",
-            "description": "Title",
-            "required": True
-        },
-        {
-            "type": 3,
-            "name": "desc",
-            "description": "Description and reasoning",
+            "type": 5,
+            "name": "forbidden",
+            "description": "Forbid/allow",
             "required": True
         }
     ]

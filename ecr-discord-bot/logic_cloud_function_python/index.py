@@ -7,7 +7,7 @@ from yandex_api import YandexWorker
 from google_api import GoogleWorker
 
 from discord_api import DiscordWorker, EmbedBuilder
-from missions_logic import get_available_missions, get_wanted_mission, set_wanted_mission
+from missions_logic import get_available_missions, set_wanted_mission, set_match_creation_allowed
 from yandex_translate_logic import YandexTranslator
 
 google_servers_data = {
@@ -45,9 +45,9 @@ def get_server_instance_from_command_data(command_data_):
 def handler(event, context):
     interaction_data = {}
     try:
-        messages = event.API_GET("messages", [])
+        messages = event.get("messages", [])
         if len(messages) > 0:
-            message_body = messages[0].API_GET("details", {}).API_GET("message", {}).API_GET("body", "{}")
+            message_body = messages[0].get("details", {}).get("message", {}).get("body", "{}")
             interaction_data = json.loads(message_body)
     except Exception as e:
         logging.error(traceback.format_exc())
@@ -77,10 +77,10 @@ def handler(event, context):
         if region.lower() in ['ru']:
             yw = YandexWorker()
             res, _ = yw.start_instance(instance)
-            if not res.API_GET("done", ""):
+            if not res.get("done", ""):
                 return discord_text_response(f"Starting {region.upper()}")
             else:
-                if res.API_GET("code", None) == 9:
+                if res.get("code", None) == 9:
                     return discord_text_response(f"{region.upper()} already running")
                 else:
                     return discord_text_response(f"Unknown status: {region.upper()}")
@@ -103,7 +103,7 @@ def handler(event, context):
         if region.lower() in ["ru"]:
             yw = YandexWorker()
             res, _ = yw.stop_instance(instance)
-            if res.API_GET("done", "") == False:
+            if res.get("done", "") == False:
                 return discord_text_response(f"Stopping {region.upper()}")
             else:
                 return discord_text_response(f"Server already stopped: {region.upper()}")
@@ -142,7 +142,7 @@ def handler(event, context):
         final_title = title if title == title_en else f"{title_en} ({title})"
         final_desc = desc if desc == desc_en else f"{desc_en}\n\n({desc})"
 
-        author = interaction_data.get("member").get("user").API_GET("id")
+        author = interaction_data.get("member").get("user").get("id")
 
         embed = {
             "title": f"VOTE FOR: {final_title.upper()}",
@@ -153,9 +153,13 @@ def handler(event, context):
         embed["fields"].append(eb.build_field("Description", final_desc))
 
         data, _ = dw.send_message(os.getenv("DISCORD_CHANGES_VOTE_CHANNEL_ID"), dw.build_message(f"<@{author}>", embed))
-        dw.react_to_message(data.API_GET("id"), data.API_GET("channel_id"), "🟩")
-        dw.react_to_message(data.API_GET("id"), data.API_GET("channel_id"), "🟥")
-        dw.create_thread_from_message(data.API_GET("id"), data.API_GET("channel_id"), f"DISCUSSION: {title_en}")
+        dw.react_to_message(data.get("id"), data.get("channel_id"), "🟩")
+        dw.react_to_message(data.get("id"), data.get("channel_id"), "🟥")
+        dw.create_thread_from_message(data.get("id"), data.get("channel_id"), f"DISCUSSION: {title_en}")
         return discord_text_response("Your gameplay change has been put to a vote")
+    elif command_name == "set_match_creation_forbidden":
+        forbidden = get_command_option(command_data, "forbidden")
+        set_match_creation_allowed(not forbidden)
+        return discord_text_response(f"Setting match creation {'forbidden' if forbidden else 'allowed'}")
     else:
         return discord_text_response("Can't handle: unknown command")

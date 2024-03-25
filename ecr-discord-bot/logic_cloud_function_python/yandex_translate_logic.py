@@ -28,11 +28,11 @@ class YandexTranslator:
         r = requests.post('https://translate.api.cloud.yandex.net/translate/v2/translate', headers=headers,
                           json=data)
         print(r.text)
-        translations = r.json().API_GET("translations", [])
+        translations = r.json().get("translations", [])
 
         result_texts = []
         for original_text, translation_piece in zip_longest(texts, translations, fillvalue=None):
-            if translation_piece and translation_piece.API_GET("detectedLanguageCode") != target_lang:
+            if translation_piece and translation_piece.get("detectedLanguageCode") != target_lang:
                 result_texts.append(translation_piece["text"])
             else:
                 result_texts.append(original_text)

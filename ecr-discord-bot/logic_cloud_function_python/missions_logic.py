@@ -1,11 +1,14 @@
 import json
 import os
+import time
+
 import requests
 import boto3
 
 S3_SERVER_DATA_FOLDER = "api/ecr/server_data"
 S3_MATCH_DATA_KEY = f"{S3_SERVER_DATA_FOLDER}/match_data.json"
 S3_WANTED_MISSION_KEY = f"{S3_SERVER_DATA_FOLDER}/wanted_mission.json"
+S3_MATCH_CREATION_ALLOWED_KEY = f"{S3_SERVER_DATA_FOLDER}/match_creation.json"
 
 # Connecting to S3 Object Storage
 s3_session = boto3.session.Session()
@@ -44,7 +47,16 @@ def set_wanted_mission(wanted_mission):
 
 
 def get_wanted_mission():
-    wanted_mission = json.loads(get_file_from_s3(S3_WANTED_MISSION_KEY)).API_GET("wanted_mission")
+    wanted_mission = json.loads(get_file_from_s3(S3_WANTED_MISSION_KEY)).get("wanted_mission")
     if wanted_mission == "":
         wanted_mission = "None"
     return wanted_mission
+
+
+def set_match_creation_allowed(allowed):
+    new_content = {
+        "allowed": allowed,
+        "ts": time.time()
+    }
+
+    upload_file_to_s3(json.dumps(new_content, indent=4), S3_MATCH_CREATION_ALLOWED_KEY)

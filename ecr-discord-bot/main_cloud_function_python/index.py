@@ -91,7 +91,8 @@ def command_handler(body):
         "start_ecr_server": "Starting ECR server queued",
         "stop_ecr_server": "Stopping ECR server queued",
         "set_ecr_server_mission": "Setting ECR server mission queued",
-        "get_ecr_server_missions": "Getting ECR server missions queued"
+        "get_ecr_server_missions": "Getting ECR server missions queued",
+        "set_match_creation_forbidden": "Forbidding/allowing match creation queued"
     }
 
     all_server_members_commands_to_banned_roles_and_responses = {
