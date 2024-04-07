@@ -25,13 +25,18 @@
       "map": "/Game/Maps/Levels/ValorousSalvation",
       "mode": "pvp"
     },
+    "PromethiumMineDomination": {
+      "weight": 0.33,
+      "map": "/Game/Maps/Levels/PromethiumMine",
+      "mode": "pvp"
+    },
     "PromethiumMineSupremacy": {
-      "weight": 0.5,
+      "weight": 0.33,
       "map": "/Game/Maps/Levels/PromethiumMine",
       "mode": "pvp"
     },
     "PromethiumMineHoldTheLine": {
-      "weight": 0.5,
+      "weight": 0.33,
       "map": "/Game/Maps/Levels/PromethiumMine",
       "mode": "pvp"
     },
@@ -60,13 +65,18 @@
       "map": "/Game/Maps/Levels/Zedek",
       "mode": "pvp"
     },
+    "CycladonComplexDomination": {
+      "weight": 0.33,
+      "map": "/Game/Maps/Levels/CycladonComplex",
+      "mode": "pvp"
+    },
     "CycladonComplexSupremacy": {
-      "weight": 0.5,
+      "weight": 0.33,
       "map": "/Game/Maps/Levels/CycladonComplex",
       "mode": "pvp"
     },
     "CycladonComplexDuel": {
-      "weight": 0.5,
+      "weight": 0.33,
       "map": "/Game/Maps/Levels/CycladonComplex",
       "mode": "pvp"
     },
@@ -101,7 +111,12 @@
       "mode": "pvp"
     },
     "OlipsisSupremacy": {
-      "weight": 1,
+      "weight": 0.5,
+      "map": "/Game/Maps/Levels/RefineryOlipsis",
+      "mode": "pvp"
+    },
+    "OlipsisHoldTheLine": {
+      "weight": 0.5,
       "map": "/Game/Maps/Levels/RefineryOlipsis",
       "mode": "pvp"
     },
