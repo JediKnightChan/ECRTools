@@ -7,7 +7,7 @@ from common import ResourceProcessor
 from marshmallow import Schema, fields, ValidationError
 
 from resources.character import CharacterProcessor
-from resources.currency import CurrencyProcessor
+from resources.player import PlayerProcessor
 from tools.common_schemas import CharPlayerSchema
 
 
@@ -97,34 +97,31 @@ class CosmeticStoreProcessor(ResourceProcessor):
 
             if not item_can_be_bought:
                 # Can't buy this item
-                return {"error": "Item can't be bought"}, 400
+                return {"error": "Item can't be bought", "error_code": 5}, 400
 
-            cur_proc = CurrencyProcessor(self.logger, self.contour)
-            char_proc = CharacterProcessor(self.logger, self.contour)
+            player_proc = PlayerProcessor(self.logger, self.contour)
 
-            cur_data, cur_s = cur_proc.API_GET(request_body)
-            if cur_s != 200:
-                return cur_data, cur_s
+            player_data, player_s = player_proc.API_GET({"id": player_id})
+            if player_s != 200:
+                return player_data, player_s
 
-            char_data, char_s = char_proc.API_GET(request_body)
-            if char_s != 200:
-                return char_data, char_s
+            gold = player_data["data"]["gold"]
+            player_level = player_data["data"]["level"]
 
-            gold = cur_data["data"]["gold"]
-            char_level = char_data["data"]["level"]
-
-            if char_level < item_required_level:
-                return {"error": f"Not enough level ({char_level} < {item_required_level})"}, 400
+            if player_level < item_required_level:
+                return {"error": f"Not enough level ({player_level} < {item_required_level})", "error_code": 6}, 400
 
             if gold >= item_cost_gold:
                 # Can afford, buy
                 self.update_unlocked_items(player_id, character_id, unlocked_cosmetics + [item_id])
-                cur_proc.change_currencies(player_id, character_id, 0, 0, 0, -item_cost_gold, "buy_cosmetic", item_id)
-                return {"success": True}, 200
+                r, s = player_proc.modify(player_id, 0, 0, 0, -item_cost_gold, "buy_cosmetic", item_id)
+                if s == 204:
+                    return {"success": True}, 200
+                else:
+                    return r, s
             else:
                 # Can't afford
-                return {"error": f"Not enough gold ({gold} < {item_cost_gold})", "error_code": 5}, 400
-
+                return {"error": f"Not enough gold ({gold} < {item_cost_gold})", "error_code": 7}, 400
         except ValidationError as e:
             return {"error": e.messages}, 400
         except Exception as e:
@@ -159,8 +156,8 @@ if __name__ == '__main__':
     store = CosmeticStoreProcessor(logging.getLogger(__name__), "dev")
 
     player_id = "earlydevtestplayerid"
-    char_id = "38b920becf4d57d688f3ed6e4a2866c4"
-    item_id = "test_cosmetic_item2"
-    r, s = store.API_MODIFY({"player_id": player_id, "id": char_id, "item": item_id})
-    # r, s = store.API_GET({"player_id": player_id, "id": char_id})
+    char_id = "68f2381b653656b7a5bf9a52e0cd2ca9"
+    item_id = "test_cosmetic_item"
+    # r, s = store.API_MODIFY({"player_id": player_id, "id": char_id, "item": item_id})
+    r, s = store.API_GET({"player_id": player_id, "id": char_id})
     print(r, s)

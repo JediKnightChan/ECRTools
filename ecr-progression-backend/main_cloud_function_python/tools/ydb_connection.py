@@ -8,9 +8,13 @@ import ydb
 class YDBConnector:
     def __init__(self, logger):
         self.logger = logger
+        self.ydb_db_path = os.getenv("YDB_DB_PATH")
+        if not self.ydb_db_path:
+            raise ValueError("YDB DB PATH not specified")
+
         self.driver_config = ydb.DriverConfig(
             'grpcs://ydb.serverless.yandexcloud.net:2135',
-            os.getenv("YDB_DB_PATH"),
+            self.ydb_db_path,
             credentials=ydb.iam.ServiceAccountCredentials.from_file("../authorized_key.json")
         )
 

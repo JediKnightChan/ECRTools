@@ -8,7 +8,7 @@ import uuid
 from common import ResourceProcessor
 from tools.common_schemas import CharPlayerSchema, ECR_FACTIONS
 from tools.ydb_connection import YDBConnector
-from marshmallow import Schema, fields, validate, ValidationError
+from marshmallow import fields, validate, ValidationError
 
 
 class CharacterSchema(CharPlayerSchema):
@@ -23,7 +23,6 @@ class CharacterSchema(CharPlayerSchema):
         required=True,
         validate=validate.OneOf(ECR_FACTIONS),
     )
-    level = fields.Int()
 
 
 class CharacterProcessor(ResourceProcessor):
@@ -181,8 +180,8 @@ class CharacterProcessor(ResourceProcessor):
                 DECLARE $CHARACTER_NAME AS String;
                 DECLARE $FACTION AS Utf8;
 
-                UPSERT INTO {self.table_name} (id, player_id, name, faction, level) VALUES
-                    ($ID, $PLAYER_ID, $CHARACTER_NAME, $FACTION, 1);
+                UPSERT INTO {self.table_name} (id, player_id, name, faction, guild, guild_role, campaign_progress) VALUES
+                    ($ID, $PLAYER_ID, $CHARACTER_NAME, $FACTION, NULL, NULL, NULL);
             """
 
             query_params = {
@@ -207,6 +206,7 @@ class CharacterProcessor(ResourceProcessor):
     def API_MODIFY(self, request_body: dict) -> typing.Tuple[dict, int]:
         """Allow to modify only character of yours (it's name), query is filtered by player_id"""
 
+        # Excluding faction from schema
         schema = CharacterSchema(partial=("faction",))
 
         try:
@@ -222,7 +222,9 @@ class CharacterProcessor(ResourceProcessor):
                 name = $CHARACTER_NAME,
                 faction = faction,
                 player_id = player_id,
-                level = level
+                guild = guild,
+                guild_role = guild_role,
+                campaign_progress = campaign_progress
                 WHERE
                     id = $ID 
                     AND player_id = $PLAYER_ID
@@ -248,43 +250,15 @@ class CharacterProcessor(ResourceProcessor):
             self.logger.error(f"Exception during character MODIFY with body {request_body}: {traceback.format_exc()}")
             return self.internal_server_error_response
 
-    def change_level(self, player_id, character_id, new_level) -> typing.Tuple[dict, int]:
-        """Change player level"""
-
-        query = f"""
-            DECLARE $ID AS Utf8;
-            DECLARE $PLAYER_ID AS Utf8;
-            DECLARE $LEVEL AS Uint32;
-
-            UPDATE {self.table_name}
-            SET 
-            name = name,
-            faction = faction,
-            player_id = player_id,
-            level = $LEVEL
-            WHERE
-                id = $ID 
-                AND player_id = $PLAYER_ID
-            ;
-        """
-
-        query_params = {
-            '$ID': character_id,
-            '$PLAYER_ID': player_id,
-            '$LEVEL': new_level
-        }
-
-        result, code = self.yc.process_query(query, query_params)
-
-        if code == 0:
-            return {"success": True}, 204
-        else:
-            return self.internal_server_error_response
-
 
 if __name__ == '__main__':
     char_proc = CharacterProcessor(logging.getLogger(__name__), "dev")
-    r, s = char_proc.API_CREATE(
-        {"player_id": "earlydevtestplayerid", "name": "JUST A TEST CHAR", "faction": "LoyalSpaceMarines"})
-    # r, s = char_proc.modify({"id": "01fda26ce67056f485096fd63943defe", "name": "Chaos Legionnaire 22", "player_id": "pid33"})
+    # r, s = char_proc.API_CREATE(
+    #     {"player_id": "earlydevtestplayerid", "name": "JUST A TEST CHAR", "faction": "LoyalSpaceMarines"})
+
+    # r, s = char_proc.API_LIST({"player_id": "earlydevtestplayerid"})
+    # r, s = char_proc.API_GET(
+    #     {"id": "68f2381b653656b7a5bf9a52e0cd2ca9"})
+
+    r, s = char_proc.API_MODIFY({"id": "68f2381b653656b7a5bf9a52e0cd2ca9", "name": "Loyal Legionnaire", "player_id": "earlydevtestplayerid"})
     print(s, r)
