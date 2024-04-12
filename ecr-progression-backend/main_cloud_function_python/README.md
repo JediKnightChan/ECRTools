@@ -11,15 +11,33 @@ for data storage we use S3 and serverless database, YDB, and for API webhook we 
 YDB doesn't support ORM so raw SQL queries have to be used, S3 is also unfriendly to frameworks, 
 so a lot of low-level code in the end.
 
-## Models
+## Resources
+
+### Player
+
+Model fields:
+1) ID
+2) Level
+3) XP
+4) Free XP
+5) Silver
+6) Gold
+
+Methods:
+1) Get by ID (will create new player if not present and asking player is asking about himself)
+
+Stored in YDB table `players` or `players-dev`
 
 ### Character
 
-Fields:
+Model fields:
 1) ID
 2) Player ID
 3) Name
 4) Faction
+5) Guild
+6) Guild Role
+7) Campaign Progress
 
 Methods:
 1) Get by ID
@@ -32,18 +50,17 @@ Deleting character is not possible, sub faction can be changed any time locally 
 
 Stored in YDB table `characters` or `characters-dev`
 
-### Character Currencies Data
-
-Fields:
-1) Character ID
-2) Player ID
-3) XP
-4) Free XP (not spent)
-5) Silver
-6) Gold
+### Cosmetic Store
 
 Methods:
-1) Get currency data for character and player
-2) Set currency data (not called by the game directly, only via other backend)
+1) Get all unlocked cosmetics for a character
+2) Unlock a cosmetic item, spending currency
 
-Stored in S3 in `{dev|prod}/{player_id}/{character_id}/currencies.json`
+Stored in S3 in `{dev|prod}/{player_id}/{character_id}/unlocked_cosmetics.json`
+
+### Listen Server
+
+Methods:
+1) Get all data about character: base player data (see Player) and unlocked cosmetics (see Cosmetic Store)
+
+Combines data from Player and Unlocked Cosmetics for one request
