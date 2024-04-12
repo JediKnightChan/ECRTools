@@ -15,7 +15,8 @@ class YDBConnector:
         self.driver_config = ydb.DriverConfig(
             'grpcs://ydb.serverless.yandexcloud.net:2135',
             self.ydb_db_path,
-            credentials=ydb.iam.ServiceAccountCredentials.from_file("../authorized_key.json")
+            credentials=ydb.iam.ServiceAccountCredentials.from_file(
+                os.path.join(os.path.dirname(__file__), "../authorized_key.json"))
         )
 
     def process_query(self, query, query_params):

@@ -5,7 +5,7 @@ import typing
 import datetime
 import uuid
 
-from common import ResourceProcessor
+from common import ResourceProcessor, permission_required, APIPermission
 from tools.common_schemas import CharPlayerSchema, ECR_FACTIONS
 from tools.ydb_connection import YDBConnector
 from marshmallow import fields, validate, ValidationError
@@ -24,18 +24,25 @@ class CharacterSchema(CharPlayerSchema):
         validate=validate.OneOf(ECR_FACTIONS),
     )
 
+    guild = fields.UUID(required=False)
+    guild_role = fields.Int(required=False)
+    campaign_progress = fields.Int(required=False)
+
 
 class CharacterProcessor(ResourceProcessor):
-    def __init__(self, logger, contour):
-        super(CharacterProcessor, self).__init__(logger, contour)
+    """Retrieve data about characters, create and modify them"""
+
+    def __init__(self, logger, contour, user):
+        super(CharacterProcessor, self).__init__(logger, contour, user)
 
         self.yc = YDBConnector(logger)
         self.uuid_namespace = uuid.UUID('d824c96d-64b0-5ffd-a7ad-68ff02af0f07')
 
         self.table_name = "characters" if self.contour == "prod" else "characters_dev"
 
+    @permission_required(APIPermission.SERVER_OR_OWNING_PLAYER)
     def API_LIST(self, request_body: dict) -> typing.Tuple[dict, int]:
-        """Get all characters data for given player_id"""
+        """Get all characters data for given player_id. Only owning player or server can do it"""
 
         schema = CharacterSchema(only=("player_id",))
 
@@ -58,7 +65,8 @@ class CharacterProcessor(ResourceProcessor):
             result, code = self.yc.process_query(query, query_params)
             if code == 0:
                 if len(result) > 0:
-                    return {"success": True, "data": result[0].rows}, 200
+                    dump_schema = CharacterSchema()
+                    return {"success": True, "data": [dump_schema.dump(r) for r in result[0].rows]}, 200
                 else:
                     return {"success": False, "data": []}, 500
             else:
@@ -70,8 +78,9 @@ class CharacterProcessor(ResourceProcessor):
             self.logger.error(f"Exception during character LIST with body {request_body}: {traceback.format_exc()}")
             return self.internal_server_error_response
 
+    @permission_required(APIPermission.ANYONE)
     def API_GET(self, request_body: dict) -> typing.Tuple[dict, int]:
-        """Get character by id, no filter by player_id, so everyone can do it"""
+        """Get character by id, everyone can do it"""
 
         schema = CharacterSchema(only=("id",))
 
@@ -96,7 +105,8 @@ class CharacterProcessor(ResourceProcessor):
             if code == 0:
                 if len(result) > 0:
                     if len(result[0].rows) > 0:
-                        return {"success": True, "data": result[0].rows[0]}, 200
+                        dump_schema = CharacterSchema()
+                        return {"success": True, "data": dump_schema.dump(result[0].rows[0])}, 200
                     else:
                         return {"success": True, "data": {}}, 404
                 else:
@@ -110,10 +120,11 @@ class CharacterProcessor(ResourceProcessor):
             self.logger.error(f"Exception during character GET with body {request_body}: {traceback.format_exc()}")
             return self.internal_server_error_response
 
+    @permission_required(APIPermission.OWNING_PLAYER_ONLY)
     def API_CREATE(self, request_body: dict) -> typing.Tuple[dict, int]:
-        """Create character, ID is generated with UUID"""
+        """Create character, ID is generated with UUID. Only owning player can do it"""
 
-        schema = CharacterSchema(partial=("id",))
+        schema = CharacterSchema(only=("player_id", "faction", "name"))
 
         try:
             validated_data = schema.load(request_body)
@@ -203,8 +214,9 @@ class CharacterProcessor(ResourceProcessor):
             self.logger.error(f"Exception during character CREATE with body {request_body}: {traceback.format_exc()}")
             return self.internal_server_error_response
 
+    @permission_required(APIPermission.OWNING_PLAYER_ONLY)
     def API_MODIFY(self, request_body: dict) -> typing.Tuple[dict, int]:
-        """Allow to modify only character of yours (it's name), query is filtered by player_id"""
+        """Allow to modify only character of yours (its name), query is filtered by player_id"""
 
         # Excluding faction from schema
         schema = CharacterSchema(partial=("faction",))
@@ -252,13 +264,14 @@ class CharacterProcessor(ResourceProcessor):
 
 
 if __name__ == '__main__':
-    char_proc = CharacterProcessor(logging.getLogger(__name__), "dev")
+    player_id = "earlydevtestplayerid"
+    char_proc = CharacterProcessor(logging.getLogger(__name__), "dev", player_id)
     # r, s = char_proc.API_CREATE(
     #     {"player_id": "earlydevtestplayerid", "name": "JUST A TEST CHAR", "faction": "LoyalSpaceMarines"})
 
-    # r, s = char_proc.API_LIST({"player_id": "earlydevtestplayerid"})
+    r, s = char_proc.API_LIST({"player_id": player_id})
     # r, s = char_proc.API_GET(
     #     {"id": "68f2381b653656b7a5bf9a52e0cd2ca9"})
 
-    r, s = char_proc.API_MODIFY({"id": "68f2381b653656b7a5bf9a52e0cd2ca9", "name": "Loyal Legionnaire", "player_id": "earlydevtestplayerid"})
+    # r, s = char_proc.API_MODIFY({"id": "68f2381b653656b7a5bf9a52e0cd2ca9", "name": "Loyal Legionnaire"})
     print(s, r)

@@ -3,10 +3,9 @@ import logging
 import traceback
 import typing
 
-from common import ResourceProcessor
+from common import ResourceProcessor, permission_required, APIPermission
 from marshmallow import Schema, fields, ValidationError
 
-from resources.character import CharacterProcessor
 from resources.player import PlayerProcessor
 from tools.common_schemas import CharPlayerSchema
 
@@ -24,8 +23,11 @@ class UnlockedCosmeticsContentSchema(Schema):
 
 
 class CosmeticStoreProcessor(ResourceProcessor):
+    """Purchase and view bought cosmetics for characters"""
+
+    @permission_required(APIPermission.ANYONE)
     def API_GET(self, request_body: dict) -> typing.Tuple[dict, int]:
-        """Gets unlocked cosmetic items for given character"""
+        """Gets unlocked cosmetic items for given character. Anyone can do it"""
 
         schema = UnlockedCosmeticsGetSchema()
         try:
@@ -61,10 +63,13 @@ class CosmeticStoreProcessor(ResourceProcessor):
             self.logger.error(f"Exception during cosmetics GET with body {request_body}: {traceback.format_exc()}")
             return self.internal_server_error_response
 
+    @permission_required(APIPermission.OWNING_PLAYER_ONLY)
     def API_MODIFY(self, request_body: dict) -> typing.Tuple[dict, int]:
         """
         Buy a cosmetic item for a given character. Checking item availability, amount of gold, character level.
-        Faction is not checked, player may potentially unlock wrong cosmetics, but they won't be available in the match
+        Faction is not checked, player may potentially unlock wrong cosmetics, but they won't be available in the match.
+
+        Only owning player can do it
         """
 
         already_unlocked_data, s = self.API_GET(request_body)
@@ -99,7 +104,7 @@ class CosmeticStoreProcessor(ResourceProcessor):
                 # Can't buy this item
                 return {"error": "Item can't be bought", "error_code": 5}, 400
 
-            player_proc = PlayerProcessor(self.logger, self.contour)
+            player_proc = PlayerProcessor(self.logger, self.contour, self.user)
 
             player_data, player_s = player_proc.API_GET({"id": player_id})
             if player_s != 200:
@@ -153,11 +158,11 @@ class CosmeticStoreProcessor(ResourceProcessor):
 
 
 if __name__ == '__main__':
-    store = CosmeticStoreProcessor(logging.getLogger(__name__), "dev")
-
     player_id = "earlydevtestplayerid"
     char_id = "68f2381b653656b7a5bf9a52e0cd2ca9"
     item_id = "test_cosmetic_item"
+
+    store = CosmeticStoreProcessor(logging.getLogger(__name__), "dev", player_id)
     # r, s = store.API_MODIFY({"player_id": player_id, "id": char_id, "item": item_id})
     r, s = store.API_GET({"player_id": player_id, "id": char_id})
     print(r, s)

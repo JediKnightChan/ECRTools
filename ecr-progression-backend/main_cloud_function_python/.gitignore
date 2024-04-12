@@ -1,2 +1,5 @@
 authorized_key.json
 data/
+tests/
+eos_token_example.txt
+eos_token_account_id.txt

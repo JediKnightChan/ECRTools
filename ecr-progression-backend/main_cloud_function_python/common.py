@@ -13,22 +13,69 @@ class APIAction:
     DELETE = "delete"
 
 
+class APIPermission:
+    """Specifies who can access this action for given player_id in action data. Backend can access any action"""
+
+    ANYONE = "ANYONE"
+    OWNING_PLAYER_ONLY = "OWNING_PLAYER_ONLY"
+    SERVER_ONLY = "SERVER_ONLY"
+    SERVER_OR_OWNING_PLAYER = "SERVER_OR_OWNING_PLAYER"
+
+
+def permission_required(permission_type):
+    """Permission wrapper around ResourceProcessor.API_PROCESS_REQUEST implementations"""
+
+    def decorator(func):
+        def wrapper(self, *args, **kwargs):
+            can_perform_action = False
+            logger = getattr(self, 'logger', None)
+
+            asking_user = getattr(self, 'user', None)
+            target_user = args[0].get("player_id")
+
+            is_backend = asking_user == "backend"
+            is_server = asking_user == "server"
+            is_owning_player = asking_user == target_user
+
+            if permission_type == APIPermission.ANYONE:
+                can_perform_action = True
+            elif permission_type == APIPermission.SERVER_ONLY:
+                can_perform_action = is_server
+            elif permission_type == APIPermission.OWNING_PLAYER_ONLY:
+                can_perform_action = is_owning_player
+            elif permission_type == APIPermission.SERVER_OR_OWNING_PLAYER:
+                can_perform_action = is_server or is_owning_player
+
+            if can_perform_action or is_backend:
+                return func(self, *args, **kwargs)
+            else:
+                logger.warning(f"Didn't allow asking user {asking_user} to perform action {self.__class__.__name__}->{func.__name__} with user {target_user}, args {args}")
+                return {"error": "Not allowed to use this action"}, 403
+
+        return wrapper
+
+    return decorator
+
+
 class ResourceProcessor:
     """Resource Processor is a handler (controller in MVC) for API request data per given resource (API entity)"""
 
-    def __init__(self, logger, contour):
+    """Receives logger, contour (dev/prod) and user id (epic account id) who sent request"""
+
+    def __init__(self, logger, contour, user):
         if logger:
             self.logger = logger
         else:
             self.logger = logging.getLogger(__name__)
 
         self.contour = contour
+        self.user = user
         self.s3 = S3Connector()
         self.s3_paths = S3PathBuilder(self.contour)
 
     @property
     def action_not_allowed_response(self) -> typing.Tuple[dict, int]:
-        return {"error": "This action is not allowed"}, 400
+        return {"error": "Not allowed to use this action"}, 403
 
     @property
     def internal_server_error_response(self) -> typing.Tuple[dict, int]:

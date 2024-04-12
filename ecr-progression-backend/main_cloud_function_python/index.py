@@ -2,11 +2,19 @@ import json
 import logging
 import os
 
+from tools.eos_auth import EOSAuthVerifier
+
 from resources.character import CharacterProcessor
-from resources.currency import CurrencyProcessor
+from resources.player import PlayerProcessor
+from resources.cosmetic_store import CosmeticStoreProcessor
+from resources.listen_server import ListenServerProcessor
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
+
+PLAYER_API_KEY = os.getenv("PLAYER_API_KEY", "")
+SERVER_API_KEY = os.getenv("SERVER_API_KEY", "")
+BACKEND_API_KEY = os.getenv("BACKEND_API_KEY", "")
 
 
 def json_response(dict_, status_code=200):
@@ -24,8 +32,26 @@ def handler(event, context):
         logger.error(f"Couldn't parse body of event")
         return json_response({"error": "Couldn't parse body"}, status_code=400)
 
-    # Here should be validation, using EOS id, EOS token, ECR API token
-    pass
+    # Validation, using EOS id, EOS token, ECR API token
+
+    # Checking ECR API token
+    headers = event.get("headers", [])
+    auth_header = headers.get("Ecr-Authorization", "")
+
+    if auth_header == "Api-Key " + PLAYER_API_KEY and PLAYER_API_KEY:
+        # Check authentication
+        user = headers.get("Ecr-Account", "")
+        token_id = headers.get("Ecr-Token", "")
+
+        av = EOSAuthVerifier(logger)
+        if not av.validate_token(user, token_id):
+            return json_response({"error": "Not authorized (Player Token)"}, status_code=401)
+    elif auth_header == "Api-Key " + SERVER_API_KEY and SERVER_API_KEY:
+        user = "server"
+    elif auth_header == "Api-Key " + BACKEND_API_KEY and BACKEND_API_KEY:
+        user = "backend"
+    else:
+        return json_response({"error": "Not authorized (Api-Key)"}, status_code=401)
 
     try:
         resource = body["resource"]
@@ -35,9 +61,13 @@ def handler(event, context):
         contour = os.getenv("CONTOUR", "dev")
 
         if resource == "character":
-            processor = CharacterProcessor(logger, contour)
-        elif resource == "currency":
-            processor = CurrencyProcessor(logger, contour)
+            processor = CharacterProcessor(logger, contour, user)
+        elif resource == "player":
+            processor = PlayerProcessor(logger, contour, user)
+        elif resource == "cosmetics":
+            processor = CosmeticStoreProcessor(logger, contour, user)
+        elif resource == "listen_server":
+            processor = ListenServerProcessor(logger, contour, user)
         else:
             return json_response({"error": "Unknown resource"}, status_code=400)
 
@@ -45,5 +75,5 @@ def handler(event, context):
         return json_response(result_data, status_code=result_code)
 
     except Exception as e:
-        logger.fatal(f"Error: {e}")
+        logger.error(f"Error: {e}")
         return json_response({"error": "Internal error"}, status_code=500)

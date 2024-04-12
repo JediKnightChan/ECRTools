@@ -1,0 +1,7 @@
+boto3==1.26.149
+requests==2.31.0
+cryptography==3.3.1
+pyjwt==2.7.0
+ydb[yc]==3.8.1
+marshmallow==3.21.1
+pandas==2.1.4
