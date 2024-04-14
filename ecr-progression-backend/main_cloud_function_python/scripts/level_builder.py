@@ -1,5 +1,5 @@
 import math
-
+import json
 import pandas as pd
 
 xp_to_level = [
@@ -34,4 +34,7 @@ for i in range(len(xp_to_level), 100):
 data = [{"xp_amount": k, "level": i} for i, k in enumerate(xp_to_level, start=1)]
 
 df = pd.DataFrame(data)
-df.to_csv("../data/levels.csv", index=False)
+df.to_csv("../data/levels.csv", index=True)
+
+with open("../data/levels.json", "w") as f:
+    json.dump(data, f, indent=4)

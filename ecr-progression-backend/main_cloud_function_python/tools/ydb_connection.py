@@ -19,26 +19,29 @@ class YDBConnector:
                 os.path.join(os.path.dirname(__file__), "../authorized_key.json"))
         )
 
+        self.driver = ydb.Driver(self.driver_config)
+        self.driver.wait(fail_fast=True, timeout=5)
+        self.pool = ydb.SessionPool(self.driver, size=1)
+
+    @staticmethod
+    def __execute_query(session, query, query_params):
+        prepared_query = session.prepare(query)
+        return session.transaction(ydb.SerializableReadWrite()).execute(
+            prepared_query, query_params,
+            commit_tx=True,
+            settings=ydb.BaseRequestSettings().with_timeout(3).with_operation_timeout(2)
+        )
+
     def process_query(self, query, query_params):
-        with ydb.Driver(self.driver_config) as driver:
-            try:
-                driver.wait(5)
-
-                session = driver.table_client.session().create()
-
-                prepared_query = session.prepare(query)
-                r = session.transaction(ydb.SerializableReadWrite()).execute(
-                    prepared_query, query_params,
-                    commit_tx=True
-                )
-
-                return r, 0
-            except TimeoutError:
-                self.logger.error(f"YDB query raised timeout")
-                return None, 1
-            except Exception as e:
-                self.logger.critical(
-                    f"Error occurred while processing query {query} with "
-                    f"params {query_params}: {traceback.format_exc()}"
-                )
-                return None, 2
+        try:
+            r = self.pool.retry_operation_sync(self.__execute_query, None, query, query_params)
+            return r, 0
+        except TimeoutError:
+            self.logger.error(f"YDB query raised timeout")
+            return None, 1
+        except Exception as e:
+            self.logger.critical(
+                f"Error occurred while processing query {query} with "
+                f"params {query_params}: {traceback.format_exc()}"
+            )
+            return None, 2

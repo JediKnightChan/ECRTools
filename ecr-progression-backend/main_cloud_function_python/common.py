@@ -60,9 +60,17 @@ def permission_required(permission_type):
 class ResourceProcessor:
     """Resource Processor is a handler (controller in MVC) for API request data per given resource (API entity)"""
 
-    """Receives logger, contour (dev/prod) and user id (epic account id) who sent request"""
+    def __init__(self, logger, contour, user, yc, s3):
+        """
+        Constructor for ResourceProcessor
 
-    def __init__(self, logger, contour, user):
+        :param logger: logger instance
+        :param contour: dev/prod
+        :param user: user who sent request (verified player account id or server or backend)
+        :param yc: YDBConnector instance
+        :param s3: S3Connector instance
+        """
+
         if logger:
             self.logger = logger
         else:
@@ -70,8 +78,10 @@ class ResourceProcessor:
 
         self.contour = contour
         self.user = user
-        self.s3 = S3Connector()
         self.s3_paths = S3PathBuilder(self.contour)
+
+        self.s3 = s3
+        self.yc = yc
 
     @property
     def action_not_allowed_response(self) -> typing.Tuple[dict, int]:

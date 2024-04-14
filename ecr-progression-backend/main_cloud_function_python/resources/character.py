@@ -1,14 +1,14 @@
 import json
-import logging
 import traceback
 import typing
 import datetime
 import uuid
 
+from marshmallow import fields, validate, ValidationError
 from common import ResourceProcessor, permission_required, APIPermission
+
 from tools.common_schemas import CharPlayerSchema, ECR_FACTIONS
 from tools.ydb_connection import YDBConnector
-from marshmallow import fields, validate, ValidationError
 
 
 class CharacterSchema(CharPlayerSchema):
@@ -32,12 +32,10 @@ class CharacterSchema(CharPlayerSchema):
 class CharacterProcessor(ResourceProcessor):
     """Retrieve data about characters, create and modify them"""
 
-    def __init__(self, logger, contour, user):
-        super(CharacterProcessor, self).__init__(logger, contour, user)
+    def __init__(self, logger, contour, user, yc, s3):
+        super(CharacterProcessor, self).__init__(logger, contour, user, yc, s3)
 
-        self.yc = YDBConnector(logger)
         self.uuid_namespace = uuid.UUID('d824c96d-64b0-5ffd-a7ad-68ff02af0f07')
-
         self.table_name = "characters" if self.contour == "prod" else "characters_dev"
 
     @permission_required(APIPermission.SERVER_OR_OWNING_PLAYER)
@@ -264,10 +262,16 @@ class CharacterProcessor(ResourceProcessor):
 
 
 if __name__ == '__main__':
-    player_id = "earlydevtestplayerid"
-    char_proc = CharacterProcessor(logging.getLogger(__name__), "dev", player_id)
+    import logging
+    from tools.s3_connection import S3Connector
+
+    logger = logging.getLogger(__name__)
+    yc = YDBConnector(logger)
+    s3 = S3Connector()
+    player_id = "c5a7eea3e4c14aecaf4b73a3891bf7d3"
+    char_proc = CharacterProcessor(logger, "dev", player_id, yc, s3)
     # r, s = char_proc.API_CREATE(
-    #     {"player_id": "earlydevtestplayerid", "name": "JUST A TEST CHAR", "faction": "LoyalSpaceMarines"})
+    #     {"player_id": player_id, "name": "Bane Of Loyalists", "faction": "ChaosSpaceMarines"})
 
     r, s = char_proc.API_LIST({"player_id": player_id})
     # r, s = char_proc.API_GET(

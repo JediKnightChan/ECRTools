@@ -2,12 +2,13 @@ import logging
 import traceback
 import typing
 import datetime
-import pandas as pd
+import json
+import os
 
 from common import ResourceProcessor, permission_required, APIPermission
 from tools.common_schemas import ExcludeSchema
 from tools.ydb_connection import YDBConnector
-from marshmallow import Schema, fields, validate, ValidationError
+from marshmallow import fields, ValidationError
 
 
 class PlayerSchema(ExcludeSchema):
@@ -22,12 +23,14 @@ class PlayerSchema(ExcludeSchema):
 class PlayerProcessor(ResourceProcessor):
     """Retrieve data about players"""
 
-    def __init__(self, logger, contour, user):
-        super(PlayerProcessor, self).__init__(logger, contour, user)
+    def __init__(self, logger, contour, user, yc, s3):
+        super(PlayerProcessor, self).__init__(logger, contour, user, yc, s3)
 
         self.yc = YDBConnector(logger)
-
         self.table_name = "players" if self.contour == "prod" else "players_dev"
+
+        with open(os.path.join(os.path.dirname(__file__), "../data/levels.json")) as f:
+            self.levelling_data = json.load(f)
 
     @permission_required(APIPermission.ANYONE)
     def API_GET(self, request_body: dict) -> typing.Tuple[dict, int]:
@@ -175,11 +178,9 @@ class PlayerProcessor(ResourceProcessor):
                    f"{ts.timestamp()}\n".encode("utf-8")
         self.s3.upload_file_to_s3(content, history_path)
 
-    @staticmethod
-    def _get_level_from_xp(xp):
-        df = pd.read_csv("../data/levels.csv")
+    def _get_level_from_xp(self, xp):
         level = 1
-        for _, row in df.iterrows():
+        for row in self.levelling_data:
             if xp >= row["xp_amount"]:
                 level = row["level"]
             else:
@@ -188,9 +189,16 @@ class PlayerProcessor(ResourceProcessor):
 
 
 if __name__ == '__main__':
-    player_id = "earlydevtestplayerid"
+    from tools.s3_connection import S3Connector
 
-    player_proc = PlayerProcessor(logging.getLogger(__name__), "dev", player_id)
+    player_id = "c5a7eea3e4c14aecaf4b73a3891bf7d3"
+
+    logger = logging.getLogger(__name__)
+    yc = YDBConnector(logger)
+    s3 = S3Connector()
+
+    player_proc = PlayerProcessor(logger, "dev", player_id, yc, s3)
+
     r, s = player_proc.API_GET({"player_id": player_id})
-    # r, s = player_proc.modify(player_id, 100, 100, 50, 100, "api_test", "")
+    # r, s = player_proc.modify(player_id, 5000, 5000, 50, 100, "api_test", "")
     print(s, r)

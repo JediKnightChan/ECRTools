@@ -64,3 +64,10 @@ Methods:
 1) Get all data about character: base player data (see Player) and unlocked cosmetics (see Cosmetic Store)
 
 Combines data from Player and Unlocked Cosmetics for one request
+
+### Main Menu
+
+Methods:
+1) Get all data about player: base player data (see Player) and list of characters (see Character)
+
+Combines data from Player and Character for one request

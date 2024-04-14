@@ -1,6 +1,3 @@
-import json
-import logging
-import traceback
 import typing
 
 from common import ResourceProcessor, permission_required, APIPermission
@@ -15,8 +12,8 @@ class ListenServerProcessor(ResourceProcessor):
     def API_GET(self, request_body: dict) -> typing.Tuple[dict, int]:
         """Get all required data about player for listen server: basic player data, character cosmetics"""
 
-        player_processor = PlayerProcessor(self.logger, self.contour, self.user)
-        cosmetic_store_processor = CosmeticStoreProcessor(self.logger, self.contour, self.user)
+        player_processor = PlayerProcessor(self.logger, self.contour, self.user, self.yc, self.s3)
+        cosmetic_store_processor = CosmeticStoreProcessor(self.logger, self.contour, self.user, self.yc, self.s3)
 
         r1, s1 = player_processor.API_GET(request_body)
         r2, s2 = cosmetic_store_processor.API_GET(request_body)
@@ -28,10 +25,18 @@ class ListenServerProcessor(ResourceProcessor):
 
 
 if __name__ == '__main__':
+    import logging
+    from tools.s3_connection import S3Connector
+    from tools.ydb_connection import YDBConnector
+
     player_id = "earlydevtestplayerid"
     char_id = "68f2381b653656b7a5bf9a52e0cd2ca9"
     item_id = "test_cosmetic_item"
 
-    lsp = ListenServerProcessor(logging.getLogger(__name__), "dev", player_id)
+    logger = logging.getLogger(__name__)
+    yc = YDBConnector(logger)
+    s3 = S3Connector()
+
+    lsp = ListenServerProcessor(logging.getLogger(__name__), "dev", player_id, yc, s3)
     r, s = lsp.API_GET({"player_id": player_id, "id": char_id})
     print(s, r)

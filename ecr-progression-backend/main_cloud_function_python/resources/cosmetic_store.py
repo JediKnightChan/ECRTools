@@ -1,7 +1,7 @@
 import json
-import logging
 import traceback
 import typing
+import os
 
 from common import ResourceProcessor, permission_required, APIPermission
 from marshmallow import Schema, fields, ValidationError
@@ -104,7 +104,7 @@ class CosmeticStoreProcessor(ResourceProcessor):
                 # Can't buy this item
                 return {"error": "Item can't be bought", "error_code": 5}, 400
 
-            player_proc = PlayerProcessor(self.logger, self.contour, self.user)
+            player_proc = PlayerProcessor(self.logger, self.contour, self.user, self.yc, self.s3)
 
             player_data, player_s = player_proc.API_GET({"id": player_id})
             if player_s != 200:
@@ -149,7 +149,7 @@ class CosmeticStoreProcessor(ResourceProcessor):
 
     @staticmethod
     def get_item_data(item_id) -> typing.Tuple[bool, dict]:
-        with open("../data/cosmetics.json", "rb") as f:
+        with open(os.path.join(os.path.dirname(__file__), "../data/cosmetics.json")) as f:
             cosmetics_data = json.load(f)
             if item_id in cosmetics_data:
                 return True, cosmetics_data[item_id]
@@ -158,11 +158,20 @@ class CosmeticStoreProcessor(ResourceProcessor):
 
 
 if __name__ == '__main__':
+    from tools.s3_connection import S3Connector
+    from tools.ydb_connection import YDBConnector
+    import logging
+
     player_id = "earlydevtestplayerid"
     char_id = "68f2381b653656b7a5bf9a52e0cd2ca9"
     item_id = "test_cosmetic_item"
 
-    store = CosmeticStoreProcessor(logging.getLogger(__name__), "dev", player_id)
+    logger = logging.getLogger(__name__)
+
+    yc = YDBConnector(logger)
+    s3 = S3Connector()
+
+    store = CosmeticStoreProcessor(logger, "dev", player_id, yc, s3)
     # r, s = store.API_MODIFY({"player_id": player_id, "id": char_id, "item": item_id})
     r, s = store.API_GET({"player_id": player_id, "id": char_id})
     print(r, s)

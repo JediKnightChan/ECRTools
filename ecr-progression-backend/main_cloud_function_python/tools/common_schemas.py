@@ -1,5 +1,4 @@
-import marshmallow
-from marshmallow import Schema, fields, validate
+from marshmallow import Schema, fields, validate, EXCLUDE
 
 ECR_FACTIONS = [
     'LoyalSpaceMarines',
@@ -27,7 +26,7 @@ ECR_SUB_FACTIONS = [
 
 class ExcludeSchema(Schema):
     class Meta:
-        unknown = marshmallow.EXCLUDE
+        unknown = EXCLUDE
 
 
 class CharPlayerSchema(ExcludeSchema):
