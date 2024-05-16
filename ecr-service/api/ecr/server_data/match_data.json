@@ -60,11 +60,6 @@
       "map": "/Game/Maps/Levels/CanyonWasteyard",
       "mode": "pvp"
     },
-    "ZedekHoldTheLine": {
-      "weight": 1,
-      "map": "/Game/Maps/Levels/Zedek",
-      "mode": "pvp"
-    },
     "CycladonComplexDomination": {
       "weight": 0.33,
       "map": "/Game/Maps/Levels/CycladonComplex",
@@ -95,7 +90,7 @@
       "map": "/Game/Maps/Levels/RailgateRavine",
       "mode": "pvp"
     },
-    "MaccragesFuryBoardingAction": {
+    "MaccragesFuryDomination": {
       "weight": 0.33,
       "map": "/Game/Maps/Levels/MaccragesFury",
       "mode": "pvp"
@@ -108,56 +103,6 @@
     "MaccragesFuryElimination": {
       "weight": 0.33,
       "map": "/Game/Maps/Levels/MaccragesFury",
-      "mode": "pvp"
-    },
-    "OlipsisSupremacy": {
-      "weight": 0.5,
-      "map": "/Game/Maps/Levels/RefineryOlipsis",
-      "mode": "pvp"
-    },
-    "OlipsisHoldTheLine": {
-      "weight": 0.5,
-      "map": "/Game/Maps/Levels/RefineryOlipsis",
-      "mode": "pvp"
-    },
-    "BlackboltDomination": {
-      "weight": 0.33,
-      "map": "/Game/Maps/Levels/BlackboltDefense",
-      "mode": "pvp"
-    },
-    "BlackboltSupremacy": {
-      "weight": 0.33,
-      "map": "/Game/Maps/Levels/BlackboltDefense",
-      "mode": "pvp"
-    },
-    "BlackboltHoldTheLine": {
-      "weight": 0.33,
-      "map": "/Game/Maps/Levels/BlackboltDefense",
-      "mode": "pvp"
-    },
-    "ToriasRefinerySupremacy": {
-      "weight": 0.5,
-      "map": "/Game/Maps/Levels/ToriasRefinery",
-      "mode": "pvp"
-    },
-    "ToriasRefineryHoldTheLine": {
-      "weight": 0.5,
-      "map": "/Game/Maps/Levels/ToriasRefinery",
-      "mode": "pvp"
-    },
-    "CarmineAscentHoldTheLine": {
-      "weight": 1,
-      "map": "/Game/Maps/Levels/CarmineAscent",
-      "mode": "pvp"
-    },
-    "MaggonStationHoldTheLine": {
-      "weight": 1,
-      "map": "/Game/Maps/Levels/MaggonStation",
-      "mode": "pvp"
-    },
-    "ZedekSmallDeepStrike": {
-      "weight": 0.5,
-      "map": "/Game/Maps/ZedekNew_TH",
       "mode": "pvp"
     },
     "ZedekSmallDuel": {
