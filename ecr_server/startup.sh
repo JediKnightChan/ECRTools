@@ -1,6 +1,6 @@
 # chmod +x startup.sh
 # crontab -e
-# @reboot /home/pchela/startup.sh > /home/pchela/startup_log.txt
+# @reboot /home/eternalcrusaderesurrection/startup.sh > /home/eternalcrusaderesurrection/startup_log.txt
 
 docker stop $(docker ps -a -q)
 docker rm $(docker ps -a -q)
@@ -11,7 +11,7 @@ IMAGE_HASH_RAW="${IMAGE_HASH_RAW#*@}"
 
 date
 
-HASHES_EQUAL_RESULT=$(/usr/bin/python3 /home/pchela/string_comparer.py "$IMAGE_HASH_RAW" "$LATEST_IMAGE_HASH_RAW")
+HASHES_EQUAL_RESULT=$(/usr/bin/python3 /home/eternalcrusaderesurrection/string_comparer.py "$IMAGE_HASH_RAW" "$LATEST_IMAGE_HASH_RAW")
 
 if [ $? -eq 0 ]; then
   echo "$IMAGE_HASH_RAW is latest hash, skipping updating"
@@ -24,7 +24,7 @@ fi
 
 
 WANTED_REGION=""
-if test -f "/home/pchela/region.txt"; then
+if test -f "/home/eternalcrusaderesurrection/region.txt"; then
   WANTED_REGION=$(cat region.txt)
   echo "Wanted region set, $WANTED_REGION"
 else

@@ -12,7 +12,8 @@ from yandex_translate_logic import YandexTranslator
 
 google_servers_data = {
     "us": {"zone": "us-central1-a", "name": "instance-1"},
-    "eu": {"zone": "europe-west3-c", "name": "instance-20240219-143622"}
+    "eu": {"zone": "europe-west3-c", "name": "instance-20240219-143622"},
+    "hk": {"zone": "asia-east2-a", "name": "instance-20240428-204020"}
 }
 
 

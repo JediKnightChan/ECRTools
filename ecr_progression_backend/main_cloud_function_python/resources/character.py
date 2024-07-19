@@ -137,22 +137,7 @@ class CharacterProcessor(ResourceProcessor):
                             "error": "Character of this faction already exists for this player"}, \
                            400
 
-                # Checking if no other characters exist with the same name
-                name_query = f"""
-                    DECLARE $CHARACTER_NAME AS String;
-
-                    SELECT * FROM {self.table_name}
-                    WHERE
-                    name = $CHARACTER_NAME
-                    LIMIT 1
-                ;
-                """
-
-                name_query_params = {
-                    '$CHARACTER_NAME': validated_data.get("name").encode("utf-8"),
-                }
-
-                name_result, name_code = self.yc.process_query(name_query, name_query_params)
+                name_code, name_result = self._validate_character_name_is_unique(validated_data)
                 if name_code == 0:
                     if len(name_result) > 0:
                         if len(name_result[0].rows) > 0:
@@ -217,10 +202,26 @@ class CharacterProcessor(ResourceProcessor):
         """Allow to modify only character of yours (its name), query is filtered by player_id"""
 
         # Excluding faction from schema
-        schema = CharacterSchema(partial=("faction",))
+        schema = CharacterSchema(only=("player_id", "id", "name"))
 
         try:
             validated_data = schema.load(request_body)
+
+            name_code, name_result = self._validate_character_name_is_unique(validated_data)
+            if name_code == 0:
+                if len(name_result) > 0:
+                    if len(name_result[0].rows) > 0:
+                        return {"success": False,
+                                "error_code": 2,
+                                "error": "Character with this name already exists"}, \
+                               400
+                    else:
+                        # No characters with such name, can modify name
+                        pass
+                else:
+                    return {"success": False, "data": None}, 500
+            else:
+                return self.internal_server_error_response
 
             query = f"""
                 DECLARE $ID AS Utf8;
@@ -260,6 +261,44 @@ class CharacterProcessor(ResourceProcessor):
             self.logger.error(f"Exception during character MODIFY with body {request_body}: {traceback.format_exc()}")
             return self.internal_server_error_response
 
+    def _validate_character_name_is_unique(self, validated_data):
+        # Checking if no other characters exist with the same name
+        name_query = f"""
+                    DECLARE $CHARACTER_NAME AS String;
+
+                    SELECT * FROM {self.table_name}
+                    WHERE
+                    name = $CHARACTER_NAME
+                    LIMIT 1
+                ;
+                """
+        name_query_params = {
+            '$CHARACTER_NAME': validated_data.get("name").encode("utf-8"),
+        }
+        name_result, name_code = self.yc.process_query(name_query, name_query_params)
+        return name_code, name_result
+
+    def _delete_character(self, char_id):
+        query = f"""
+            DECLARE $ID AS Utf8;
+
+            DELETE FROM {self.table_name}
+            WHERE
+                id = $ID
+            ;
+        """
+
+        query_params = {
+            '$ID': char_id
+        }
+
+        result, code = self.yc.process_query(query, query_params)
+
+        if code == 0:
+            return {"success": True}, 204
+        else:
+            return self.internal_server_error_response
+
 
 if __name__ == '__main__':
     import logging
@@ -273,9 +312,11 @@ if __name__ == '__main__':
     # r, s = char_proc.API_CREATE(
     #     {"player_id": player_id, "name": "Bane Of Loyalists", "faction": "ChaosSpaceMarines"})
 
-    r, s = char_proc.API_LIST({"player_id": player_id})
+    # r, s = char_proc.API_LIST({"player_id": player_id})
     # r, s = char_proc.API_GET(
     #     {"id": "68f2381b653656b7a5bf9a52e0cd2ca9"})
 
-    # r, s = char_proc.API_MODIFY({"id": "68f2381b653656b7a5bf9a52e0cd2ca9", "name": "Loyal Legionnaire"})
+    r, s = char_proc.API_MODIFY(
+        {"player_id": player_id, "id": "79e06c5855fb527e866b25a7fc1281b7", "name": "Loyal Legionnaire As"})
+    # r, s = char_proc._delete_character("fcad8a39f4c25f6e9f63b85cf9476efc")
     print(s, r)

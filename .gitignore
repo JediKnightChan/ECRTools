@@ -4,4 +4,5 @@ ecr-server/key.json
 ecr-analytics/analysis/gameplay/data/
 *.env
 *.pem
-temp.py
+private_key.*
+temp.*
