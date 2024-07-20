@@ -30,6 +30,6 @@ class S3PathBuilder:
         """Currency history file (for given timestamp) in the player folder"""
         return self.get_player_folder_file_s3_path(player_id, f"currency_history/{ts_rel_path}")
 
-    def get_unlocked_cosmetics_s3_path(self, player_id, character_id):
+    def get_unlocked_progression_s3_path(self, player_id, character_id):
         """Unlocked cosmetics file in character folder"""
-        return self.get_char_folder_file_s3_path(player_id, character_id, "unlocked_cosmetics.json")
+        return self.get_char_folder_file_s3_path(player_id, character_id, "unlocked_progression.json")

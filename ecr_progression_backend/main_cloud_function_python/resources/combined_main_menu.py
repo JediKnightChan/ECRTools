@@ -5,7 +5,7 @@ from resources.character import CharacterProcessor
 from resources.player import PlayerProcessor
 
 
-class MainMenuProcessor(ResourceProcessor):
+class CombinedMainMenuProcessor(ResourceProcessor):
     """Combined data getter for main menu (instead of sending multiple requests)"""
 
     @permission_required(APIPermission.ANYONE)
@@ -35,6 +35,6 @@ if __name__ == '__main__':
     yc = YDBConnector(logger)
     s3 = S3Connector()
 
-    lsp = MainMenuProcessor(logging.getLogger(__name__), "dev", player_id, yc, s3)
+    lsp = CombinedMainMenuProcessor(logging.getLogger(__name__), "dev", player_id, yc, s3)
     r, s = lsp.API_GET({"player_id": player_id})
     print(s, r)

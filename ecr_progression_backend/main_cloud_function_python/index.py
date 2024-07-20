@@ -6,9 +6,8 @@ from pythonjsonlogger import jsonlogger
 
 from resources.character import CharacterProcessor
 from resources.player import PlayerProcessor
-from resources.cosmetic_store import CosmeticStoreProcessor
-from resources.listen_server import ListenServerProcessor
-from resources.main_menu import MainMenuProcessor
+from resources.progression_store import ProgressionStoreProcessor
+from resources.combined_main_menu import CombinedMainMenuProcessor
 
 from tools.eos_auth import EOSAuthVerifier
 from tools.s3_connection import S3Connector
@@ -90,12 +89,10 @@ def handler(event, context):
             processor = CharacterProcessor(*processor_init_args)
         elif resource == "player":
             processor = PlayerProcessor(*processor_init_args)
-        elif resource == "cosmetics":
-            processor = CosmeticStoreProcessor(*processor_init_args)
-        elif resource == "listen_server":
-            processor = ListenServerProcessor(*processor_init_args)
+        elif resource == "progression":
+            processor = ProgressionStoreProcessor(*processor_init_args)
         elif resource == "main_menu":
-            processor = MainMenuProcessor(*processor_init_args)
+            processor = CombinedMainMenuProcessor(*processor_init_args)
         else:
             return json_response({"error": "Unknown resource"}, status_code=400)
 
