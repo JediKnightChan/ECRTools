@@ -8,9 +8,10 @@ DO_INCLUDE_NON_PURCHASABLE_ITEMS = False
 
 for faction, v in faction_files.items():
     # Saving gameplay items
-    df = pd.read_csv(f"../data_raw/gameplay_items/{v[0]}")
+    df = pd.read_csv(f"../data_raw/gameplay_items/{v[0]}", encoding="utf-8")
     df = df.fillna("")
     data = {}
+    print(df.columns)
     for i, row in df.iterrows():
         record = {
             "is_purchasable": row["Is Purchasable"] and not row["Is Granted By Default"],
@@ -20,7 +21,7 @@ for faction, v in faction_files.items():
             "cost": [0, row["Silver Cost"], 0]
         }
         if record["is_purchasable"] or DO_INCLUDE_NON_PURCHASABLE_ITEMS:
-            data[row["---"]] = record
+            data[row["---"].lower()] = record
     with open(f"../data/gameplay_items/gameplay_items_{faction.lower()}.json", "w") as f:
         json.dump(data, f, indent=4, ensure_ascii=False)
 
@@ -37,6 +38,6 @@ for faction, v in faction_files.items():
             "cost": [0, 0, row["Eagles Cost"]]
         }
         if record["is_purchasable"] or DO_INCLUDE_NON_PURCHASABLE_ITEMS:
-            data[row["---"]] = record
+            data[row["---"].lower()] = record
     with open(f"../data/cosmetic_items/cosmetic_items_{faction.lower()}.json", "w") as f:
         json.dump(data, f, indent=4, ensure_ascii=False)

@@ -98,7 +98,7 @@ class ProgressionStoreProcessor(ResourceProcessor):
 
             player_id = validated_data.get("player_id")
             character_id = validated_data.get("id").hex
-            item_id = validated_data.get("item")
+            item_id = validated_data.get("item").lower()
             item_type = validated_data.get("item_type")
 
             unlocked_gameplay_items = already_unlocked_data["data"]["unlocked_gameplay_items"]
@@ -237,6 +237,7 @@ class ProgressionStoreProcessor(ResourceProcessor):
         if os.path.exists(final_filepath):
             with open(final_filepath) as f:
                 item_data = json.load(f)
+                print(item_data)
                 if item_id in item_data:
                     return True, item_data[item_id]
                 else:
@@ -256,8 +257,8 @@ if __name__ == '__main__':
 
     player_id = "c5a7eea3e4c14aecaf4b73a3891bf7d3"
     char_id = "79e06c5855fb527e866b25a7fc1281b7"
-    item_id = "SM_Boltgun_Phobos_T1"
-    item_type = ProgressionItemType.GAMEPLAY_ITEM
+    item_id = "BA_Torso_ChaliceAndWings"
+    item_type = ProgressionItemType.COSMETIC_ITEM
 
     logger = logging.getLogger(__name__)
     yc = YDBConnector(logger)
