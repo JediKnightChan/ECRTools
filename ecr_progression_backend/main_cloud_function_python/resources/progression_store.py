@@ -151,6 +151,7 @@ class ProgressionStoreProcessor(ResourceProcessor):
             item_found, item_data = self.get_item_data(item_id, item_type, char_faction)
             if not item_found:
                 # Item not found
+                self.logger.warning(f"Entity not found {item_type} for faction {char_faction}: item {item_id}")
                 return {"success": False, "error_code": 4, "error": f"Entity not found: "
                                                                     f"{item_id}, {item_type}, {char_faction}"}, 404
 
@@ -185,7 +186,7 @@ class ProgressionStoreProcessor(ResourceProcessor):
                 r, s = player_proc.modify(player_id, 0, -item_cost_xp, -item_cost_silver, -item_cost_gold, log_action,
                                           f"{item_id} for {character_id}")
                 if s == 204:
-                    return {"success": True}, 200
+                    return {"success": True, "cost": [item_cost_xp, item_cost_silver, item_cost_gold]}, 200
                 else:
                     return r, s
             else:
@@ -244,6 +245,9 @@ class ProgressionStoreProcessor(ResourceProcessor):
             self.logger.warning(f"Progression filepath {filepath} doesn't exist")
             return False, {}
 
+    def _clear_all_progression(self, player_id, character_id):
+        self.update_unlocked_items(player_id, character_id, [], [], [], {})
+
 
 if __name__ == '__main__':
     from tools.s3_connection import S3Connector
@@ -263,3 +267,6 @@ if __name__ == '__main__':
     r, s = store.API_GET({"player_id": player_id, "id": char_id})
     # r, s = store.API_MODIFY({"player_id": player_id, "id": char_id, "item": item_id, "item_type": item_type})
     print(r, s)
+
+    # store._clear_all_progression(player_id, char_id)
+

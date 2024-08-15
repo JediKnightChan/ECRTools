@@ -200,5 +200,5 @@ if __name__ == '__main__':
     player_proc = PlayerProcessor(logger, "dev", player_id, yc, s3)
 
     # r, s = player_proc.API_GET({"player_id": player_id})
-    r, s = player_proc.modify(player_id, 0, 0, 2000, 2000, "api_test", "")
+    r, s = player_proc.modify(player_id, 0, 0, 20000, 2000, "api_test", "")
     print(s, r)

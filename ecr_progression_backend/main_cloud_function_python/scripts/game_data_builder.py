@@ -4,7 +4,7 @@ import json
 faction_files = {
     "LoyalSpaceMarines": ("gameplay_items_lsm.csv", "cosmetic_items_lsm.csv", "")
 }
-DO_INCLUDE_NON_PURCHASABLE_ITEMS = True
+DO_INCLUDE_NON_PURCHASABLE_ITEMS = False
 
 for faction, v in faction_files.items():
     # Saving gameplay items
