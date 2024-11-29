@@ -8,7 +8,7 @@ import json
 
 app = FastAPI()
 
-redis = Redis(host="localhost", port=6379, decode_responses=True)
+redis = Redis(host="redis_db", port=6379, decode_responses=True)
 
 PLAYER_EXPIRATION = 30  # Player stays in queue for 30 seconds
 MATCH_EXPIRATION = 300  # Matches expire after 5 minutes
