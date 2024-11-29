@@ -65,6 +65,10 @@ async def try_create_match(pool_id: str):
         if player_id in players_last_active_ts:
             players_last_active_ts.pop(player_id)
 
+    # Check for all players expired
+    if len(players_in_match) == 0:
+        return
+
     # Determine match name by majority vote
     majority_match = max(desired_match_votes.items(), key=lambda x: x[1])[0]
     match_id = str(uuid.uuid4())
@@ -123,7 +127,7 @@ async def leave_matchmaking_queue(request: Request):
 async def clear_expired_players():
     while True:
         players_to_remove = []
-        for player, ts in players_last_active_ts:
+        for player, ts in players_last_active_ts.items():
             if time.time() - ts >= PLAYER_EXPIRATION:
                 players_to_remove.append(player)
 

@@ -7,5 +7,6 @@ body_json = {
 }
 
 url_end = "reenter_matchmaking_queue"
+# url_end = "leave_matchmaking_queue"
 r = requests.post(f"https://matchmaking.eternal-crusade.com/{url_end}", json=body_json)
 print(r.json())
