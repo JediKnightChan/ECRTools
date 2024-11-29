@@ -1,0 +1,2 @@
+fastapi[standard]==0.112.0
+redis==5.2.0

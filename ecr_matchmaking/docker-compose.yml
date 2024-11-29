@@ -1,0 +1,26 @@
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile
+    ports:
+      - "0.0.0.0:80:80"
+      - "0.0.0.0:443:443"
+    volumes:
+      - /etc/letsencrypt/:/etc/letsencrypt/:ro
+    depends_on:
+      - backend
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    expose:
+      - 3000
+    env_file:
+      - env.prod
+    depends_on:
+      - redis_db
+  redis_db:
+    image: redis:alpine
+    ports:
+      - "0.0.0.0:6379:6379"
