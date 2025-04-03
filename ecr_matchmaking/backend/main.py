@@ -1,4 +1,3 @@
-import asyncio
 import os
 import traceback
 import uuid
@@ -9,19 +8,16 @@ from aiocache import SimpleMemoryCache
 from fastapi import FastAPI, HTTPException, Request
 from redis.asyncio import Redis
 
+from models.models import ReenterMatchmakingRequest, LeaveMatchmakingRequest
 from logic.pvp_casual import try_create_pvp_match_casual
 from logic.pvp_duels import try_create_pvp_match_duel
-from logic.pve import try_create_pve_match
+from logic.pve import try_create_pve_match, try_create_instant_pve_match
 
 app = FastAPI()
 
 redis = Redis(host="redis_db", port=6379, password=os.getenv("REDIS_PASSWORD"), decode_responses=True)
 
 # Constants
-PLAYER_FACTIONS = [
-    "LoyalSpaceMarines",
-    "ChaosSpaceMarines"
-]
 PLAYER_EXPIRATION = 30  # Player stays in queue for 30 seconds without additional requests
 MATCH_EXPIRATION = 300  # Matches expire after 5 minutes
 MATCH_CREATION_LOCK_TIMEOUT = 10  # Create a match attempt locks another attempts for 10 seconds
@@ -128,12 +124,14 @@ async def try_create_match(pool_id: str):
     # Update faction counts in cache
     await cache.set("faction_counts", faction_counts)
 
-    if pool_name == "pvp-casual":
+    if pool_name == "pvp_casual":
         outcome = try_create_pvp_match_casual(player_data_map, latest_ts, matchmaking_config["pvp"])
-    elif pool_name == "pvp-duels":
+    elif pool_name == "pvp_duels":
         outcome = try_create_pvp_match_duel(player_data_map, latest_ts, matchmaking_config["pvp"])
     elif pool_name == "pve":
         outcome = try_create_pve_match(player_data_map, latest_ts, matchmaking_config["pve"])
+    elif pool_name == "pve_instant":
+        outcome = try_create_instant_pve_match(player_data_map, latest_ts, matchmaking_config["pve"])
     else:
         raise NotImplementedError
 
@@ -163,18 +161,17 @@ async def try_create_match(pool_id: str):
 
 
 @app.post("/reenter_matchmaking_queue")
-async def reenter_matchmaking_queue(request: Request):
-    data = await request.json()
-    player_id = data["player_id"]
-    pool_name = data["pool_name"]
-    game_version = data["game_version"]
-    game_contour = data["game_contour"]
+async def reenter_matchmaking_queue(body: ReenterMatchmakingRequest):
+    player_id = body.player_id
+    pool_name = body.pool_name
+    game_version = body.game_version
+    game_contour = body.game_contour
 
     pool_id = f"{game_contour}:{game_version}:{pool_name}"
 
     # Parameters expected to be set only during first entry
-    desired_match_group = data.get("desired_match_group")
-    faction = data.get("faction")
+    desired_match_group = body.desired_match_group
+    faction = body.faction
 
     # Check if the player is already assigned to a match
     match_data = await redis.get(GET_REDIS_MATCH_KEY(player_id))
@@ -215,9 +212,8 @@ async def reenter_matchmaking_queue(request: Request):
 
 
 @app.post("/leave_matchmaking_queue")
-async def leave_matchmaking_queue(request: Request):
-    data = await request.json()
-    player_id = data["player_id"]
+async def leave_matchmaking_queue(body: LeaveMatchmakingRequest):
+    player_id = body.player_id
 
     await remove_player_from_all_queues(player_id)
     # Remove match data if exists
