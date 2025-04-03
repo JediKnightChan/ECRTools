@@ -5,7 +5,7 @@ from locust import HttpUser, task, between
 
 class WebAppUser(HttpUser):
     # Wait time between tasks (simulates user think time)
-    wait_time = between(5, 10)
+    wait_time = between(3, 5)
 
     def on_start(self):
         """

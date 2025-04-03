@@ -17,10 +17,12 @@ services:
     expose:
       - 3000
     env_file:
-      - env.prod
+      - prod.env
     depends_on:
       - redis_db
   redis_db:
     image: redis:alpine
+    env_file:
+      - redis.env
     ports:
       - "0.0.0.0:6379:6379"

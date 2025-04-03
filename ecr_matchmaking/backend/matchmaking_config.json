@@ -1,0 +1,72 @@
+{
+  "pvp": {
+    "PoolAlpha": {
+      "large": {
+        "PromethiumMineSupremacy": 1.0,
+        "CanyonWasteyardSupremacy": 1.0,
+        "CycladonComplexSupremacy": 0.25,
+        "PromethiumMineHoldTheLine": 0.25,
+        "CanyonWasteyardHoldTheLine": 0.25
+      },
+      "medium": {
+        "CycladonComplexSupremacy": 1.0,
+        "PromethiumMineHoldTheLine": 1.0,
+        "CanyonWasteyardHoldTheLine": 1.0
+      },
+      "duel": {
+        "CycladonComplexDuel": 1.0,
+        "PromethiumMineDuel": 1.0,
+        "CanyonWasteyardDuel": 1.0
+      }
+    },
+    "PoolBeta": {
+      "large": {
+        "MedusaSupremacy": 1.0,
+        "OlipsisSupremacy": 1.0,
+        "ToriasSupremacy": 1.0,
+        "BlackBoltSupremacy": 1.0,
+        "MedusaHoldTheLine": 0.25,
+        "OlipsisHoldTheLine": 0.25,
+        "ToriasHoldTheLine": 0.25,
+        "BlackBoltHoldTheLine": 0.25
+      },
+      "medium": {
+        "MedusaHoldTheLine": 1.0,
+        "OlipsisHoldTheLine": 1.0,
+        "ToriasHoldTheLine": 1.0,
+        "BlackBoltHoldTheLine": 1.0
+      },
+      "duel": {
+        "MedusaDuel": 1.0,
+        "OlipsisDuel": 1.0,
+        "ToriasDuel": 1.0,
+        "BlackBoltDuel": 1.0
+      }
+    },
+    "PoolGamma": {
+      "large": {
+        "CarmineAscentHoldTheLine": 1.0,
+        "MaggonStationHoldTheLine": 1.0,
+        "ZedekHoldTheLine": 1.0,
+        "RailgateRavineHoldTheLine": 1.0
+      }
+    }
+  },
+  "pve": {
+    "Vein": {
+      "raid4": {
+        "ForgeOfTheMoltenVein": 1.0
+      }
+    },
+    "Inferno": {
+      "raid4": {
+        "InfernoFoundry": 1.0
+      }
+    },
+    "Abyss": {
+      "raid4": {
+        "TyrantOfTheAbyss": 1.0
+      }
+    }
+  }
+}
