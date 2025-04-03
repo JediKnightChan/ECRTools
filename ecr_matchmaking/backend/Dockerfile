@@ -7,6 +7,6 @@ COPY backend/requirements.txt requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY backend/main.py main.py
-COPY logic/ logic/
+COPY backend/logic/ logic/
 
 CMD ["fastapi", "run", "main.py", "--port", "3000"]
