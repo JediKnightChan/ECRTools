@@ -172,6 +172,7 @@ async def reenter_matchmaking_queue(body: ReenterMatchmakingRequest):
     # Parameters expected to be set only during first entry
     desired_match_group = body.desired_match_group
     faction = body.faction
+    party_members = body.party_members
 
     # Check if the player is already assigned to a match
     match_data = await redis.get(GET_REDIS_MATCH_KEY(player_id))
@@ -181,10 +182,16 @@ async def reenter_matchmaking_queue(body: ReenterMatchmakingRequest):
 
     # Reenter or add to the queue
     player_key = GET_REDIS_PLAYER_KEY(pool_id, player_id)
-    if desired_match_group and faction:
+    if desired_match_group and faction and party_members:
+        # Even if player didn't mention himself in party, do it for him
+        if player_id in party_members:
+            party_members.remove(player_id)
+        party_members.insert(0, player_id)
+
         await add_player_to_queue(player_id, pool_id, {
             "desired_match_group": desired_match_group,
-            "faction": faction
+            "faction": faction,
+            "party_members": party_members
         })
     elif not await redis.exists(player_key):
         raise HTTPException(status_code=400, detail="Player not in queue. Provide required parameters.")

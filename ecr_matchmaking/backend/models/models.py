@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, constr
-from typing import Optional, Literal
+from typing import Optional, Literal, List
 
 
 # Pydantic model for the request body
@@ -11,7 +11,7 @@ class ReenterMatchmakingRequest(BaseModel):
 
     desired_match_group: Optional[Literal['PoolAlpha', 'PoolBeta', 'PoolGamma', 'Vein', 'Inferno', 'Abyss']] = None  # Optional field
     faction: Optional[Literal['LoyalSpaceMarines', 'ChaosSpaceMarines']] = None  # Optional field
-
+    party_members: Optional[List[str]] = None
 
 # Pydantic model for the request body
 class LeaveMatchmakingRequest(BaseModel):
