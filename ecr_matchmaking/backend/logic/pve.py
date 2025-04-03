@@ -1,7 +1,7 @@
 import random
 import time
 
-from common import try_create_pve_match_common
+from logic.common import try_create_pve_match_common
 
 TIME_THRESHOLD_FOR_MATCH_ALONE = 360
 TIME_THRESHOLD_FOR_MATCH_WITH_NOT_FULL_GROUP = 180
