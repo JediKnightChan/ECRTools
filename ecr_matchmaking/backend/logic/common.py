@@ -113,7 +113,7 @@ def try_create_pve_match_common(player_data_map: dict, latest_ts: float, matchma
     def total_faction_size(faction_data):
         return sum(party_size for _, party_size in faction_data)
 
-    (faction1, faction1_players) = nlargest(1, faction_counts.items(),
+    ((faction1, faction1_players),) = nlargest(1, faction_counts.items(),
                                             key=lambda x: total_faction_size(x[1]))
 
     # Sort within factions: prioritize larger parties first, maintaining queue order
