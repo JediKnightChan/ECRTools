@@ -22,6 +22,8 @@ services:
       - redis_db
   redis_db:
     image: redis:alpine
+    restart: always
+    command: /bin/sh -c "redis-server --requirepass $$REDIS_PASSWORD"
     env_file:
       - redis.env
     ports:
