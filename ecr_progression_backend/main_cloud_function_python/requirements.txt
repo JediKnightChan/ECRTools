@@ -1,5 +1,5 @@
 boto3==1.26.149
-requests==2.31.0
+requests==2.32.0
 cryptography==44.0.1
 pyjwt==2.7.0
 ydb[yc]==3.8.1
