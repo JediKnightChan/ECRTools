@@ -19,7 +19,7 @@ def determine_team_size_pve(faction1_count, latest_ts, current_ts=None):
         # Player is alone in queue
         if current_ts - latest_ts > TIME_THRESHOLD_FOR_MATCH_ALONE:
             return team_size, 1, "raid4"
-        return None, None
+        return None, None, None
     elif team_size < 4:
         # Not full group: [2, 4)
         if current_ts - latest_ts > TIME_THRESHOLD_FOR_MATCH_WITH_NOT_FULL_GROUP:
@@ -29,7 +29,7 @@ def determine_team_size_pve(faction1_count, latest_ts, current_ts=None):
         return 4, 4, "raid4"
 
 
-def determine_team_size_instant(faction1_count, latest_ts, current_ts=None):
+def determine_team_size_instant_pve(faction1_count, latest_ts, current_ts=None):
     """Instantly assigns player to PvE match"""
 
     if current_ts is None:
@@ -43,4 +43,4 @@ def try_create_pve_match(player_data_map, latest_ts, matchmaking_config_for_mode
 
 
 def try_create_instant_pve_match(player_data_map, latest_ts, matchmaking_config_for_mode):
-    return try_create_pve_match_common(player_data_map, latest_ts, matchmaking_config_for_mode, determine_team_size_instant)
+    return try_create_pve_match_common(player_data_map, latest_ts, matchmaking_config_for_mode, determine_team_size_instant_pve)
