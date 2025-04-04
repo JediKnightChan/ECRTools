@@ -12,17 +12,18 @@ RUN chmod 755 LinuxServer/ECR/Binaries/Linux/ECRServer || true
 RUN chmod 755 LinuxServer/ECR/Binaries/Linux/ECRServer-Shipping || true
 
 # Separately clone requirements not to reinstall them when other files change
-COPY docker/requirements.txt .
+COPY backend/requirements.txt requirements.txt
 RUN pip install -r requirements.txt
 
-COPY docker/ .
+COPY backend/ .
 
 RUN useradd -ms /bin/bash ecr-server
 RUN chown -R ecr-server:ecr-server .
 
 USER ecr-server
 
+# 7777 is for only 1 game instance, e.g. for 10 need to expose 7777-7786
 EXPOSE 7777/tcp
 EXPOSE 7777/udp
 
-CMD python3 launch_server.py
+CMD ["fastapi", "run", "main.py", "--port", "3000"]
