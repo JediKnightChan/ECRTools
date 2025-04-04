@@ -15,5 +15,3 @@ services:
       - 3000
     env_file:
       - prod.env
-    depends_on:
-      - redis_db
