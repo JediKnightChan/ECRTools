@@ -11,14 +11,16 @@ RUN chmod 755 LinuxServer/ECRServer.sh
 RUN chmod 755 LinuxServer/ECR/Binaries/Linux/ECRServer || true
 RUN chmod 755 LinuxServer/ECR/Binaries/Linux/ECRServer-Shipping || true
 
+RUN useradd -ms /bin/bash ecr-server
+RUN chown -R ecr-server:ecr-server LinuxServer/
+
 # Separately clone requirements not to reinstall them when other files change
 COPY backend/requirements.txt requirements.txt
 RUN pip install -r requirements.txt
 
 COPY backend/ .
 
-RUN useradd -ms /bin/bash ecr-server
-RUN chown -R ecr-server:ecr-server .
+RUN chown ecr-server:ecr-server .
 
 USER ecr-server
 

@@ -73,7 +73,7 @@ async def launch_server_task(game_map, game_mode, game_mission, instance_number,
     log_id = uuid.uuid4()
     launch_command = generate_launch_command(game_map, game_mode, game_mission, region, instance_number, log_id,
                                              match_id, faction_setup)
-    launch_command_with_time =  f"/usr/bin/time -v bash -c 'exec {launch_command} > /dev/null 2>&1'"
+    launch_command_with_time = f"/usr/bin/time -v bash -c 'exec {launch_command} > /dev/null 2>&1'"
 
     logger.debug(f"Launching server with instance {instance_number}, log id {log_id}, map {game_map}, "
                  f"mode {game_mode}, mission {game_mission}")
@@ -116,7 +116,7 @@ async def check_free_server_resource_units():
     with cache_lock:
         taken_resource_units = await cache.get("taken_resource_units", 0)
     free_resource_units = max(0, total_resource_units - taken_resource_units)
-    return free_resource_units, taken_resource_units
+    return free_resource_units, taken_resource_units, total_resource_units
 
 
 @app.post("/launch")
@@ -131,7 +131,7 @@ async def launch_game_server(body: StartServerRequest, background_tasks: Backgro
         await cache.set("game_server_free_instances", game_server_free_instances)
 
         # Check if resource units are available and if yes, reserve
-        free_resource_units, taken_resource_units = await check_free_server_resource_units()
+        free_resource_units, taken_resource_units, _ = await check_free_server_resource_units()
         if body.resource_units > free_resource_units:
             raise HTTPException(status_code=503, detail="Not enough resource units")
         await cache.set("taken_resource_units", taken_resource_units + body.resource_units)
@@ -140,3 +140,13 @@ async def launch_game_server(body: StartServerRequest, background_tasks: Backgro
                               free_instance, body.resource_units, body.match_unique_id, body.faction_setup)
 
     return {"status": "success"}
+
+
+@app.post("/check_free_spots")
+async def check_free_spots():
+    async with cache_lock:
+        # Check if ports are available and if yes, reserve
+        game_server_free_instances = await cache.get("game_server_free_instances", list(range(0, 10)))
+        free_resource_units, taken_resource_units, total_resource_units = await check_free_server_resource_units()
+        return {"free_instances": game_server_free_instances, "free_resource_units": free_resource_units,
+                "taken_resource_units": taken_resource_units, "total_resource_units": total_resource_units}
