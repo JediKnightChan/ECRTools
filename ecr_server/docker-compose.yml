@@ -12,6 +12,8 @@ services:
       context: .
       dockerfile: backend/Dockerfile
     expose:
-      - 3000
+      - "3000"
+      - "7777-7786:7777-7786/udp"
+      - "7777-7786:7777-7786/tcp"
     env_file:
       - prod.env
