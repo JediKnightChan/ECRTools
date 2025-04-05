@@ -1,1 +1,4 @@
-requests==2.32.0
+fastapi[standard]==0.112.0
+httpx==0.13.3
+pydantic==2.10.2
+aiocache==0.12.3
