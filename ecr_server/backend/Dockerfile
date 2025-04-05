@@ -1,8 +1,11 @@
-FROM python:3.8
+FROM alpine:latest
 
 WORKDIR /ecr-server
 
-RUN apt-get install unzip -y
+RUN apk update && apk add --no-cache \
+    unzip \
+    bash
+
 RUN wget https://ecr-service.website.yandexcloud.net/dist/builds/LinuxServer.zip
 RUN unzip LinuxServer.zip
 RUN rm -f LinuxServer.zip
@@ -17,9 +20,6 @@ RUN chown -R ecr-server:ecr-server LinuxServer/
 # Separately clone requirements not to reinstall them when other files change
 COPY backend/requirements.txt requirements.txt
 RUN pip install -r requirements.txt
-
-# Install time for monitoring game server
-RUN apt-get install coreutils -y
 
 COPY backend/ .
 
