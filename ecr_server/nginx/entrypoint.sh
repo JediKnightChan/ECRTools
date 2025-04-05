@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 # Start Fail2Ban
 /usr/bin/fail2ban-client start
 
