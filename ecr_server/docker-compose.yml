@@ -5,8 +5,7 @@ services:
       dockerfile: nginx/Dockerfile
     volumes:
       - ./nginx_logs:/var/log/nginx
-    networks:
-      - nginx_network
+    network_mode: host
     ports:
       - "0.0.0.0:80:80"
     tmpfs:
@@ -19,8 +18,7 @@ services:
       dockerfile: failtoban/Dockerfile
     volumes:
       - ./nginx_logs:/var/log/nginx
-    networks:
-      - nginx_network
+    network_mode: host
     cap_add:
       - NET_ADMIN
       - NET_RAW
@@ -34,11 +32,6 @@ services:
       - "3000"
       - "7777-7786:7777-7786/udp"
       - "7777-7786:7777-7786/tcp"
-    networks:
-      - nginx_network
+    network_mode: host
     env_file:
       - prod.env
-
-networks:
-  nginx_network:
-    driver: bridge

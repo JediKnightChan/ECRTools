@@ -31,4 +31,4 @@ USER ecr-server
 EXPOSE 7777/tcp
 EXPOSE 7777/udp
 
-CMD ["fastapi", "run", "main.py", "--port", "3000"]
+CMD uvicorn main:app --host 127.0.0.1 --port 3000
