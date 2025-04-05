@@ -1,4 +1,4 @@
-FROM python:3.8-alpine
+FROM alpine:latest
 
 WORKDIR /ecr-server
 
@@ -9,7 +9,8 @@ RUN apk update && apk add --no-cache \
     musl-dev \
     libffi-dev \
     bash \
-    && pip install --upgrade pip
+    python3 \
+    py3-pip
 
 RUN wget https://ecr-service.website.yandexcloud.net/dist/builds/LinuxServer.zip
 RUN unzip LinuxServer.zip
