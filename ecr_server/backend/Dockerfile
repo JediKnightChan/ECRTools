@@ -19,7 +19,7 @@ COPY backend/requirements.txt requirements.txt
 RUN pip install -r requirements.txt
 
 # Install time for monitoring game server
-RUN apt-get install time -y
+RUN apt-get install coreutils -y
 
 COPY backend/ .
 
