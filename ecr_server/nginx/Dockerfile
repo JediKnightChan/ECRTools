@@ -14,6 +14,7 @@ RUN rm -rf /etc/fail2ban/jail.d/
 RUN rm /etc/nginx/conf.d/default.conf
 COPY nginx/server.conf /etc/nginx/conf.d
 
-COPY nginx/supervisord.conf /etc/supervisord.conf
+COPY nginx/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
 
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
