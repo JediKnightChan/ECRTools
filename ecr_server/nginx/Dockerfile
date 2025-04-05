@@ -9,6 +9,7 @@ RUN apk update && apk add --no-cache \
 # Copy your jail.local to configure Fail2Ban
 COPY nginx/fail2ban/jail.conf /etc/fail2ban/jail.conf
 COPY nginx/fail2ban/filter.d/ /etc/fail2ban/filter.d/
+RUN rm /etc/fail2ban/jail.d/
 
 RUN rm /etc/nginx/conf.d/default.conf
 COPY nginx/server.conf /etc/nginx/conf.d
