@@ -76,8 +76,9 @@ async def launch_server_task(game_map, game_mode, game_mission, instance_number,
                                                  match_id, faction_setup)
         launch_command_with_time = f"/usr/bin/time -v bash -c 'exec {launch_command} > /dev/null 2>&1'"
 
+        logger.debug(f"File: {__file__}")
         logger.debug(f"Launching server with instance {instance_number}, log id {log_id}, map {game_map}, "
-                     f"mode {game_mode}, mission {game_mission}")
+                     f"mode {game_mode}, mission {game_mission}, launch command {launch_command_with_time}")
 
         process = await asyncio.create_subprocess_shell(
             launch_command_with_time,
