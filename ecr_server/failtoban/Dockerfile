@@ -13,4 +13,4 @@ COPY failtoban/filter.d/ /etc/fail2ban/filter.d/
 RUN rm -rf /etc/fail2ban/jail.d/
 
 # Command to start Fail2Ban
-ENTRYPOINT ["/usr/bin/fail2ban-client", "start"]
+CMD /usr/bin/fail2ban-server start && tail -f /dev/null
