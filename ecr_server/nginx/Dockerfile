@@ -1,7 +1,10 @@
 FROM nginx:stable-alpine
 
-# Install Fail2Ban
-RUN apt-get update && apt-get install -y fail2ban iptables supervisor
+# Install Fail2Ban, iptables, and supervisor
+RUN apk update && apk add --no-cache \
+    fail2ban \
+    iptables \
+    supervisor
 
 # Copy your jail.local to configure Fail2Ban
 COPY nginx/fail2ban/jail.local /etc/fail2ban/jail.local
