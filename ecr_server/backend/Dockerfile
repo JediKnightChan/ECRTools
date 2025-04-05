@@ -1,16 +1,11 @@
-FROM alpine:latest
+FROM python:3.8
 
 WORKDIR /ecr-server
 
 # Install dependencies for building Python packages
-RUN apk update && apk add --no-cache \
+RUN apt-get update && apt-get install -y \
     unzip \
-    gcc \
-    musl-dev \
-    libffi-dev \
-    bash \
-    python3 \
-    py3-pip
+    time
 
 RUN wget https://ecr-service.website.yandexcloud.net/dist/builds/LinuxServer.zip
 RUN unzip LinuxServer.zip
@@ -20,7 +15,7 @@ RUN chmod 755 LinuxServer/ECRServer.sh
 RUN chmod 755 LinuxServer/ECR/Binaries/Linux/ECRServer || true
 RUN chmod 755 LinuxServer/ECR/Binaries/Linux/ECRServer-Shipping || true
 
-RUN adduser -D -s /bin/bash ecr-server
+RUN useradd -ms /bin/bash ecr-server
 RUN chown -R ecr-server:ecr-server LinuxServer/
 
 # Separately clone requirements not to reinstall them when other files change
