@@ -18,6 +18,9 @@ RUN chown -R ecr-server:ecr-server LinuxServer/
 COPY backend/requirements.txt requirements.txt
 RUN pip install -r requirements.txt
 
+# Install time for monitoring game server
+RUN apt-get install time -y
+
 COPY backend/ .
 
 RUN chown ecr-server:ecr-server .

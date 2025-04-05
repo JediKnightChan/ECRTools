@@ -1,0 +1,9 @@
+[nginx-4xx]
+enabled = true
+port = http,https
+filter = nginx-4xx
+logpath = /var/log/nginx/access.log
+bantime = 1800
+findtime = 10
+maxretry = 5
+action = iptables[name=HTTP, port=http, protocol=tcp]
