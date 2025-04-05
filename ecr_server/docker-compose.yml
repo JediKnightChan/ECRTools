@@ -47,3 +47,7 @@ services:
       - TZ=UTC
     env_file:
       - portainer.env
+
+volumes:
+  portainer_data:
+    driver: local
