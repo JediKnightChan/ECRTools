@@ -39,5 +39,5 @@ def parse_time_command_output(output):
             metrics["system_time"] = float(line.split("System time (seconds):")[1].strip())
     return metrics
 
-
-print(get_cpu_and_ram())
+if __name__ == "__main__":
+    print("CPU and RAM", get_cpu_and_ram())

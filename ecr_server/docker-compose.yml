@@ -1,4 +1,5 @@
 services:
+  # Frontend provides NGINX as a proxy
   frontend:
     build:
       context: .
@@ -12,34 +13,47 @@ services:
       - /var/run/fail2ban/
     depends_on:
       - backend
+  # I'm a bit of exhausted of scammer scanning
   failtoban:
     build:
       context: .
       dockerfile: failtoban/Dockerfile
     volumes:
-      - ./nginx_logs:/var/log/nginx
+      - ./nginx_logs/:/var/log/nginx/
     network_mode: host
     cap_add:
       - NET_ADMIN
       - NET_RAW
     depends_on:
       - frontend
+  # Backend receives server launch requests from matchmaking server
   backend:
     build:
       context: .
       dockerfile: backend/Dockerfile
     expose:
       - "3000"
-      - "7777-7786:7777-7786/udp"
-      - "7777-7786:7777-7786/tcp"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./game_logs/:/var/log/ecr/
     network_mode: host
     env_file:
       - prod.env
+  # This container is only for building an image, actual game containers launch is orchestrated by backend
+  gameserver:
+    build:
+      context: .
+      dockerfile: gameserver/Dockerfile
+    environment:
+      DONT_LAUNCH_GAME: true
+    restart: no
+  # Portainer is used for monitoring containers through Web interface
   portainer:
     image: portainer/portainer-ce:latest
     restart: unless-stopped
+    command: --admin-password '$$2b$$12$$eTpQT9G0sVpiuXS95w9PsehIybqSUC2QuzQXsrelI9Nae.d.bSZ0O'
     ports:
-      - "9000:9000"
+      - "0.0.0.0:9000:9000"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - portainer_data:/data

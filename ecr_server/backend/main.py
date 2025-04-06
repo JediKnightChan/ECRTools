@@ -1,5 +1,4 @@
 import asyncio
-import datetime
 import logging
 import os
 import traceback
@@ -11,6 +10,7 @@ from aiocache import SimpleMemoryCache
 
 from models import StartServerRequest
 from system_utils import get_cpu_and_ram, parse_time_command_output
+from docker_utils import launch_game_docker
 
 app = FastAPI()
 
@@ -27,6 +27,7 @@ cache_lock = asyncio.Lock()
 
 MAX_GAME_SERVER_INSTANCES = int(os.getenv("MAX_GAME_SERVER_INSTANCES", 10))
 DEFAULT_FREE_INSTANCES = list(range(0, MAX_GAME_SERVER_INSTANCES))
+
 
 async def get_region():
     """Tries to get region data from cache, if not present, fetches regional API"""
@@ -48,55 +49,13 @@ async def get_region():
     return region
 
 
-def generate_launch_command(game_map, game_mode, game_mission, region, instance_number, log_id, match_id,
-                            faction_setup):
-    # Create unique ports and log files for each server instance
-    port_base = 7777
-
-    # Set different ports for each instance
-    port = port_base + instance_number
-
-    # Use different log files for each instance
-    log_file = f"{log_id}.log"
-
-    launch_command = f"./LinuxServer/ECRServer.sh {game_map} -mode {game_mode}" \
-                     f" -mission {game_mission} -region {region} -epicapp={os.getenv('EPIC_APP')}" \
-                     f" -analytics-key={os.getenv('GAME_ANALYTICS_KEY')} -log={log_file}" \
-                     f" -port={port}"
-
-    return launch_command
-
-
 async def launch_server_task(game_map, game_mode, game_mission, instance_number, resource_units, match_id,
                              faction_setup):
     try:
         region = await get_region()
-        log_id = uuid.uuid4()
-        launch_command = generate_launch_command(game_map, game_mode, game_mission, region, instance_number, log_id,
-                                                 match_id, faction_setup)
-        launch_command_with_time = f"/usr/bin/time -v bash -c 'exec {launch_command} > /dev/null 2>&1'"
-
-        logger.debug(f"File: {__file__}")
-        logger.debug(f"Launching server with instance {instance_number}, log id {log_id}, map {game_map}, "
-                     f"mode {game_mode}, mission {game_mission}, launch command {launch_command_with_time}")
-
-        process = await asyncio.create_subprocess_shell(
-            launch_command_with_time,
-            stdout=asyncio.subprocess.DEVNULL,
-            stderr=asyncio.subprocess.PIPE
-        )
-
-        stdout, stderr = await process.communicate()
-        finished_good = process.returncode == 0
-
-        metrics = parse_time_command_output(stderr.decode())
-
-        if finished_good:
-            logger.debug(
-                f"Server process with instance {instance_number}, log {log_id} finished with return code {process.returncode}, metrics {metrics}")
-        else:
-            logger.error(
-                f"Server process with instance {instance_number}, log {log_id} failed with return code {process.returncode}, metrics {metrics}")
+        logger.debug(f"Launching server with instance {instance_number}, match id {match_id}, map {game_map}, "
+                     f"mode {game_mode}, mission {game_mission}, factions {faction_setup}")
+        await launch_game_docker(game_map, game_mode, game_mission, region, instance_number, match_id, faction_setup)
     except Exception as e:
         logger.error(traceback.format_exc())
     finally:
@@ -147,7 +106,8 @@ async def launch_game_server(body: StartServerRequest, background_tasks: Backgro
                               free_instance, body.resource_units, body.match_unique_id, body.faction_setup)
 
     return {"status": "success", "free_instances": game_server_free_instances,
-            "free_resource_units": free_resource_units, "taken_resource_units": taken_resource_units + body.resource_units,
+            "free_resource_units": free_resource_units,
+            "taken_resource_units": taken_resource_units + body.resource_units,
             "total_resource_units": total_resource_units}
 
 
@@ -161,3 +121,9 @@ async def check_free_spots():
             taken_resource_units)
         return {"free_instances": game_server_free_instances, "free_resource_units": free_resource_units,
                 "taken_resource_units": taken_resource_units, "total_resource_units": total_resource_units}
+
+
+@app.on_event("startup")
+async def on_startup():
+    # Updates game server region from external API
+    await get_region()
