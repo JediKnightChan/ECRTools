@@ -82,21 +82,20 @@ async def monitor_container(container, match_id, log_file):
 
 async def list_game_docker_containers():
     instances = []
-    resource_units = 0
+    resource_units_total = 0
     async with aiodocker.Docker() as docker_client:
         filter_query = {
-            "status": ["running", "created", "restarting"],
-            "ancestor": GAME_SERVER_IMAGE_NAME
+            "status": ["running", "created", "restarting"]
         }
-        containers = await docker_client.containers.list(all=True, filters=json.dumps(filter_query))
+        containers = await docker_client.containers.list(all=True, filters=filter_query)
         for container in containers:
             instance_num = container["Labels"].get("com.eternal-crusade.instancenum")
             resource_units = container["Labels"].get("com.eternal-crusade.resourceunits")
             if instance_num is not None:
                 instances.append(int(instance_num))
             if resource_units is not None:
-                resource_units += int(resource_units)
-    return containers, instances, resource_units
+                resource_units_total += int(resource_units)
+    return containers, instances, resource_units_total
 
 
 async def pull_image_and_delete_older(new_image, images_to_delete_tags):
