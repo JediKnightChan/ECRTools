@@ -75,7 +75,7 @@ async def launch_game_docker(region, game_contour, game_version, game_map, game_
         # Letting matchmaking know about free resources and game server resource stats
         free_instances, free_resource_units, taken_resource_units, total_resource_units = await get_free_instances_and_units()
         try:
-            with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient() as client:
                 data = {
                     "match_id": match_id,
                     "stats": stats,
