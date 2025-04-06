@@ -59,8 +59,6 @@ services:
       - portainer_data:/data
     environment:
       - TZ=UTC
-    env_file:
-      - portainer.env
 
 volumes:
   portainer_data:
