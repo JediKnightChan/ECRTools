@@ -66,7 +66,8 @@ async def monitor_container(container, match_id, log_file):
         response_status = response["StatusCode"]
 
         # Getting /usr/bin/time -v logs (cpu, memory stats)
-        time_logs = await container.log(stderr=True, follow=False, tail=100)
+        time_log_lines = await container.log(stderr=True, follow=False, tail=100)
+        time_logs = "\n".join(time_log_lines)
         stats = parse_time_command_output(time_logs)
         if response_status == 0:
             logger.debug(f"Container with match id {match_id} finished gracefully with stats {stats}")
