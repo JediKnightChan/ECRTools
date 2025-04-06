@@ -46,7 +46,7 @@ async def launch_game_docker(region, game_contour, game_version, game_map, game_
                 },
                 "HostConfig": {
                     "Binds": [
-                        "game_data:/ecr-server/LinuxServer/ECR/Saved/Logs/"
+                        "ecr_server_game_data:/ecr-server/LinuxServer/ECR/Saved/Logs/"
                     ],
                     "PortBindings": {
                         f"{port}/udp": [{"HostPort": f"{port}"}],
