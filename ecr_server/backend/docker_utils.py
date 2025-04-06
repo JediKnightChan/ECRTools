@@ -16,7 +16,6 @@ async def launch_game_docker(game_map, game_mode, game_mission, region, instance
     async with aiodocker.Docker() as docker_client:
         container = await docker_client.containers.run(
             config={
-                "Hostname": f"ecr-gameserver-{match_id}",
                 "Image": "ecr_server-gameserver",
                 "ExposedPorts": {
                     f"{port}/udp": {},
@@ -28,7 +27,7 @@ async def launch_game_docker(game_map, game_mode, game_mission, region, instance
                     f"MISSION={game_mission}",
                     f"REGION={region}",
                     f"EPIC_APP={os.getenv('EPIC_APP')}",
-                    f"ANALYTICS_KEY={os.getenv('GAME_ANALYTICS_KEY')}",
+                    f"GAME_ANALYTICS_KEY={os.getenv('GAME_ANALYTICS_KEY')}",
                     f"LOG={log_file}",
                     f"MATCH_ID={match_id}",
                     f"FACTIONS={faction_setup}",
@@ -43,14 +42,15 @@ async def launch_game_docker(game_map, game_mode, game_mission, region, instance
                         f"{port}/tcp": [{"HostPort": f"{port}"}],
                     },
                 }
-            }
+            },
+            name=f"ecr-gameserver-{match_id}"
         )
         await monitor_container(container, match_id, log_file)
 
 
 async def monitor_container(container, match_id, log_file):
     try:
-        container.start()
+        await container.start()
         response = await container.wait()
         response_status = response["StatusCode"]
         stats = await container.stats(stream=False)
@@ -62,4 +62,5 @@ async def monitor_container(container, match_id, log_file):
         logger.error(f"Error during monitoring container with match id {match_id}: {e}")
         logger.error(traceback.format_exc())
     finally:
-        container.delete(force=True)
+        if os.getenv("DO_DELETE_CONTAINERS", None) is not None:
+            await container.delete(force=True)
