@@ -33,10 +33,6 @@ async def launch_game_docker(game_map, game_mode, game_mission, region, instance
                     f"FACTIONS={faction_setup}",
                     f"PORT={port}",
                 ],
-                "Labels": {
-                    "com.docker.compose.project": "ecr_server",
-                    "com.docker.compose.oneoff": "True"
-                },
                 "HostConfig": {
                     "Binds": [
                         "game_data:/ecr-server/LinuxServer/ECR/Saved/Logs/"
