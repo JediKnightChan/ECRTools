@@ -35,7 +35,7 @@ services:
       - "3000"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - game_data:/var/log/ecr/
+      - game_data:/ecr-server/LinuxServer/ECR/Saved/Logs/
     network_mode: host
     env_file:
       - prod.env

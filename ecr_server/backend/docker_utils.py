@@ -5,7 +5,10 @@ import traceback
 import aiodocker
 import logging
 
-from system_utils import parse_time_command_output
+import httpx
+
+from system_utils import parse_time_command_output, check_free_server_resource_units
+from s3_connection import S3Connector
 
 logger = logging.getLogger(__name__)
 
@@ -13,12 +16,16 @@ GAME_SERVER_IMAGE_NAME = os.getenv("GAME_SERVER_IMAGE_NAME")
 if not GAME_SERVER_IMAGE_NAME:
     logger.error("GAME_SERVER_IMAGE_NAME not set")
 
+MAX_GAME_SERVER_INSTANCES = int(os.getenv("MAX_GAME_SERVER_INSTANCES", 10))
+DEFAULT_FREE_INSTANCES = list(range(0, MAX_GAME_SERVER_INSTANCES))
+
 
 async def launch_game_docker(region, game_contour, game_version, game_map, game_mode, game_mission, instance_number,
                              resource_units, match_id, faction_setup):
     port_base = 7777
     port = port_base + instance_number
     log_file = f"{match_id}.log"
+    s3_log_key = f"ecr-game/{game_contour}/{game_version}/server_logs/{log_file}"
 
     async with aiodocker.Docker() as docker_client:
         container = await docker_client.containers.run(
@@ -56,10 +63,39 @@ async def launch_game_docker(region, game_contour, game_version, game_map, game_
             },
             name=f"ecr-gameserver-{match_id}"
         )
-        await monitor_container(container, match_id, log_file)
+        stats = await monitor_container(container, match_id)
+
+        # Uploading server log to S3
+        s3 = S3Connector()
+        log_fp = f"/ecr-server/LinuxServer/ECR/Saved/Logs/{log_file}"
+        with open(log_fp, "r") as f:
+            log_content = f.read()
+        await s3.upload_file_to_s3(log_content, s3_log_key)
+
+        # Letting matchmaking know about free resources and game server resource stats
+        free_instances, free_resource_units, taken_resource_units, total_resource_units = await get_free_instances_and_units()
+        try:
+            with httpx.AsyncClient() as client:
+                data = {
+                    "match_id": match_id,
+                    "stats": stats,
+                    "current_resources": {
+                        "free_instances": free_instances,
+                        "free_resource_units": free_resource_units,
+                        "taken_resource_units": taken_resource_units,
+                        "total_resource_units": total_resource_units
+                    }
+                }
+                r = await client.post("https://matchmaking.eternal-crusade.com/notify_gameserver_exit", json=data,
+                                      headers={"Authorization": f"Api-Key {os.getenv('MATCHMAKING_API_KEY')}"})
+                r.raise_for_status()
+        except Exception as e:
+            logger.error(f"Error during matchmaking notification about game server exit: {e}")
+            logger.error(traceback.format_exc())
 
 
-async def monitor_container(container, match_id, log_file):
+async def monitor_container(container, match_id):
+    stats = {}
     try:
         await container.start()
         response = await container.wait()
@@ -78,7 +114,9 @@ async def monitor_container(container, match_id, log_file):
         logger.error(traceback.format_exc())
     finally:
         if os.getenv("DO_DELETE_CONTAINERS", None) is not None:
+            logger.debug(f"Removing container with match id {match_id}")
             await container.delete(force=True)
+    return stats
 
 
 async def list_game_docker_containers():
@@ -97,6 +135,16 @@ async def list_game_docker_containers():
             if resource_units is not None:
                 resource_units_total += int(resource_units)
     return containers, instances, resource_units_total
+
+
+async def get_free_instances_and_units():
+    all_instances = DEFAULT_FREE_INSTANCES
+    _, taken_instances, taken_resource_units = await list_game_docker_containers()
+
+    free_instances = [inst for inst in all_instances if inst not in taken_instances]
+    free_resource_units, total_resource_units = check_free_server_resource_units(taken_resource_units)
+
+    return free_instances, free_resource_units, taken_resource_units, total_resource_units
 
 
 async def pull_image_and_delete_older(new_image, images_to_delete_tags):

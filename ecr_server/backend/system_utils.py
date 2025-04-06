@@ -10,6 +10,14 @@ def get_cpu_and_ram():
     return total_memory_gb, cpu_cores
 
 
+def check_free_server_resource_units(taken_resource_units):
+    """Returns how much resource units are available on server, 1 unit = 2 GB RAM, 1 CPU core"""
+    total_cpu, total_ram = get_cpu_and_ram()
+    total_resource_units = min(total_cpu, total_ram // 2)
+    free_resource_units = max(0, total_resource_units - taken_resource_units)
+    return free_resource_units, total_resource_units
+
+
 def parse_time_command_output(output):
     def parse_wall_time(time_str):
         parts = time_str.split(":")
@@ -38,6 +46,7 @@ def parse_time_command_output(output):
         if "System time (seconds):" in line:
             metrics["system_time"] = float(line.split("System time (seconds):")[1].strip())
     return metrics
+
 
 if __name__ == "__main__":
     print("CPU and RAM", get_cpu_and_ram())
