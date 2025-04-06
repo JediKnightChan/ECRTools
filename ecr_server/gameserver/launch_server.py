@@ -40,7 +40,8 @@ def main():
                      f" -analytics-key={analytics_key} -log={log_file} -matchid={match_id} -factions={faction_setup}" \
                      f" -port={game_port}"
 
-    subprocess.run(launch_command, shell=True)
+    launch_command_with_time = f"/usr/bin/time -v {launch_command}"
+    subprocess.run(launch_command_with_time, shell=True)
 
 
 if __name__ == '__main__':
