@@ -24,7 +24,7 @@ RUN chown ecr-server:ecr-server .
 
 # Creating a Logs dir before it's mounted to set ownership to us
 RUN mkdir -p LinuxServer/ECR/Saved/Logs && \
-    chown -R ecr-server:ecr-server /ecr-server/LinuxServer/ECR/Saved \
+    chown -R ecr-server:ecr-server /ecr-server/LinuxServer/ECR/Saved
 
 USER ecr-server
 
