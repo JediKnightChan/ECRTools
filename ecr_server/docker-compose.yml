@@ -46,6 +46,8 @@ services:
       dockerfile: gameserver/Dockerfile
     environment:
       DONT_LAUNCH_GAME: true
+    volumes:
+      - game_data:/ecr-server/LinuxServer/ECR/Saved/Logs/
     restart: no
   # Portainer is used for monitoring containers through Web interface
   portainer:
@@ -62,4 +64,6 @@ services:
 
 volumes:
   portainer_data:
+    driver: local
+  game_data:
     driver: local

@@ -15,30 +15,35 @@ async def launch_game_docker(game_map, game_mode, game_mission, region, instance
 
     async with aiodocker.Docker() as docker_client:
         container = await docker_client.containers.run(
-            "ecr_server-gameserver",
-            environment={
-                "MAP": game_map,
-                "MODE": game_mode,
-                "MISSION": game_mission,
-                "REGION": region,
-                "EPIC_APP": os.getenv("EPIC_APP"),
-                "ANALYTICS_KEY": os.getenv("GAME_ANALYTICS_KEY"),
-                "LOG": log_file,
-                "MATCH_ID": match_id,
-                "FACTIONS": faction_setup,
-                "PORT": port
-            },
-            ports={
-                f"{port}/udp": f"{port}/udp",  # expose random host port
-                f"{port}/tcp": f"{port}/tcp"
-            },
-            volumes={
-                "game_logs/": {
-                    "bind": "/ecr-server/LinuxServer/ECR/Saved/Logs/",
-                    "mode": "rw"
+            config={
+                "Hostname": f"ecr-gameserver-{match_id}",
+                "Image": "ecr_server-gameserver",
+                "ExposedPorts": {
+                    f"{port}/udp": {},
+                    f"{port}/tcp": {},
+                },
+                "Env": [
+                    f"MAP={game_map}",
+                    f"MODE={game_mode}",
+                    f"MISSION={game_mission}",
+                    f"REGION={region}",
+                    f"EPIC_APP={os.getenv('EPIC_APP')}",
+                    f"ANALYTICS_KEY={os.getenv('GAME_ANALYTICS_KEY')}",
+                    f"LOG={log_file}",
+                    f"MATCH_ID={match_id}",
+                    f"FACTIONS={faction_setup}",
+                    f"PORT={port}",
+                ],
+                "HostConfig": {
+                    "Binds": [
+                        "game_data:/ecr-server/LinuxServer/ECR/Saved/Logs/"
+                    ],
+                    "PortBindings": {
+                        f"{port}/udp": [{"HostPort": f"{port}"}],
+                        f"{port}/tcp": [{"HostPort": f"{port}"}],
+                    },
                 }
-            },
-            detach=True
+            }
         )
         await monitor_container(container, match_id, log_file)
 
