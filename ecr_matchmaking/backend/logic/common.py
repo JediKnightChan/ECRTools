@@ -2,9 +2,11 @@ import random
 from heapq import nlargest
 from typing import Callable
 
+from models.models import GAME_FACTIONS
+
 
 def try_create_pvp_match_common(player_data_map: dict, latest_ts: float, matchmaking_config_for_mode: dict,
-                                determine_team_size: Callable):
+                                determine_team_size: Callable, ignore_faction_min_amount: bool = False):
     """ Attempts to create a PvP match by balancing factions and handling party sizes"""
     # Group players by faction while considering party sizes
     faction_counts = {}
@@ -21,7 +23,16 @@ def try_create_pvp_match_common(player_data_map: dict, latest_ts: float, matchma
         faction_counts[faction].append((player_id, party_size))
 
     if len(faction_counts) < 2:
-        return  # Not enough diversity
+        if ignore_faction_min_amount:
+            new_faction_counts = faction_counts.copy()
+            for faction in GAME_FACTIONS:
+                if faction not in faction_counts:
+                    new_faction_counts[faction] = [(None, 0)]
+                    if len(new_faction_counts) == 2:
+                        break
+            faction_counts = new_faction_counts.copy()
+        else:
+            return  # Not enough diversity
 
     # Get the two factions with the most total players (counting parties)
     def total_faction_size(faction_data):
@@ -88,7 +99,7 @@ def try_create_pvp_match_common(player_data_map: dict, latest_ts: float, matchma
         return
     mission = random.choices(list(missions_to_weights.keys()), weights=list(missions_to_weights.values()), k=1)[0]
 
-    return players_in_match, {"mission": mission, "match_type": match_type, "faction_setup": f"{faction1}vs{faction2}"}
+    return players_in_match, {"mission": mission, "match_type": match_type, "faction_setup": f"{faction1}-{faction2}"}
 
 
 def try_create_pve_match_common(player_data_map: dict, latest_ts: float, matchmaking_config_for_mode: dict,

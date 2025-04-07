@@ -1,19 +1,31 @@
-from pydantic import BaseModel, Field, constr
-from typing import Optional, Literal, List
+from pydantic import BaseModel, Field, constr, validator
+from typing import Optional, Literal, List, Tuple
+
+GAME_FACTIONS: Tuple[str, ...] = (
+    'LoyalSpaceMarines',
+    'ChaosSpaceMarines'
+)
 
 
 class ReenterMatchmakingRequest(BaseModel):
     player_id: str
     region: str
-    pool_name: Literal['pvp_casual', 'pvp_duels', 'pve', 'pve_instant']
+    pool_name: Literal['pvp_casual', 'pvp_duels', 'pvp_instant', 'pve', 'pve_instant']
     game_version: str = Field(pattern=r'^\d{1,3}\.\d{1,3}\.\d{1,3}$')
     game_contour: Literal['prod', 'dev']
 
     desired_match_group: Optional[
         Literal['PoolAlpha', 'PoolBeta', 'PoolGamma', 'Vein', 'Inferno', 'Abyss']] = None  # Optional field
-    faction: Optional[Literal['LoyalSpaceMarines', 'ChaosSpaceMarines']] = None  # Optional field
+    faction: Optional[str] = None
     party_members: Optional[List[str]] = None
 
+    @validator('faction')
+    def validate_faction(cls, v):
+        if v is None:
+            return v
+        if v not in GAME_FACTIONS:
+            raise ValueError(f"Invalid faction: {v}")
+        return v
 
 class LeaveMatchmakingRequest(BaseModel):
     player_id: str

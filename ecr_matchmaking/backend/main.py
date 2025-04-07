@@ -11,7 +11,7 @@ from fastapi import FastAPI, HTTPException, Request, BackgroundTasks
 from redis.asyncio import Redis
 
 from models.models import *
-from logic.pvp_casual import try_create_pvp_match_casual
+from logic.pvp_casual import try_create_pvp_match_casual, try_create_instant_pvp_match
 from logic.pvp_duels import try_create_pvp_match_duel
 from logic.pve import try_create_pve_match, try_create_instant_pve_match
 from logic.game_server_utils import try_to_launch_match
@@ -161,6 +161,8 @@ async def try_create_match(pool_id: str):
         outcome = try_create_pvp_match_casual(player_data_map, latest_ts, matchmaking_config["missions"]["pvp"])
     elif pool_name == "pvp_duels":
         outcome = try_create_pvp_match_duel(player_data_map, latest_ts, matchmaking_config["missions"]["pvp"])
+    elif pool_name == "pvp_instant":
+        outcome = try_create_instant_pvp_match(player_data_map, latest_ts, matchmaking_config["missions"]["pvp"])
     elif pool_name == "pve":
         outcome = try_create_pve_match(player_data_map, latest_ts, matchmaking_config["missions"]["pve"])
     elif pool_name == "pve_instant":
@@ -225,9 +227,10 @@ async def try_create_match(pool_id: str):
 
             # Notify players and remove them from queue
             for player_id in players_in_match:
-                await redis.setex(GET_REDIS_MATCH_KEY(player_id), MATCH_EXPIRATION, json.dumps(match_details))
-                await redis.delete(GET_REDIS_PLAYER_KEY(pool_id, player_id))
-                await redis.zrem(queue_key, player_id)
+                if player_id is not None:
+                    await redis.setex(GET_REDIS_MATCH_KEY(player_id), MATCH_EXPIRATION, json.dumps(match_details))
+                    await redis.delete(GET_REDIS_PLAYER_KEY(pool_id, player_id))
+                    await redis.zrem(queue_key, player_id)
 
             # Update data abut game server
             free_resource_units = server_response["free_resource_units"]
