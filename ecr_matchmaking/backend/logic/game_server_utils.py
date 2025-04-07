@@ -11,7 +11,7 @@ async def try_to_launch_match(logger, region_group_counts, servers_to_region_gro
                                                      distance_map)
     if not ordered_server_groups:
         logger.error(
-            f"Trying to create match, but ordered server group empty: {ordered_server_groups} for {region_group_counts}")
+            f"Trying to create match, but ordered server group empty: {servers_to_region_groups} for {region_group_counts}")
         return False, None, None
 
     for ordered_region_group in ordered_server_groups:

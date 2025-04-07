@@ -204,6 +204,8 @@ async def try_create_match(pool_id: str):
                     servers_to_region_groups[server] = region_group
                 else:
                     logger.warning(f"Skipping server {server} because of low free instances: {free_instances_amount}")
+            else:
+                logger.warning(f"Didn't find server data for server {server}, skipping...")
 
         match_id = str(uuid.uuid4())
         success, successful_server, server_response = await try_to_launch_match(
