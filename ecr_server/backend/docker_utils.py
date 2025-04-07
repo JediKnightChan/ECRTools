@@ -45,7 +45,7 @@ async def launch_game_docker(region, game_contour, game_version, game_map, game_
                     f"LOG={log_file}",
                     f"MATCH_ID={match_id}",
                     f"FACTIONS={faction_setup}",
-                    f"MAX_TEAM_SIZE={max_team_size}"
+                    f"MAX_TEAM_SIZE={max_team_size}",
                     f"PORT={port}",
                     f"LAUNCH_WITH_TIME={os.getenv('LAUNCH_WITH_TIME')}"
                 ],
@@ -66,13 +66,6 @@ async def launch_game_docker(region, game_contour, game_version, game_map, game_
             name=f"ecr-gameserver-{match_id}"
         )
         stats = await monitor_container(container, match_id)
-
-        # Uploading server log to S3
-        s3 = S3Connector()
-        log_fp = f"/ecr-server/LinuxServer/ECR/Saved/Logs/{log_file}"
-        with open(log_fp, "r") as f:
-            log_content = f.read()
-        await s3.upload_file_to_s3(log_content, s3_log_key)
 
         # Letting matchmaking know about free resources and game server resource stats
         free_instances, free_resource_units, taken_resource_units, total_resource_units = await get_free_instances_and_units()
@@ -106,6 +99,13 @@ async def launch_game_docker(region, game_contour, game_version, game_map, game_
             logger.error(f"Error during matchmaking request with stats metrics: {e}")
             logger.error(traceback.format_exc())
 
+        # Uploading server log to S3
+        log_fp = f"/ecr-server/LinuxServer/ECR/Saved/Logs/{log_file}"
+        if os.path.exists(log_fp):
+            s3 = S3Connector()
+            with open(log_fp, "r") as f:
+                log_content = f.read()
+            await s3.upload_file_to_s3(log_content, s3_log_key)
 
 async def monitor_container(container, match_id):
     stats = {}
@@ -116,12 +116,15 @@ async def monitor_container(container, match_id):
 
         # Getting /usr/bin/time -v logs (cpu, memory stats)
         time_log_lines = await container.log(stderr=True, follow=False, tail=100)
-        time_logs = "\n".join(time_log_lines)
+        time_logs = "".join(time_log_lines)
         stats = parse_time_command_output(time_logs)
         if response_status == 0:
             logger.debug(f"Container with match id {match_id} finished gracefully with stats {stats}")
         else:
+            container_all_logs_lines = await container.log(stdout=True, stderr=True, follow=False, tail=100)
+            container_all_logs = "".join(container_all_logs_lines)
             logger.error(f"Container with match id {match_id} failed with code {response_status}, stats {stats}")
+            logger.error(container_all_logs)
     except Exception as e:
         logger.error(f"Error during monitoring container with match id {match_id}: {e}")
         logger.error(traceback.format_exc())
