@@ -77,20 +77,31 @@ async def launch_game_docker(region, game_contour, game_version, game_map, game_
         try:
             async with httpx.AsyncClient() as client:
                 data = {
-                    "match_id": match_id,
-                    "stats": stats,
-                    "current_resources": {
-                        "free_instances": free_instances,
-                        "free_resource_units": free_resource_units,
-                        "taken_resource_units": taken_resource_units,
-                        "total_resource_units": total_resource_units
-                    }
+                    "region": region,
+                    "resource_units": resource_units,
+                    "free_resource_units": free_resource_units,
+                    "free_instances_amount": len(free_instances)
                 }
-                r = await client.post("https://matchmaking.eternal-crusade.com/notify_gameserver_exit", json=data,
+                r = await client.post("https://matchmaking.eternal-crusade.com/register_or_update_game_server", json=data,
                                       headers={"Authorization": f"Api-Key {os.getenv('MATCHMAKING_API_KEY')}"})
                 r.raise_for_status()
         except Exception as e:
             logger.error(f"Error during matchmaking notification about game server exit: {e}")
+            logger.error(traceback.format_exc())
+
+        # Letting matchmaking know about resource usage
+        try:
+            async with httpx.AsyncClient() as client:
+                data = {
+                    "region": region,
+                    "match_id": match_id,
+                    "stats": stats
+                }
+                r = await client.post("https://matchmaking.eternal-crusade.com/register_game_server_stats", json=data,
+                                      headers={"Authorization": f"Api-Key {os.getenv('MATCHMAKING_API_KEY')}"})
+                r.raise_for_status()
+        except Exception as e:
+            logger.error(f"Error during matchmaking request with stats metrics: {e}")
             logger.error(traceback.format_exc())
 
 

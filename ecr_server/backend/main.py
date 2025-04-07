@@ -79,7 +79,8 @@ async def launch_game_server(body: StartServerRequest, background_tasks: Backgro
 
     return {
         "acknowledged": True,
-        "free_instances": free_instances,
+        "region": region,
+        "free_instances_amount": len(free_instances),
         "free_resource_units": free_resource_units,
         "taken_resource_units": taken_resource_units,
         "total_resource_units": total_resource_units
@@ -89,9 +90,11 @@ async def launch_game_server(body: StartServerRequest, background_tasks: Backgro
 @app.post("/check_free_spots")
 async def check_free_spots():
     async with cache_lock:
+        region = await get_region()
         free_instances, free_resource_units, taken_resource_units, total_resource_units = await get_free_instances_and_units()
         return {
-            "free_instances": free_instances,
+            "region": region,
+            "free_instances_amount": len(free_instances),
             "free_resource_units": free_resource_units,
             "taken_resource_units": taken_resource_units,
             "total_resource_units": total_resource_units

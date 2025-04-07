@@ -3,7 +3,8 @@ from heapq import nlargest
 from typing import Callable
 
 
-def try_create_pvp_match_common(player_data_map: dict, latest_ts: float, matchmaking_config_for_mode: dict, determine_team_size: Callable):
+def try_create_pvp_match_common(player_data_map: dict, latest_ts: float, matchmaking_config_for_mode: dict,
+                                determine_team_size: Callable):
     """ Attempts to create a PvP match by balancing factions and handling party sizes"""
     # Group players by faction while considering party sizes
     faction_counts = {}
@@ -87,10 +88,11 @@ def try_create_pvp_match_common(player_data_map: dict, latest_ts: float, matchma
         return
     mission = random.choices(list(missions_to_weights.keys()), weights=list(missions_to_weights.values()), k=1)[0]
 
-    return players_in_match, mission
+    return players_in_match, {"mission": mission, "match_type": match_type, "faction_setup": f"{faction1}vs{faction2}"}
 
 
-def try_create_pve_match_common(player_data_map: dict, latest_ts: float, matchmaking_config_for_mode: dict, determine_team_size: Callable):
+def try_create_pve_match_common(player_data_map: dict, latest_ts: float, matchmaking_config_for_mode: dict,
+                                determine_team_size: Callable):
     """ Attempts to create a PvP match by balancing factions and handling party sizes"""
     # Group players by faction while considering party sizes
     faction_counts = {}
@@ -114,7 +116,7 @@ def try_create_pve_match_common(player_data_map: dict, latest_ts: float, matchma
         return sum(party_size for _, party_size in faction_data)
 
     ((faction1, faction1_players),) = nlargest(1, faction_counts.items(),
-                                            key=lambda x: total_faction_size(x[1]))
+                                               key=lambda x: total_faction_size(x[1]))
 
     # Sort within factions: prioritize larger parties first, maintaining queue order
     faction1_players.sort(key=lambda x: (-x[1]))
@@ -166,4 +168,4 @@ def try_create_pve_match_common(player_data_map: dict, latest_ts: float, matchma
         return
     mission = random.choices(list(missions_to_weights.keys()), weights=list(missions_to_weights.values()), k=1)[0]
 
-    return players_in_match, mission
+    return players_in_match, {"mission": mission, "match_type": match_type, "faction_setup": f"{faction1}"}

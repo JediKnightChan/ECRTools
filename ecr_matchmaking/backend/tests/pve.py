@@ -75,7 +75,7 @@ class TestMatchmakingPve(unittest.TestCase):
         self.assertIsNotNone(match)
         players_in_match, mission = match
         self.assertEqual({"p3", "p4", "p1", "p2"}, set(players_in_match))
-        self.assertEqual("raid4-1", mission)
+        self.assertEqual("raid4-1", mission["mission"])
 
         # Test Case: Prioritizing Larger Party
         players = {
@@ -90,7 +90,7 @@ class TestMatchmakingPve(unittest.TestCase):
         players_in_match, mission = match
         # Larger party prioritized, if not exceeding
         self.assertEqual({"p1", "p2", "p3", "p4"}, set(players_in_match))
-        self.assertEqual("raid4-1", mission)
+        self.assertEqual("raid4-1", mission["mission"])
 
         # Test Case: Not full group, not enough time
         players = {
@@ -112,7 +112,7 @@ class TestMatchmakingPve(unittest.TestCase):
         players_in_match, mission = match
         # All players got into queue
         self.assertEqual({"p1", "p2"}, set(players_in_match))
-        self.assertEqual("raid4-1", mission)
+        self.assertEqual("raid4-1", mission["mission"])
 
         # Test Case: One full group and other players
         players = {
@@ -125,7 +125,7 @@ class TestMatchmakingPve(unittest.TestCase):
         players_in_match, mission = match
         # All players got into queue, except last party who exceeded
         self.assertEqual({f"p{i}" for i in range(2, 6)}, set(players_in_match))
-        self.assertEqual("raid4-1", mission)
+        self.assertEqual("raid4-1", mission["mission"])
 
     def test_try_create_instant_pve_match(self):
         """Test matchmaking with different party and faction setups."""
@@ -148,7 +148,7 @@ class TestMatchmakingPve(unittest.TestCase):
         self.assertIsNotNone(match)
         players_in_match, mission = match
         self.assertEqual({"p3", "p4", "p1", "p2"}, set(players_in_match))
-        self.assertEqual("raid4-1", mission)
+        self.assertEqual("raid4-1", mission["mission"])
 
         # Test Case: Prioritizing Larger Party
         players = {
@@ -163,7 +163,7 @@ class TestMatchmakingPve(unittest.TestCase):
         players_in_match, mission = match
         # Larger party prioritized, if not exceeding
         self.assertEqual({"p1", "p2", "p3", "p4"}, set(players_in_match))
-        self.assertEqual("raid4-1", mission)
+        self.assertEqual("raid4-1", mission["mission"])
 
         # Test Case: Not full group, but it doesn't matter
         players = {
@@ -176,7 +176,7 @@ class TestMatchmakingPve(unittest.TestCase):
         players_in_match, mission = match
         # All players got into queue
         self.assertEqual({"p1", "p2"}, set(players_in_match))
-        self.assertEqual("raid4-1", mission)
+        self.assertEqual("raid4-1", mission["mission"])
 
         # Test Case: 1 player
         players = {
@@ -187,7 +187,7 @@ class TestMatchmakingPve(unittest.TestCase):
         players_in_match, mission = match
         # All players got into queue, except last party who exceeded
         self.assertEqual({"p1"}, set(players_in_match))
-        self.assertEqual("raid4-1", mission)
+        self.assertEqual("raid4-1", mission["mission"])
 
 
 if __name__ == "__main__":

@@ -48,7 +48,7 @@ class TestMatchmaking(unittest.TestCase):
         self.assertIsNotNone(match)
         players_in_match, mission = match
         self.assertEqual({"p3", "p4", "p1", "p2"}, set(players_in_match))
-        self.assertEqual("duel1", mission)
+        self.assertEqual("duel1", mission["mission"])
 
         # Test Case: Prioritizing Larger Party
         players = {
@@ -63,7 +63,7 @@ class TestMatchmaking(unittest.TestCase):
         players_in_match, mission = match
         # Larger party prioritized, if not exceeding
         self.assertEqual({"p1", "p5", "p7", "p8"}, set(players_in_match))
-        self.assertEqual("duel1", mission)
+        self.assertEqual("duel1", mission["mission"])
 
         # Test Case: Not Enough Players
         players = {
@@ -86,7 +86,7 @@ class TestMatchmaking(unittest.TestCase):
         players_in_match, mission = match
         # All players got into queue
         self.assertEqual({f"p{i}" for i in range(1, 11)}, set(players_in_match))
-        self.assertEqual("medium1", mission)
+        self.assertEqual("medium1", mission["mission"])
 
         # Test Case: Large scale match
         players = {
@@ -106,7 +106,7 @@ class TestMatchmaking(unittest.TestCase):
         players_in_match, mission = match
         # All players got into queue, except last party who exceeded
         self.assertEqual({f"p{i}" for i in range(1, 26)}, set(players_in_match))
-        self.assertEqual("large1", mission)
+        self.assertEqual("large1", mission["mission"])
 
 if __name__ == "__main__":
     unittest.main()
