@@ -176,7 +176,7 @@ async def try_create_match(pool_id: str):
     all_mission_data = await cache.get("mission_data", {})
     mission_data = all_mission_data.get(match_data["mission"])
     if not mission_data:
-        logger.error(f"Couldn't find mission data for {match_data["mission"]} in {all_mission_data}")
+        logger.error(f"Couldn't find mission data for {match_data['mission']} in {all_mission_data}")
         return {"status": "waiting", "faction_counts": faction_counts}
 
     resource_units_required = matchmaking_config["resource_units"][match_data["match_type"]]
