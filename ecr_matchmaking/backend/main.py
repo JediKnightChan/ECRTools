@@ -22,11 +22,13 @@ app = FastAPI()
 redis = Redis(host=os.getenv("REDIS_HOST"), port=6379, password=os.getenv("REDIS_PASSWORD"), decode_responses=True)
 
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.WARNING,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S"
 )
+
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 # Constants
 PLAYER_EXPIRATION = 30  # Player stays in queue for 30 seconds without additional requests
