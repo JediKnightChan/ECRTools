@@ -181,7 +181,7 @@ async def try_create_match(pool_id: str):
 
     resource_units_required = matchmaking_config["resource_units"][match_data["match_type"]]
     available_servers = await redis.zrangebyscore(GET_REDIS_GAME_SERVERS_QUEUE_KEY(), resource_units_required, "inf",
-                                                  num=10)
+                                                  start=0, num=10)
     if not available_servers:
         # No servers available, need to launch new
         logger.warning("No servers available to handle match creation, need to launch")
@@ -345,7 +345,7 @@ async def register_game_server_stats(request: Request, body: RegisterGameServerS
 @app.post("/update_mission_data")
 async def update_mission_data_handler(background_tasks: BackgroundTasks):
     background_tasks.add_task(update_mission_data)
-    return {"status": "success", "message": "Server unregistered"}
+    return {"status": "success", "message": "Acknowledged"}
 
 
 # Cleanup Redis on shutdown
