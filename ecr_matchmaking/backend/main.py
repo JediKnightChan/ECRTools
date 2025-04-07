@@ -164,7 +164,7 @@ async def try_create_match(pool_id: str):
         outcome = try_create_pvp_match_casual(player_data_map, latest_ts, matchmaking_config["pools"]["pvp"])
     elif pool_name == "pvp_duels":
         outcome = try_create_pvp_match_duel(player_data_map, latest_ts, matchmaking_config["pools"]["pvp"])
-    elif pool_name == "pvp_instant":
+    elif pool_name == "pvp_casual_instant":
         outcome = try_create_instant_pvp_match(player_data_map, latest_ts, matchmaking_config["pools"]["pvp"])
     elif pool_name == "pve":
         outcome = try_create_pve_match(player_data_map, latest_ts, matchmaking_config["pools"]["pve"])
@@ -225,7 +225,6 @@ async def try_create_match(pool_id: str):
         )
         if success:
             match_details = {
-                "status": "match",
                 "match_id": match_id,
                 "mission": match_data["mission"]
             }
@@ -250,7 +249,7 @@ async def try_create_match(pool_id: str):
             })
             await redis.set(GET_REDIS_GAME_SERVER_KEY(successful_server), server_data)
 
-            return match_details
+            return {"status": "match", **match_details}
         else:
             logger.error("No server could handle match launch request")
             return {"status": "waiting", "faction_counts": faction_counts}
