@@ -37,7 +37,7 @@ def main():
     faction_setup = get_env_var_or_exit("FACTIONS")
     game_port = get_env_var_or_exit("PORT")
 
-    launch_command = f"./LinuxServer/ECRServer.sh {map} -mode {mode}" \
+    launch_command = f"./LinuxServer/ECR/Binaries/Linux/ECRServer ECR  {map} -mode {mode}" \
                      f" -mission {mission} -region {region} -epicapp={epic_app}" \
                      f" -analytics-key={analytics_key} -log={log_file} -matchid={match_id} -factions={faction_setup}" \
                      f" -port={game_port}"
