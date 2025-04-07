@@ -1,6 +1,6 @@
 import unittest
 import time
-from logic.pvp_casual import determine_team_size_casual, try_create_pvp_match_casual
+from logic.pvp_casual import determine_team_size_casual, try_create_pvp_match_casual, try_create_instant_pvp_match
 
 
 class TestMatchmaking(unittest.TestCase):
@@ -107,6 +107,17 @@ class TestMatchmaking(unittest.TestCase):
         # All players got into queue, except last party who exceeded
         self.assertEqual({f"p{i}" for i in range(1, 26)}, set(players_in_match))
         self.assertEqual("large1", mission["mission"])
+
+        # Test case: Instant PvP match
+        players = {
+            "p1": {"faction": "A", "party_members": ["p1"], "desired_match_group": "group1"},
+        }
+        match = try_create_instant_pvp_match(players, current_ts - 2, matchmaking_config)
+        self.assertIsNotNone(match)
+        players_in_match, mission = match
+        self.assertEqual({"p1", None}, set(players_in_match))
+        self.assertEqual("medium1", mission["mission"])
+
 
 if __name__ == "__main__":
     unittest.main()

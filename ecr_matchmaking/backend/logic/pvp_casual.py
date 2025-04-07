@@ -33,6 +33,18 @@ def determine_team_size_casual(faction1_count, faction2_count, latest_ts, curren
         return min(max_team_size, 16), 8, "large"
 
 
+def determine_team_size_instant_pvp(faction1_count, faction2_count, latest_ts, current_ts=None):
+    """Instantly starts a pvp match"""
+    if current_ts is None:
+        current_ts = time.time()
+    max_team_size = max(faction1_count, faction2_count)
+    return max_team_size, 0, "medium"
+
+
 def try_create_pvp_match_casual(player_data_map: dict, latest_ts: float, matchmaking_config_for_mode: dict):
     return try_create_pvp_match_common(player_data_map, latest_ts, matchmaking_config_for_mode,
                                        determine_team_size_casual)
+
+def try_create_instant_pvp_match(player_data_map: dict, latest_ts: float, matchmaking_config_for_mode: dict):
+    return try_create_pvp_match_common(player_data_map, latest_ts, matchmaking_config_for_mode,
+                                       determine_team_size_instant_pvp, ignore_faction_min_amount=True)
