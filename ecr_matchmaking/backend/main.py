@@ -343,7 +343,7 @@ async def register_game_server_stats(request: Request, body: RegisterGameServerS
 
 
 @app.post("/update_mission_data")
-async def update_mission_data(background_tasks: BackgroundTasks):
+async def update_mission_data_handler(background_tasks: BackgroundTasks):
     background_tasks.add_task(update_mission_data)
     return {"status": "success", "message": "Server unregistered"}
 
