@@ -1,25 +1,43 @@
 services:
+  # Nginx adds SSL
   frontend:
     build:
       context: .
       dockerfile: nginx/Dockerfile
+    network_mode: host
     ports:
       - "0.0.0.0:80:80"
       - "0.0.0.0:443:443"
     volumes:
       - /etc/letsencrypt/:/etc/letsencrypt/:ro
+      - nginx_logs:/var/log/nginx/
     depends_on:
       - backend
+  # I'm a bit of exhausted of scammer scanning
+  failtoban:
+    build:
+      context: .
+      dockerfile: failtoban/Dockerfile
+    volumes:
+      - nginx_logs:/var/log/nginx/
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    depends_on:
+      - frontend
+  # Backend handles requests
   backend:
     build:
       context: .
       dockerfile: backend/Dockerfile
     expose:
-      - 3000
+      - "3000"
     env_file:
       - prod.env
     depends_on:
       - redis_db
+  # Redis as KVS for matchmaking logic
   redis_db:
     image: redis:alpine
     restart: always
@@ -40,3 +58,10 @@ services:
       - portainer_data:/data
     environment:
       - TZ=UTC
+
+
+volumes:
+  portainer_data:
+    driver: local
+  nginx_logs:
+    driver: local

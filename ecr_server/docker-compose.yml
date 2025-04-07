@@ -4,13 +4,11 @@ services:
     build:
       context: .
       dockerfile: nginx/Dockerfile
-    volumes:
-      - ./nginx_logs:/var/log/nginx
     network_mode: host
     ports:
       - "0.0.0.0:80:80"
-    tmpfs:
-      - /var/run/fail2ban/
+    volumes:
+      - ./nginx_logs:/var/log/nginx
     depends_on:
       - backend
   # I'm a bit of exhausted of scammer scanning
