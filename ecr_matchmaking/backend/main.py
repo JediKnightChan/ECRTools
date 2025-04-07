@@ -245,6 +245,7 @@ async def reenter_matchmaking_queue(body: ReenterMatchmakingRequest):
     pool_name = body.pool_name
     game_version = body.game_version
     game_contour = body.game_contour
+    region = body.region
 
     pool_id = f"{game_version}-{game_contour}:{pool_name}"
 
@@ -270,7 +271,8 @@ async def reenter_matchmaking_queue(body: ReenterMatchmakingRequest):
         await add_player_to_queue(player_id, pool_id, {
             "desired_match_group": desired_match_group,
             "faction": faction,
-            "party_members": party_members
+            "party_members": party_members,
+            "region_group": get_region_group(region)
         })
     elif not await redis.exists(player_key):
         raise HTTPException(status_code=400, detail="Player not in queue. Provide required parameters.")

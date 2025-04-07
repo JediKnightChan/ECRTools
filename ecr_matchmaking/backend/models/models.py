@@ -4,6 +4,7 @@ from typing import Optional, Literal, List
 
 class ReenterMatchmakingRequest(BaseModel):
     player_id: str
+    region: str
     pool_name: Literal['pvp_casual', 'pvp_duels', 'pve', 'pve_instant']
     game_version: str = Field(pattern=r'^\d{1,3}\.\d{1,3}\.\d{1,3}$')
     game_contour: Literal['prod', 'dev']
