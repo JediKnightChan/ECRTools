@@ -53,5 +53,16 @@ class TestRegions(unittest.TestCase):
         self.assertListEqual(["RU"],
                              get_region_group_ordered(region_group_counts, available_groups, distance_map))
 
+    def test_prod_cases(self):
+        # Prod case
+        region_group_counts = {'RU': 1}
+        servers_to_region_groups = {'51.250.98.83': 'RU'}
+        distance_map = get_region_group_distance_map("eu")
+        ordered_server_groups = get_region_group_ordered(region_group_counts,
+                                                         list(set(servers_to_region_groups.values())),
+                                                         distance_map)
+        self.assertListEqual(["RU"], ordered_server_groups)
+
+
 if __name__ == "__main__":
     unittest.main()

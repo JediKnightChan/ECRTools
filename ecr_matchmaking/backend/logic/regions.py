@@ -44,11 +44,12 @@ def get_region_group_ordered(region_group_to_counts, available_region_groups, di
             r = r.upper()
             r1, r2 = sorted([a, r])
             distance = distance_map.get(r1, {}).get(r2, None)
-            if distance:
+            if distance is not None:
                 available_to_distance_sums[a] = available_to_distance_sums.get(a, 0) + distance * c
 
     if os.getenv("DEBUG_REGION_DISTANCES"):
         print(available_to_distance_sums)
+
     return sorted(available_to_distance_sums, key=available_to_distance_sums.get, reverse=False)
 
 
