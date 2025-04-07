@@ -5,7 +5,7 @@ from logic.regions import get_region_group_ordered, get_region_group_distance_ma
 
 
 async def try_to_launch_match(logger, region_group_counts, servers_to_region_groups, resource_units, version_and_contour, game_map,
-                              game_mission, game_mode, match_id, faction_setup):
+                              game_mission, game_mode, match_id, faction_setup, max_team_size):
     distance_map = get_region_group_distance_map("eu")
     ordered_server_groups = get_region_group_ordered(region_group_counts, list(set(servers_to_region_groups.values())),
                                                      distance_map)
@@ -27,7 +27,8 @@ async def try_to_launch_match(logger, region_group_counts, servers_to_region_gro
                             "game_mission": game_mission,
                             "resource_units": resource_units,
                             "match_unique_id": str(match_id),
-                            "faction_setup": faction_setup
+                            "faction_setup": faction_setup,
+                            "max_team_size": max_team_size
                         })
                         r.raise_for_status()
                         data = r.json()

@@ -12,7 +12,7 @@ class StartServerRequest(BaseModel):
     resource_units: int
     match_unique_id: str
     faction_setup: str
-
+    max_team_size: int
 
 # Pydantic model for the request body
 class DownloadUpdateRequest(BaseModel):

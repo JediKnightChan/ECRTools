@@ -50,12 +50,12 @@ async def get_region():
 
 
 async def launch_server_task(region, game_contour, game_version, game_map, game_mode, game_mission, instance_number,
-                             resource_units, match_id, faction_setup):
+                             resource_units, match_id, faction_setup, max_team_size):
     logger.debug(f"Launching server version {game_version}:{game_contour} with instance {instance_number}, "
                  f"match id {match_id}, map {game_map}, mode {game_mode}, mission {game_mission}, "
                  f"factions {faction_setup}")
     await launch_game_docker(region, game_contour, game_version, game_map, game_mode, game_mission, instance_number,
-                             resource_units, match_id, faction_setup)
+                             resource_units, match_id, faction_setup, max_team_size)
 
 
 @app.post("/launch")
@@ -78,7 +78,7 @@ async def launch_game_server(body: StartServerRequest, background_tasks: Backgro
     region = await get_region()
     background_tasks.add_task(launch_server_task, region, body.game_contour, body.game_version, body.game_map,
                               body.game_mode, body.game_mission, free_instance, body.resource_units,
-                              body.match_unique_id, body.faction_setup)
+                              body.match_unique_id, body.faction_setup, body.max_team_size)
 
     return {
         "acknowledged": True,

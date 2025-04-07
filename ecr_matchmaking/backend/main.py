@@ -220,7 +220,8 @@ async def try_create_match(pool_id: str):
             game_mission=match_data["mission"],
             game_mode=mission_data["mode"],
             match_id=match_id,
-            faction_setup=match_data["faction_setup"]
+            faction_setup=match_data["faction_setup"],
+            max_team_size=match_data["max_team_size"]
         )
         if success:
             match_details = {

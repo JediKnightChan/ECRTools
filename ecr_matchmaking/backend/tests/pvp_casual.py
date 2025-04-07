@@ -9,22 +9,22 @@ class TestMatchmaking(unittest.TestCase):
         current_ts = time.time()
 
         # Not enough players
-        self.assertEqual((None, None, None), determine_team_size_casual(1, 1, current_ts - 100, current_ts))
+        self.assertEqual((None, None, None, None), determine_team_size_casual(1, 1, current_ts - 100, current_ts))
 
         # Enough for duel, past duel threshold
-        self.assertEqual((2, 2, "duel"), determine_team_size_casual(2, 2, current_ts - 61, current_ts))
+        self.assertEqual((2, 2, 2, "duel"), determine_team_size_casual(2, 2, current_ts - 61, current_ts))
 
         # Enough for duel, but waiting
-        self.assertEqual((None, None, None), determine_team_size_casual(2, 2, current_ts - 30, current_ts))
+        self.assertEqual((None, None, None, None), determine_team_size_casual(2, 2, current_ts - 30, current_ts))
 
         # Enough for medium match, past threshold
-        self.assertEqual((6, 5, "medium"), determine_team_size_casual(6, 6, current_ts - 46, current_ts))
+        self.assertEqual((6, 5, 8, "medium"), determine_team_size_casual(6, 6, current_ts - 46, current_ts))
 
         # Large battle (full teams)
-        self.assertEqual((12, 8, "large"), determine_team_size_casual(10, 12, current_ts - 100, current_ts))
+        self.assertEqual((12, 8, 16, "large"), determine_team_size_casual(10, 12, current_ts - 100, current_ts))
 
         # Cap at max team size 16
-        self.assertEqual((16, 8, "large"), determine_team_size_casual(20, 18, current_ts - 100, current_ts))
+        self.assertEqual((16, 8, 16, "large"), determine_team_size_casual(20, 18, current_ts - 100, current_ts))
 
     def test_try_create_pvp_match(self):
         """Test matchmaking with different party and faction setups."""

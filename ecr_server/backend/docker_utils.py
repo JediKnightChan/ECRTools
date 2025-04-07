@@ -21,7 +21,7 @@ DEFAULT_FREE_INSTANCES = list(range(0, MAX_GAME_SERVER_INSTANCES))
 
 
 async def launch_game_docker(region, game_contour, game_version, game_map, game_mode, game_mission, instance_number,
-                             resource_units, match_id, faction_setup):
+                             resource_units, match_id, faction_setup, max_team_size):
     port_base = 7777
     port = port_base + instance_number
     log_file = f"{match_id}.log"
@@ -45,6 +45,7 @@ async def launch_game_docker(region, game_contour, game_version, game_map, game_
                     f"LOG={log_file}",
                     f"MATCH_ID={match_id}",
                     f"FACTIONS={faction_setup}",
+                    f"MAX_TEAM_SIZE={max_team_size}"
                     f"PORT={port}",
                     f"LAUNCH_WITH_TIME={os.getenv('LAUNCH_WITH_TIME')}"
                 ],

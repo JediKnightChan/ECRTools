@@ -50,7 +50,7 @@ def try_create_pvp_match_common(player_data_map: dict, latest_ts: float, matchma
     faction2_count = total_faction_size(faction2_players)
 
     # Determine appropriate team size, minimal team size and match type
-    team_size, min_team_size, match_type = determine_team_size(faction1_count, faction2_count, latest_ts)
+    team_size, min_team_size, max_team_size, match_type = determine_team_size(faction1_count, faction2_count, latest_ts)
     if not team_size:
         # Not enough players for a match
         return
@@ -99,7 +99,8 @@ def try_create_pvp_match_common(player_data_map: dict, latest_ts: float, matchma
         return
     mission = random.choices(list(missions_to_weights.keys()), weights=list(missions_to_weights.values()), k=1)[0]
 
-    return players_in_match, {"mission": mission, "match_type": match_type, "faction_setup": f"{faction1}-{faction2}"}
+    return players_in_match, {"mission": mission, "match_type": match_type, "faction_setup": f"{faction1}:{faction2}",
+                              "max_team_size": max_team_size}
 
 
 def try_create_pve_match_common(player_data_map: dict, latest_ts: float, matchmaking_config_for_mode: dict,
@@ -136,7 +137,7 @@ def try_create_pve_match_common(player_data_map: dict, latest_ts: float, matchma
     faction1_count = total_faction_size(faction1_players)
 
     # Determine appropriate team size, minimal team size and match type
-    team_size, min_team_size, match_type = determine_team_size(faction1_count, latest_ts)
+    team_size, min_team_size, max_team_size, match_type = determine_team_size(faction1_count, latest_ts)
     if not team_size:
         # Not enough players for a match
         return
@@ -179,4 +180,5 @@ def try_create_pve_match_common(player_data_map: dict, latest_ts: float, matchma
         return
     mission = random.choices(list(missions_to_weights.keys()), weights=list(missions_to_weights.values()), k=1)[0]
 
-    return players_in_match, {"mission": mission, "match_type": match_type, "faction_setup": f"{faction1}"}
+    return players_in_match, {"mission": mission, "match_type": match_type, "faction_setup": f"{faction1}",
+                              "max_team_size": max_team_size}

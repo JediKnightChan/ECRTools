@@ -11,46 +11,46 @@ class TestMatchmakingPve(unittest.TestCase):
         current_ts = time.time()
 
         # Not enough players
-        self.assertEqual((None, None, None),
+        self.assertEqual((None, None, None, None),
                          determine_team_size_pve(1, current_ts - TIME_THRESHOLD_FOR_MATCH_ALONE + 1, current_ts))
 
         # Enough for match with not full group, past threshold
-        self.assertEqual((2, 2, "raid4"),
+        self.assertEqual((2, 2, 4, "raid4"),
                          determine_team_size_pve(2, current_ts - TIME_THRESHOLD_FOR_MATCH_WITH_NOT_FULL_GROUP - 1,
                                                  current_ts))
 
         # Enough for match with not full group, but waiting
-        self.assertEqual((None, None, None),
+        self.assertEqual((None, None, None, None),
                          determine_team_size_pve(3, current_ts - TIME_THRESHOLD_FOR_MATCH_WITH_NOT_FULL_GROUP + 1,
                                                  current_ts))
 
         # Enough for full group match
-        self.assertEqual((4, 4, "raid4"), determine_team_size_pve(4, current_ts - 5, current_ts))
+        self.assertEqual((4, 4, 4, "raid4"), determine_team_size_pve(4, current_ts - 5, current_ts))
 
         # Cap at max team size 4
-        self.assertEqual((4, 4, "raid4"), determine_team_size_pve(12, current_ts - 5, current_ts))
+        self.assertEqual((4, 4, 4, "raid4"), determine_team_size_pve(12, current_ts - 5, current_ts))
 
     def test_determine_team_size_instant_pve(self):
         """Test various team size conditions."""
         current_ts = time.time()
 
         # 1 player
-        self.assertEqual((1, 1, "raid4"),
+        self.assertEqual((1, 1, 4, "raid4"),
                          determine_team_size_instant_pve(1, current_ts - TIME_THRESHOLD_FOR_MATCH_ALONE + 1,
                                                          current_ts))
 
         # 3 player
-        self.assertEqual((3, 1, "raid4"),
+        self.assertEqual((3, 1, 4, "raid4"),
                          determine_team_size_instant_pve(3, current_ts - TIME_THRESHOLD_FOR_MATCH_ALONE + 1,
                                                          current_ts))
 
         # 4 player
-        self.assertEqual((4, 1, "raid4"),
+        self.assertEqual((4, 1, 4, "raid4"),
                          determine_team_size_instant_pve(4, current_ts - TIME_THRESHOLD_FOR_MATCH_ALONE + 1,
                                                          current_ts))
 
         # 100 player
-        self.assertEqual((4, 1, "raid4"),
+        self.assertEqual((4, 1, 4, "raid4"),
                          determine_team_size_instant_pve(100, current_ts - TIME_THRESHOLD_FOR_MATCH_ALONE + 1,
                                                          current_ts))
 
