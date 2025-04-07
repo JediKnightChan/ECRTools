@@ -36,9 +36,6 @@ MATCH_CREATION_LOCK_TIMEOUT = 10  # Create a match attempt locks another attempt
 # State
 cache = SimpleMemoryCache()
 
-with open("matchmaking_config.json", "r") as f:
-    matchmaking_config = json.load(f)
-
 
 def GET_REDIS_PLAYER_KEY(pool_id, player_id):
     """This key stores data about the player until it expires"""
@@ -89,13 +86,13 @@ async def release_match_creation_lock(pool_id):
     await redis.delete(lock_key)  # Remove lock
 
 
-async def update_mission_data():
+async def update_matchmaking_config():
     """Updates mission data from ecr service backend"""
     async with httpx.AsyncClient() as client:
-        r = await client.get("https://storage.yandexcloud.net/ecr-service/api/ecr/server_data/match_data.json")
+        r = await client.get("https://storage.yandexcloud.net/ecr-service/api/ecr/server_data/matchmaking_config.json")
         r.raise_for_status()
-        mission_data = r.json()["missions"]
-        await cache.set("mission_data", mission_data)
+        matchmaking_config = r.json()
+        await cache.set("matchmaking_config", matchmaking_config)
 
 
 async def remove_player_from_all_queues(player_id: str):
@@ -124,6 +121,10 @@ async def try_create_match(pool_id: str):
     queue_key = GET_REDIS_PLAYER_QUEUE_KEY(pool_id)
     player_expire_queue_key = GET_REDIS_PLAYER_EXPIRE_QUEUE_KEY(pool_id)
     version_and_contour, pool_name = pool_id.split(":")
+    matchmaking_config = await cache.get("matchmaking_config", None)
+    if matchmaking_config is None:
+        logger.critical("Matchmaking config not set in cache")
+        return {"status": "server_error"}
 
     expired_players = await redis.zrangebyscore(player_expire_queue_key, "-inf", time.time() - PLAYER_EXPIRATION)
 
@@ -158,15 +159,15 @@ async def try_create_match(pool_id: str):
     await cache.set("faction_counts", faction_counts)
 
     if pool_name == "pvp_casual":
-        outcome = try_create_pvp_match_casual(player_data_map, latest_ts, matchmaking_config["missions"]["pvp"])
+        outcome = try_create_pvp_match_casual(player_data_map, latest_ts, matchmaking_config["pools"]["pvp"])
     elif pool_name == "pvp_duels":
-        outcome = try_create_pvp_match_duel(player_data_map, latest_ts, matchmaking_config["missions"]["pvp"])
+        outcome = try_create_pvp_match_duel(player_data_map, latest_ts, matchmaking_config["pools"]["pvp"])
     elif pool_name == "pvp_instant":
-        outcome = try_create_instant_pvp_match(player_data_map, latest_ts, matchmaking_config["missions"]["pvp"])
+        outcome = try_create_instant_pvp_match(player_data_map, latest_ts, matchmaking_config["pools"]["pvp"])
     elif pool_name == "pve":
-        outcome = try_create_pve_match(player_data_map, latest_ts, matchmaking_config["missions"]["pve"])
+        outcome = try_create_pve_match(player_data_map, latest_ts, matchmaking_config["pools"]["pve"])
     elif pool_name == "pve_instant":
-        outcome = try_create_instant_pve_match(player_data_map, latest_ts, matchmaking_config["missions"]["pve"])
+        outcome = try_create_instant_pve_match(player_data_map, latest_ts, matchmaking_config["pools"]["pve"])
     else:
         raise NotImplementedError
 
@@ -175,10 +176,9 @@ async def try_create_match(pool_id: str):
         return {"status": "waiting", "faction_counts": faction_counts}
 
     players_in_match, match_data = outcome
-    all_mission_data = await cache.get("mission_data", {})
-    mission_data = all_mission_data.get(match_data["mission"])
+    mission_data = matchmaking_config["missions"].get(match_data["mission"])
     if not mission_data:
-        logger.error(f"Couldn't find mission data for {match_data['mission']} in {all_mission_data}")
+        logger.error(f"Couldn't find mission data for {match_data['mission']} in matchmaking config keys ({list(matchmaking_config['missions'].keys())})")
         return {"status": "waiting", "faction_counts": faction_counts}
 
     resource_units_required = matchmaking_config["resource_units"][match_data["match_type"]]
@@ -234,6 +234,9 @@ async def try_create_match(pool_id: str):
 
             # Update data abut game server
             free_resource_units = server_response["free_resource_units"]
+            logger.debug(f"Updating data for server {successful_server} for running {match_data['mission']}: "
+                         f"free resource units {free_resource_units}, "
+                         f"free instances amount {server_response['free_instances_amount']}")
             await redis.zadd(GET_REDIS_GAME_SERVERS_QUEUE_KEY(), {successful_server: free_resource_units})
 
             server_data = json.dumps({
@@ -357,9 +360,9 @@ async def register_game_server_stats(request: Request, body: RegisterGameServerS
     return {"status": "success", "message": "Stats registered"}
 
 
-@app.post("/update_mission_data")
-async def update_mission_data_handler(background_tasks: BackgroundTasks):
-    background_tasks.add_task(update_mission_data)
+@app.post("/update_matchmaking_config")
+async def update_matchmaking_config_handler(background_tasks: BackgroundTasks):
+    background_tasks.add_task(update_matchmaking_config)
     return {"status": "success", "message": "Acknowledged"}
 
 
@@ -372,4 +375,4 @@ async def shutdown():
 @app.on_event("startup")
 async def on_startup():
     # Updates match data
-    await update_mission_data()
+    await update_matchmaking_config()
