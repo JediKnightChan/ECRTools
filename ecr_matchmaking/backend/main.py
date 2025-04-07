@@ -182,9 +182,12 @@ async def try_create_match(pool_id: str):
     resource_units_required = matchmaking_config["resource_units"][match_data["match_type"]]
     available_servers = await redis.zrangebyscore(GET_REDIS_GAME_SERVERS_QUEUE_KEY(), resource_units_required, "inf",
                                                   start=0, num=10)
+
+    logger.debug(f"Retrieved {len(available_servers)} available servers for match creation")
+
     if not available_servers:
         # No servers available, need to launch new
-        logger.warning("No servers available to handle match creation, need to launch")
+        logger.error("No servers available to handle match creation, need to launch")
         return {"status": "waiting", "faction_counts": faction_counts}
     else:
         servers_to_region_groups = {}
@@ -193,9 +196,12 @@ async def try_create_match(pool_id: str):
             if server_data:
                 server_data = json.loads(server_data)
                 # Check if server has free ports
-                if server_data["free_instances_amount"] > 0:
+                free_instances_amount = server_data["free_instances_amount"]
+                if free_instances_amount > 0:
                     region_group = server_data["region_group"]
                     servers_to_region_groups[server] = region_group
+                else:
+                    logger.warning(f"Skipping server {server} because of low free instances: {free_instances_amount}")
 
         match_id = str(uuid.uuid4())
         success, successful_server, server_response = await try_to_launch_match(
@@ -314,14 +320,16 @@ async def register_or_update_game_server(request: Request, body: RegisterGameSer
     server_ip = request.client.host
     region_group = get_region_group(body.region)
     free_resource_units = body.free_resource_units
+    free_instances_amount = body.free_instances_amount
 
+    logger.debug(f"Registering game server {server_ip} ({region_group}): "
+                 f"free instances amount {free_instances_amount}, free resource units {free_resource_units}")
     await redis.zadd(GET_REDIS_GAME_SERVERS_QUEUE_KEY(), {server_ip: free_resource_units})
 
     server_data = json.dumps({
         "region_group": region_group,
-        "free_instances_amount": body.free_instances_amount
+        "free_instances_amount": free_instances_amount
     })
-
     await redis.set(GET_REDIS_GAME_SERVER_KEY(server_ip), server_data)
     return {"status": "success", "message": "Server registered"}
 
@@ -329,8 +337,10 @@ async def register_or_update_game_server(request: Request, body: RegisterGameSer
 @app.post("/unregister_game_server")
 async def unregister_game_server(request: Request):
     server_ip = request.client.host
-    server_key = GET_REDIS_GAME_SERVER_KEY(server_ip)
 
+    logger.debug(f"Unregistering game server {server_ip}")
+
+    server_key = GET_REDIS_GAME_SERVER_KEY(server_ip)
     await redis.zrem(GET_REDIS_GAME_SERVERS_QUEUE_KEY(), server_ip)
     await redis.delete(server_key)
 
