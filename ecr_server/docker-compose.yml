@@ -61,6 +61,16 @@ services:
       - portainer_data:/data
     environment:
       - TZ=UTC
+  # Portainer agent for registering on other machine
+  portainer_agent:
+    image: portainer/agent:latest
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "9001:9001"
+    env_file:
+      - portainer_agent.env
 
 volumes:
   portainer_data:

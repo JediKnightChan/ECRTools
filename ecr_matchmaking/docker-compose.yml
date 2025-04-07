@@ -28,3 +28,15 @@ services:
       - redis.env
     ports:
       - "0.0.0.0:6379:6379"
+  # Portainer is used for monitoring containers through Web interface
+  portainer:
+    image: portainer/portainer-ce:latest
+    restart: unless-stopped
+    command: --admin-password '$$2b$$12$$eTpQT9G0sVpiuXS95w9PsehIybqSUC2QuzQXsrelI9Nae.d.bSZ0O'
+    ports:
+      - "0.0.0.0:9000:9000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    environment:
+      - TZ=UTC
