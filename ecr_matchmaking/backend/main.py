@@ -19,7 +19,7 @@ from logic.regions import get_region_group
 
 app = FastAPI()
 
-redis = Redis(host="redis_db", port=6379, password=os.getenv("REDIS_PASSWORD"), decode_responses=True)
+redis = Redis(host=os.getenv("REDIS_HOST"), port=6379, password=os.getenv("REDIS_PASSWORD"), decode_responses=True)
 
 logging.basicConfig(
     level=logging.DEBUG,
