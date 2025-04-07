@@ -131,7 +131,7 @@ async def on_startup():
                                   headers={"Authorization": f"Api-Key {os.getenv('MATCHMAKING_API_KEY')}"})
             r.raise_for_status()
     except Exception as e:
-        dont_exit = os.getenv("IGNORE_MATCHMAKING_REGISTER_FAIL", None)
+        dont_exit = os.getenv("IGNORE_MATCHMAKING_REGISTER_FAIL", None) == "1"
         logger.critical(traceback.format_exc())
         logger.critical(f"Couldn't register server in matchmaking ({e})" + ", but won't exit" if dont_exit else ", exiting...")
         if dont_exit is not None:
