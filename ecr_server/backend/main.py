@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import sys
 import traceback
 import uuid
 
@@ -111,3 +112,38 @@ async def download_update(body: DownloadUpdateRequest, background_tasks: Backgro
 async def on_startup():
     # Updates game server region from external API
     await get_region()
+
+    async with cache_lock:
+        free_instances, free_resource_units, taken_resource_units, total_resource_units = await get_free_instances_and_units()
+
+    # Connect to matchmaking server and tell about our existence
+    try:
+        async with httpx.AsyncClient() as client:
+            data = {
+                "region": "region",
+                "resource_units": total_resource_units,
+                "free_resource_units": free_resource_units,
+                "free_instances_amount": len(free_instances)
+            }
+            r = await client.post("https://matchmaking.eternal-crusade.com/register_or_update_game_server", json=data,
+                                  headers={"Authorization": f"Api-Key {os.getenv('MATCHMAKING_API_KEY')}"})
+            r.raise_for_status()
+    except Exception as e:
+        dont_exit = os.getenv("IGNORE_MATCHMAKING_REGISTER_FAIL", None)
+        logger.critical(traceback.format_exc())
+        logger.critical(f"Couldn't register server in matchmaking ({e})" + ", but won't exit" if dont_exit else ", exiting...")
+        if dont_exit is not None:
+            sys.exit(0)
+
+
+# Unregister on shutdown
+@app.on_event("shutdown")
+async def shutdown():
+    try:
+        async with httpx.AsyncClient() as client:
+            r = await client.post("https://matchmaking.eternal-crusade.com/unregister_game_server", json={},
+                                  headers={"Authorization": f"Api-Key {os.getenv('MATCHMAKING_API_KEY')}"})
+            r.raise_for_status()
+    except Exception as e:
+        logger.critical(f"Couldn't unregister game server on exit: {e}")
+        logger.critical(traceback.format_exc())
