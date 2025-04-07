@@ -46,6 +46,7 @@ async def launch_game_docker(region, game_contour, game_version, game_map, game_
                     f"MATCH_ID={match_id}",
                     f"FACTIONS={faction_setup}",
                     f"PORT={port}",
+                    f"LAUNCH_WITH_TIME={os.getenv('LAUNCH_WITH_TIME')}"
                 ],
                 "Labels": {
                     "com.eternal-crusade.resourceunits": f"{resource_units}",

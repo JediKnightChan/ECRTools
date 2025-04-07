@@ -24,6 +24,8 @@ def main():
         logger.debug("Test container run without launching game detected (DONT_LAUNCH_GAME set), exiting...")
         sys.exit(0)
 
+    wants_launch_with_time = os.getenv("LAUNCH_WITH_TIME", None) == "1"
+
     map = get_env_var_or_exit("MAP")
     mode = get_env_var_or_exit("MODE")
     mission = get_env_var_or_exit("MISSION")
@@ -41,7 +43,15 @@ def main():
                      f" -port={game_port}"
 
     launch_command_with_time = f"/usr/bin/time -v {launch_command}"
-    subprocess.run(launch_command_with_time, shell=True)
+
+    if wants_launch_with_time:
+        command = launch_command_with_time
+        logger.debug(f"Launch with /usr/bin/time requested, command: {command}")
+    else:
+        command = launch_command
+        logger.debug(f"Launching without /usr/bin/time, command: {command}")
+
+    subprocess.run(command, shell=True)
 
 
 if __name__ == '__main__':
