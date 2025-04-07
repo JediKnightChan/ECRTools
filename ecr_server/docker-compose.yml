@@ -65,6 +65,9 @@ services:
     restart: always
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - /var/lib/docker/volumes:/var/lib/docker/volumes
+      - /:/host
+      - portainer_agent_data:/data
     ports:
       - "9001:9001"
     env_file:
@@ -74,4 +77,6 @@ volumes:
   portainer_data:
     driver: local
   game_data:
+    driver: local
+  portainer_agent_data:
     driver: local
