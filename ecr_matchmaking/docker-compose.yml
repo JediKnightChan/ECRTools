@@ -4,6 +4,7 @@ services:
     build:
       context: .
       dockerfile: nginx/Dockerfile
+    restart: always
     network_mode: host
     ports:
       - "0.0.0.0:80:80"
@@ -18,6 +19,7 @@ services:
     build:
       context: .
       dockerfile: failtoban/Dockerfile
+    restart: always
     volumes:
       - nginx_logs:/var/log/nginx/
     network_mode: host
@@ -31,6 +33,7 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
+    restart: always
     network_mode: host
     expose:
       - "3000"
@@ -47,6 +50,16 @@ services:
       - redis.env
     ports:
       - "0.0.0.0:6379:6379"
+  # Postgres as persistent storage
+  postgres_db:
+    image: postgres:15-alpine
+    restart: always
+    env_file:
+      - postgres.env
+    ports:
+      - "0.0.0.0:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
   # Portainer is used for monitoring containers through Web interface
   portainer:
     image: portainer/portainer-ce:latest
@@ -66,4 +79,6 @@ volumes:
   portainer_data:
     driver: local
   nginx_logs:
+    driver: local
+  postgres_data:
     driver: local

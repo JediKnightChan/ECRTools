@@ -4,6 +4,7 @@ services:
     build:
       context: .
       dockerfile: nginx/Dockerfile
+    restart: always
     network_mode: host
     ports:
       - "0.0.0.0:80:80"
@@ -16,6 +17,7 @@ services:
     build:
       context: .
       dockerfile: failtoban/Dockerfile
+    restart: always
     volumes:
       - ./nginx_logs/:/var/log/nginx/
     network_mode: host
@@ -29,6 +31,7 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
+    restart: always
     expose:
       - "3000"
     volumes:
@@ -42,11 +45,11 @@ services:
     build:
       context: .
       dockerfile: gameserver/Dockerfile
+    restart: no
     environment:
       DONT_LAUNCH_GAME: true
     volumes:
       - game_data:/ecr-server/LinuxServer/ECR/Saved/Logs/
-    restart: no
   # Portainer is used for monitoring containers through Web interface
   portainer:
     image: portainer/portainer-ce:latest
