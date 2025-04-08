@@ -129,7 +129,7 @@ async def monitor_container(container, match_id):
         logger.error(f"Error during monitoring container with match id {match_id}: {e}")
         logger.error(traceback.format_exc())
     finally:
-        if os.getenv("DO_DELETE_CONTAINERS", None) is not None:
+        if os.getenv("DO_DELETE_CONTAINERS", None) == "1":
             logger.debug(f"Removing container with match id {match_id}")
             await container.delete(force=True)
     return stats
