@@ -12,12 +12,24 @@ from marshmallow import fields, ValidationError
 
 
 class PlayerSchema(ExcludeSchema):
-    id = fields.Str(required=True)
-    level = fields.Int(default=1)
-    xp = fields.Int(default=0)
-    free_xp = fields.Int(default=0)
-    silver = fields.Int(default=0)
-    gold = fields.Int(default=0)
+    id = fields.Int(required=True)
+    egs_id = fields.Str(required=True)
+    egs_nickname = fields.Str()
+    steam_id = fields.Str()
+    steam_nickname = fields.Str()
+
+    email = fields.Email()
+    email_confirmed = fields.Boolean()
+    # Secret, don't allow to spread it out of backend
+    email_confirmation_code = fields.Str()
+
+    xp = fields.Int()
+    subscription_status = fields.Int()
+    subscription_end = fields.DateTime()
+
+    permissions = fields.Int()
+
+    created_time = fields.Int()
 
 
 class PlayerProcessor(ResourceProcessor):
@@ -26,24 +38,20 @@ class PlayerProcessor(ResourceProcessor):
     def __init__(self, logger, contour, user, yc, s3):
         super(PlayerProcessor, self).__init__(logger, contour, user, yc, s3)
 
-        self.yc = YDBConnector(logger)
-        self.table_name = "players" if self.contour == "prod" else "players_dev"
+        self.table_name = "ecr_players" if self.contour == "prod" else "ecr_players_dev"
 
         with open(os.path.join(os.path.dirname(__file__), "../data/levels.json")) as f:
             self.levelling_data = json.load(f)
 
     @permission_required(APIPermission.ANYONE)
     def API_GET(self, request_body: dict) -> typing.Tuple[dict, int]:
-        """Get player data by id. Anyone can do it."""
+        """Gets player data by internal id"""
 
         schema = PlayerSchema(only=("id",))
-
         try:
-            validated_data = schema.load({"id": request_body.get("player_id")})
-            player_id = validated_data.get("id")
-
+            validated_data = schema.load(request_body)
             query = f"""
-                DECLARE $ID AS Utf8;
+                DECLARE $ID AS Int64;
 
                 SELECT * FROM {self.table_name}
                 WHERE
@@ -52,7 +60,7 @@ class PlayerProcessor(ResourceProcessor):
             """
 
             query_params = {
-                '$ID': player_id,
+                '$ID': validated_data.get("id"),
             }
 
             result, code = self.yc.process_query(query, query_params)
@@ -63,56 +71,24 @@ class PlayerProcessor(ResourceProcessor):
                     if len(result[0].rows) > 0:
                         return {"success": True, "data": dump_schema.dump(result[0].rows[0])}, 200
                     else:
-                        # User not found, will create new if one who asked about him is himself
-                        if self.user == player_id:
-                            create_r, create_s = self.__create(player_id)
-                            if create_s == 201:
-                                return {"success": True, "data": dump_schema.dump({"id": player_id})}, 200
-                            else:
-                                return self.internal_server_error_response
-                        else:
-                            return {"success": False}, 404
+                        # User not found by internal id
+                        return {"success": False}, 404
                 else:
                     return {"success": False, "data": None}, 500
             else:
                 return self.internal_server_error_response
-
         except ValidationError as e:
             return {"error": e.messages}, 400
         except Exception as e:
-            self.logger.error(f"Exception during player GET with body {request_body}: {traceback.format_exc()}")
+            self.logger.error(f"Exception during character GET with body {request_body}: {traceback.format_exc()}")
             return self.internal_server_error_response
 
-    def __create(self, player_id: str) -> typing.Tuple[dict, int]:
-        """Create character, only called from API_GET when player doesn't exist"""
 
-        try:
-            # Creating row in YDB table
-            query = f"""
-                DECLARE $ID AS Utf8;
+    def _grant_xp(self, player: int, xp_delta: int, source: str, source_additional_data: str) -> typing.Tuple[
+        dict, int]:
+        """Used for internal granting XP"""
 
-                UPSERT INTO {self.table_name} (id, level, xp, free_xp, silver, gold) VALUES
-                    ($ID, 1, 0, 0, 0, 0);
-            """
-
-            query_params = {
-                '$ID': player_id
-            }
-
-            result, code = self.yc.process_query(query, query_params)
-            if code == 0:
-                return {"success": True}, 201
-            else:
-                return self.internal_server_error_response
-        except Exception as e:
-            self.logger.error(f"Exception during player CREATE for id {player_id}: {traceback.format_exc()}")
-            return self.internal_server_error_response
-
-    def modify(self, player_id, xp_delta, free_xp_delta, silver_delta, gold_delta, source, source_additional_data) -> \
-            typing.Tuple[dict, int]:
-        """Used for internal modifying of player data (eg granting rewards or spending currency)"""
-
-        r, s = self.API_GET({"player_id": player_id})
+        r, s = self.API_GET({"id": player})
         if s != 200:
             return r, s
         else:
@@ -120,41 +96,28 @@ class PlayerProcessor(ResourceProcessor):
 
         try:
             query = f"""
-                DECLARE $ID AS Utf8;
-                DECLARE $LEVEL AS Uint32;
-                DECLARE $XP AS Uint32;
-                DECLARE $FREE_XP AS Uint32;
-                DECLARE $SILVER AS Uint32;
-                DECLARE $GOLD AS Uint32;
+                DECLARE $ID AS Int64;
+                DECLARE $XP AS Int64;
 
                 UPDATE {self.table_name}
                 SET 
-                level = $LEVEL,
-                xp = $XP,
-                free_xp = $FREE_XP,
-                silver = $SILVER,
-                gold = $GOLD
+                    xp = $XP
                 WHERE
                     id = $ID
                 ;
             """
 
-            new_xp = max(0, player_data.get("xp") + xp_delta)
-            new_level = self._get_level_from_xp(new_xp)
+            old_xp = player_data.get("xp")
+            new_xp = max(0, old_xp + xp_delta)
             query_params = {
-                '$ID': player_id,
-                '$LEVEL': new_level,
+                '$ID': player,
                 '$XP': new_xp,
-                '$FREE_XP': max(0, player_data.get("free_xp") + free_xp_delta),
-                '$SILVER': max(0, player_data.get("silver") + silver_delta),
-                '$GOLD': max(0, player_data.get("gold") + gold_delta)
             }
 
             result, code = self.yc.process_query(query, query_params)
 
             if code == 0:
-                self.__log_currency_change(player_id, xp_delta, free_xp_delta, silver_delta, gold_delta, source,
-                                           source_additional_data)
+                self.__log_currency_change(player, old_xp, xp_delta, source, source_additional_data)
                 return {"success": True}, 204
             else:
                 return self.internal_server_error_response
@@ -162,23 +125,22 @@ class PlayerProcessor(ResourceProcessor):
             self.logger.error(f"Exception during player MODIFY: {traceback.format_exc()}")
             return self.internal_server_error_response
 
-    def __log_currency_change(self, player_id, xp_delta, free_xp_delta, silver_delta, gold_delta, source,
-                              source_additional_data):
-        ts = datetime.datetime.utcnow()
+    def __log_currency_change(self, player_id, old_xp, xp_delta, source, source_additional_data):
+        ts = datetime.datetime.now(tz=datetime.timezone.utc)
         history_rel_path = f"{ts.year}-{ts.month:02d}-{ts.day:02d}.csv"
-        history_path = self.s3_paths.get_currency_history_s3_path(player_id, history_rel_path)
+        history_path = self.s3_paths.get_player_currency_history_s3_path(player_id, history_rel_path)
 
         if self.s3.check_exists(history_path):
             content = self.s3.get_file_from_s3(history_path)
         else:
             content = b""
 
-        content += f"{xp_delta},{free_xp_delta},{silver_delta},{gold_delta}," \
+        content += f"{old_xp},{xp_delta}," \
                    f"{source.replace(',', '')},{source_additional_data.replace(',', '')}," \
-                   f"{ts.timestamp()}\n".encode("utf-8")
+                   f"{ts.hour}:{ts.minute}:{ts.second}\n".encode("utf-8")
         self.s3.upload_file_to_s3(content, history_path)
 
-    def _get_level_from_xp(self, xp):
+    def get_level_from_xp(self, xp):
         level = 1
         for row in self.levelling_data:
             if xp >= row["xp_amount"]:
@@ -191,14 +153,17 @@ class PlayerProcessor(ResourceProcessor):
 if __name__ == '__main__':
     from tools.s3_connection import S3Connector
 
-    player_id = "c5a7eea3e4c14aecaf4b73a3891bf7d3"
+    egs_id = "c5a7eea3e4c14aecaf4b73a3891bf7d3"
+    egs_nickname = "JediKnightChan"
+    player = 4
 
     logger = logging.getLogger(__name__)
     yc = YDBConnector(logger)
     s3 = S3Connector()
 
-    player_proc = PlayerProcessor(logger, "dev", player_id, yc, s3)
+    player_proc = PlayerProcessor(logger, "dev", egs_id, yc, s3)
 
-    # r, s = player_proc.API_GET({"player_id": player_id})
-    r, s = player_proc.modify(player_id, 0, 0, 20000, 2000, "api_test", "")
+    r, s = player_proc.API_GET({"id": player})
+    # r, s = player_proc._grant_xp(player, 100, "api_test", "")
+    # r, s = player_proc._get_by_egs_id(egs_id, egs_nickname)
     print(s, r)

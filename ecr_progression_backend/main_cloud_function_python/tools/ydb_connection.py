@@ -20,7 +20,7 @@ class YDBConnector:
         )
 
         self.driver = ydb.Driver(self.driver_config)
-        self.driver.wait(fail_fast=True, timeout=5)
+        self.driver.wait(fail_fast=True, timeout=10)
         self.pool = ydb.SessionPool(self.driver, size=1)
 
     @staticmethod

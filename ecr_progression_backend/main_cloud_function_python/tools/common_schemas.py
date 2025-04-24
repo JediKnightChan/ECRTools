@@ -30,11 +30,5 @@ class ExcludeSchema(Schema):
 
 
 class CharPlayerSchema(ExcludeSchema):
-    id = fields.UUID(required=True)
-    player_id = fields.Str(
-        required=True,
-        validate=validate.Regexp(
-            regex=r'^[a-zA-Z0-9\s]+$',
-            error='String must contain only English characters, spaces, and numbers.'
-        )
-    )
+    player = fields.Int(required=True)
+    char = fields.Int(required=True)

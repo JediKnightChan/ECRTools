@@ -7,16 +7,19 @@ import uuid
 from marshmallow import fields, validate, ValidationError
 from common import ResourceProcessor, permission_required, APIPermission
 
-from tools.common_schemas import CharPlayerSchema, ECR_FACTIONS
+from tools.common_schemas import ECR_FACTIONS, ExcludeSchema
 from tools.ydb_connection import YDBConnector
 
 
-class CharacterSchema(CharPlayerSchema):
+class CharacterSchema(ExcludeSchema):
+    id = fields.Int(required=True)
+    player = fields.Int(required=True)
+
     name = fields.Str(
         required=True,
         validate=validate.Regexp(
-            regex=r'^[a-zA-Z\s]+$',
-            error='String must contain only English characters and spaces.'
+            regex=r'^[a-zA-Z\s]{1,30}$',
+            error='String must contain only English characters and spaces, up to 30'
         )
     )
     faction = fields.Str(
@@ -24,9 +27,16 @@ class CharacterSchema(CharPlayerSchema):
         validate=validate.OneOf(ECR_FACTIONS),
     )
 
-    guild = fields.UUID(required=False)
+    # Currencies
+    free_xp = fields.Int(default=0)
+    silver = fields.Int(default=0)
+    gold = fields.Int(default=0)
+
+    # Guild
+    guild = fields.Int(required=False)
     guild_role = fields.Int(required=False)
-    campaign_progress = fields.Int(required=False)
+
+    created_time = fields.Int()
 
 
 class CharacterProcessor(ResourceProcessor):
@@ -35,29 +45,28 @@ class CharacterProcessor(ResourceProcessor):
     def __init__(self, logger, contour, user, yc, s3):
         super(CharacterProcessor, self).__init__(logger, contour, user, yc, s3)
 
-        self.uuid_namespace = uuid.UUID('d824c96d-64b0-5ffd-a7ad-68ff02af0f07')
-        self.table_name = "characters" if self.contour == "prod" else "characters_dev"
+        self.table_name = "ecr_characters" if self.contour == "prod" else "ecr_characters_dev"
 
     @permission_required(APIPermission.SERVER_OR_OWNING_PLAYER)
     def API_LIST(self, request_body: dict) -> typing.Tuple[dict, int]:
-        """Get all characters data for given player_id. Only owning player or server can do it"""
+        """Get all characters data for given player. Only owning player or server can do it"""
 
-        schema = CharacterSchema(only=("player_id",))
+        schema = CharacterSchema(only=("player",))
 
         try:
             validated_data = schema.load(request_body)
 
             query = f"""
-                DECLARE $PLAYER_ID AS Utf8;
+                DECLARE $PLAYER AS Int64;
 
                 SELECT * FROM {self.table_name}
                 WHERE
-                    player_id = $PLAYER_ID
+                    player = $PLAYER
                 ;
             """
 
             query_params = {
-                '$PLAYER_ID': validated_data.get("player_id"),
+                '$PLAYER': validated_data.get("player"),
             }
 
             result, code = self.yc.process_query(query, query_params)
@@ -86,7 +95,7 @@ class CharacterProcessor(ResourceProcessor):
             validated_data = schema.load(request_body)
 
             query = f"""
-                DECLARE $ID AS Utf8;
+                DECLARE $ID AS Int64;
 
                 SELECT * FROM {self.table_name}
                 WHERE
@@ -95,7 +104,7 @@ class CharacterProcessor(ResourceProcessor):
             """
 
             query_params = {
-                '$ID': validated_data.get("id").hex,
+                '$ID': validated_data.get("id"),
             }
 
             result, code = self.yc.process_query(query, query_params)
@@ -122,12 +131,12 @@ class CharacterProcessor(ResourceProcessor):
     def API_CREATE(self, request_body: dict) -> typing.Tuple[dict, int]:
         """Create character, ID is generated with UUID. Only owning player can do it"""
 
-        schema = CharacterSchema(only=("player_id", "faction", "name"))
+        schema = CharacterSchema(only=("player", "faction", "name"))
 
         try:
             validated_data = schema.load(request_body)
 
-            r, s = self.API_LIST({"player_id": validated_data.get("player_id")})
+            r, s = self.API_LIST({"player": validated_data.get("player")})
             if s == 200:
                 # Checking if character with the same faction doesn't exist for the player
                 already_existing_factions = [c["faction"] for c in r["data"]]
@@ -135,7 +144,7 @@ class CharacterProcessor(ResourceProcessor):
                     return {"success": False,
                             "error_code": 1,
                             "error": "Character of this faction already exists for this player"}, \
-                           400
+                        400
 
                 name_code, name_result = self._validate_character_name_is_unique(validated_data)
                 if name_code == 0:
@@ -144,7 +153,7 @@ class CharacterProcessor(ResourceProcessor):
                             return {"success": False,
                                     "error_code": 2,
                                     "error": "Character with this name already exists"}, \
-                                   400
+                                400
                         else:
                             # No characters with such name, can create
                             pass
@@ -156,33 +165,24 @@ class CharacterProcessor(ResourceProcessor):
                 return {"success": False}, s
 
             # Generating character id
-            dt = datetime.datetime.utcnow()
-            character_id = uuid.uuid5(self.uuid_namespace, validated_data.get("player_id")
-                                      + str(dt.timestamp())).hex
-
-            # Creating character folder
-            self.s3.upload_file_to_s3(
-                json.dumps({"ts": dt.timestamp(), "initial_name": validated_data.get("name")}),
-                self.s3_paths.get_char_folder_file_s3_path(validated_data.get("player_id"), character_id,
-                                                           "creation_data.json")
-            )
+            created_time = int(datetime.datetime.now(tz=datetime.timezone.utc).timestamp())
 
             # Creating row in YDB table
             query = f"""
-                DECLARE $ID AS Utf8;
-                DECLARE $PLAYER_ID AS Utf8;
+                DECLARE $PLAYER AS Int64;
                 DECLARE $CHARACTER_NAME AS String;
                 DECLARE $FACTION AS Utf8;
+                DECLARE $CREATED_TIME AS Datetime;
 
-                UPSERT INTO {self.table_name} (id, player_id, name, faction, guild, guild_role, campaign_progress) VALUES
-                    ($ID, $PLAYER_ID, $CHARACTER_NAME, $FACTION, NULL, NULL, NULL);
+                UPSERT INTO {self.table_name} (player, name, faction, free_xp, silver, gold, guild, guild_role, created_time) VALUES
+                    ($PLAYER, $CHARACTER_NAME, $FACTION, 0, 0, 0, NULL, 0, $CREATED_TIME);
             """
 
             query_params = {
-                '$ID': character_id,
-                '$PLAYER_ID': validated_data.get("player_id"),
+                '$PLAYER': validated_data.get("player"),
                 '$CHARACTER_NAME': validated_data.get("name").encode("utf-8"),
-                '$FACTION': validated_data.get("faction")
+                '$FACTION': validated_data.get("faction"),
+                '$CREATED_TIME': created_time
             }
 
             result, code = self.yc.process_query(query, query_params)
@@ -199,10 +199,10 @@ class CharacterProcessor(ResourceProcessor):
 
     @permission_required(APIPermission.OWNING_PLAYER_ONLY)
     def API_MODIFY(self, request_body: dict) -> typing.Tuple[dict, int]:
-        """Allow to modify only character of yours (its name), query is filtered by player_id"""
+        """Allow to modify only character of yours (its name), query is filtered by player"""
 
         # Excluding faction from schema
-        schema = CharacterSchema(only=("player_id", "id", "name"))
+        schema = CharacterSchema(only=("player", "id", "name"))
 
         try:
             validated_data = schema.load(request_body)
@@ -214,7 +214,7 @@ class CharacterProcessor(ResourceProcessor):
                         return {"success": False,
                                 "error_code": 2,
                                 "error": "Character with this name already exists"}, \
-                               400
+                            400
                     else:
                         # No characters with such name, can modify name
                         pass
@@ -224,27 +224,22 @@ class CharacterProcessor(ResourceProcessor):
                 return self.internal_server_error_response
 
             query = f"""
-                DECLARE $ID AS Utf8;
-                DECLARE $PLAYER_ID AS Utf8;
+                DECLARE $ID AS Int64;
+                DECLARE $PLAYER AS Int64;
                 DECLARE $CHARACTER_NAME AS String;
 
                 UPDATE {self.table_name}
                 SET 
-                name = $CHARACTER_NAME,
-                faction = faction,
-                player_id = player_id,
-                guild = guild,
-                guild_role = guild_role,
-                campaign_progress = campaign_progress
+                    name = $CHARACTER_NAME
                 WHERE
                     id = $ID 
-                    AND player_id = $PLAYER_ID
+                    AND player = $PLAYER
                 ;
             """
 
             query_params = {
-                '$ID': validated_data.get("id").hex,
-                '$PLAYER_ID': validated_data.get("player_id"),
+                '$ID': validated_data.get("id"),
+                '$PLAYER': validated_data.get("player"),
                 '$CHARACTER_NAME': validated_data.get("name").encode("utf-8")
             }
 
@@ -278,9 +273,9 @@ class CharacterProcessor(ResourceProcessor):
         name_result, name_code = self.yc.process_query(name_query, name_query_params)
         return name_code, name_result
 
-    def _delete_character(self, char_id):
+    def _delete_character(self, char):
         query = f"""
-            DECLARE $ID AS Utf8;
+            DECLARE $ID AS Int64;
 
             DELETE FROM {self.table_name}
             WHERE
@@ -289,7 +284,7 @@ class CharacterProcessor(ResourceProcessor):
         """
 
         query_params = {
-            '$ID': char_id
+            '$ID': char
         }
 
         result, code = self.yc.process_query(query, query_params)
@@ -299,6 +294,75 @@ class CharacterProcessor(ResourceProcessor):
         else:
             return self.internal_server_error_response
 
+    def modify_currency(self, char: int, free_xp_delta: int, silver_delta: int, gold_delta: int, source: str,
+                        source_additional_data: str) -> typing.Tuple[
+        dict, int]:
+        """Used for chaing currency"""
+
+        r, s = self.API_GET({"id": char})
+        if s != 200:
+            return r, s
+        else:
+            char_data = r["data"]
+
+        try:
+            query = f"""
+                DECLARE $ID AS Int64;
+                DECLARE $FREE_XP AS Int64;
+                DECLARE $SILVER AS Int64;
+                DECLARE $GOLD AS Int64;
+                
+                UPDATE {self.table_name}
+                SET 
+                    free_xp = $FREE_XP,
+                    silver = $SILVER,
+                    gold = $GOLD
+                WHERE
+                    id = $ID
+                ;
+            """
+
+            old_free_xp = char_data.get("free_xp")
+            old_silver = char_data.get("silver")
+            old_gold = char_data.get("gold")
+
+            query_params = {
+                '$ID': char,
+                '$FREE_XP': max(old_free_xp + free_xp_delta, 0),
+                '$SILVER': max(old_silver + silver_delta, 0),
+                '$GOLD': max(old_gold + gold_delta, 0)
+            }
+
+            result, code = self.yc.process_query(query, query_params)
+
+            if code == 0:
+                self.__log_currency_change(char_data["player"], char, old_free_xp, free_xp_delta, old_silver, silver_delta, old_gold,
+                                           gold_delta, source, source_additional_data)
+                return {"success": True}, 204
+            else:
+                return self.internal_server_error_response
+        except Exception as e:
+            self.logger.error(f"Exception during player MODIFY: {traceback.format_exc()}")
+            return self.internal_server_error_response
+
+    def __log_currency_change(self, player, char, old_free_xp, free_xp_delta, old_silver, silver_delta, old_gold,
+                              gold_delta, source, source_additional_data):
+        ts = datetime.datetime.now(tz=datetime.timezone.utc)
+        history_rel_path = f"{ts.year}-{ts.month:02d}-{ts.day:02d}.csv"
+        history_path = self.s3_paths.get_character_currency_history_s3_path(player, char, history_rel_path)
+
+        if self.s3.check_exists(history_path):
+            content = self.s3.get_file_from_s3(history_path)
+        else:
+            content = b""
+
+        content += f"{old_free_xp},{free_xp_delta}," \
+                   f"{old_silver},{silver_delta}," \
+                   f"{old_gold},{gold_delta}," \
+                   f"{source.replace(',', '')},{source_additional_data.replace(',', '')}," \
+                   f"{ts.hour}:{ts.minute}:{ts.second}\n".encode("utf-8")
+        self.s3.upload_file_to_s3(content, history_path)
+
 
 if __name__ == '__main__':
     import logging
@@ -307,16 +371,16 @@ if __name__ == '__main__':
     logger = logging.getLogger(__name__)
     yc = YDBConnector(logger)
     s3 = S3Connector()
-    player_id = "c5a7eea3e4c14aecaf4b73a3891bf7d3"
-    char_proc = CharacterProcessor(logger, "dev", player_id, yc, s3)
-    # r, s = char_proc.API_CREATE(
-    #     {"player_id": player_id, "name": "Bane Of Loyalists", "faction": "ChaosSpaceMarines"})
 
-    # r, s = char_proc.API_LIST({"player_id": player_id})
-    # r, s = char_proc.API_GET(
-    #     {"id": "68f2381b653656b7a5bf9a52e0cd2ca9"})
+    player = 4
+    char_proc = CharacterProcessor(logger, "dev", player, yc, s3)
+    r, s = char_proc.API_CREATE(
+        {"player": player, "name": "Bane Of Loyalists", "faction": "ChaosSpaceMarines"})
 
-    r, s = char_proc.API_MODIFY(
-        {"player_id": player_id, "id": "79e06c5855fb527e866b25a7fc1281b7", "name": "Loyal Legionnaire As"})
-    # r, s = char_proc._delete_character("fcad8a39f4c25f6e9f63b85cf9476efc")
+    # r, s = char_proc.API_LIST({"player": player})
+    # r, s = char_proc.API_GET({"id": 2})
     print(s, r)
+    # r, s = char_proc.API_MODIFY({"player": player, "id": 1, "name": "Bane of Loyalists"})
+    # r, s = char_proc._delete_character(1)
+    # r, s = char_proc.modify_currency(2, 50000, 50000, 1000, "api_test", "")
+    # print(s, r)

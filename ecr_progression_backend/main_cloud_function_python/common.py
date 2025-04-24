@@ -22,7 +22,7 @@ class APIPermission:
     SERVER_OR_OWNING_PLAYER = "SERVER_OR_OWNING_PLAYER"
 
 
-def permission_required(permission_type):
+def permission_required(permission_type, player_arg_name="player"):
     """Permission wrapper around ResourceProcessor.API_PROCESS_REQUEST implementations"""
 
     def decorator(func):
@@ -30,8 +30,8 @@ def permission_required(permission_type):
             can_perform_action = False
             logger = getattr(self, 'logger', None)
 
-            asking_user = getattr(self, 'user', None)
-            target_user = args[0].get("player_id")
+            asking_user = getattr(self, "user", None)
+            target_user = args[0].get(player_arg_name)
 
             is_backend = asking_user == "backend"
             is_server = asking_user == "server"

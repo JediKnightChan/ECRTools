@@ -4,6 +4,7 @@ import os
 
 from pythonjsonlogger import jsonlogger
 
+from resources.auth import AuthenticationProcessor
 from resources.character import CharacterProcessor
 from resources.player import PlayerProcessor
 from resources.progression_store import ProgressionStoreProcessor
@@ -40,6 +41,9 @@ BACKEND_API_KEY = os.getenv("BACKEND_API_KEY", "")
 yc = YDBConnector(logger)
 s3 = S3Connector()
 
+# Contour (dev / prod)
+contour = os.getenv("CONTOUR", "dev")
+
 
 def json_response(dict_, status_code=200):
     return {
@@ -61,15 +65,28 @@ def handler(event, context):
     # Checking ECR API token
     headers = event.get("headers", [])
     auth_header = headers.get("Ecr-Authorization", "")
+    user = None
 
     if auth_header == "Api-Key " + PLAYER_API_KEY and PLAYER_API_KEY:
         # Check authentication
-        user = headers.get("Ecr-Account", "")
-        token_id = headers.get("Ecr-Token", "")
+        auth_processor = AuthenticationProcessor(logger, contour, yc)
+        external_auth = headers.get("External-Auth", "egs")
+        external_user = headers.get("External-Account", "")
+        external_nickname = headers.get("External-Nickname", "")
+        external_token = headers.get("External-Token", "")
 
-        av = EOSAuthVerifier(logger)
-        if not av.validate_token(user, token_id):
-            return json_response({"error": "Not authorized (Player Token)"}, status_code=401)
+        if external_auth == "egs":
+            av = EOSAuthVerifier(logger)
+            if not av.validate_token(external_user, external_token):
+                return json_response({"error": "Not authorized (Player Token)"}, status_code=401)
+
+            auth_r, auth_s = auth_processor.get_player_by_egs_id(external_user, external_nickname)
+            if auth_s == 200:
+                user = auth_r["data"]["id"]
+            else:
+                return json_response(auth_r, status_code=auth_s)
+        else:
+            return json_response({"error": f"Unknown auth type: {external_auth}"}, status_code=401)
     elif auth_header == "Api-Key " + SERVER_API_KEY and SERVER_API_KEY:
         user = "server"
     elif auth_header == "Api-Key " + BACKEND_API_KEY and BACKEND_API_KEY:
@@ -82,7 +99,7 @@ def handler(event, context):
         action = body["action"]
         action_data = body["action_data"]
 
-        contour = os.getenv("CONTOUR", "dev")
+        logger.debug(f"Executing {resource}.{action}() by user {user} with params {action_data}")
 
         processor_init_args = (logger, contour, user, yc, s3)
         if resource == "character":

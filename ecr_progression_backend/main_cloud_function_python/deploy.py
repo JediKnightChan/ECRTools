@@ -68,9 +68,9 @@ def deploy_new_cloud_function_version(headers, version_content=None, version_to_
         "description": "Latest dev version",
         "entrypoint": "index.handler",
         "resources": {
-            "memory": "268435456"
+            "memory": "536870912"
         },
-        "executionTimeout": "10s",
+        "executionTimeout": "15s",
         "serviceAccountId": "aje6u9bhleude8c1l6sv",
         "environment": env_dict,
         "tag": [
@@ -92,8 +92,6 @@ def deploy_new_cloud_function_version(headers, version_content=None, version_to_
         data["tag"] = ["prod"]
     else:
         data["content"] = base64.b64encode(version_content).decode("utf-8")
-
-    print(data)
 
     r = requests.post("https://serverless-functions.api.cloud.yandex.net/functions/v1/versions", json=data,
                       headers=headers)
