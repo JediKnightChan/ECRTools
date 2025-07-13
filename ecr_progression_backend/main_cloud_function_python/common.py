@@ -1,8 +1,16 @@
 import typing
 import logging
-
-from tools.s3_connection import S3Connector
+import itertools
 from tools.s3_path_builder import S3PathBuilder
+
+
+def batch_iterator(iterable, n):
+    it = iter(iterable)
+    while True:
+        chunk = tuple(itertools.islice(it, n))
+        if not chunk:
+            return
+        yield chunk
 
 
 class APIAction:
@@ -49,7 +57,8 @@ def permission_required(permission_type, player_arg_name="player"):
             if can_perform_action or is_backend:
                 return func(self, *args, **kwargs)
             else:
-                logger.warning(f"Didn't allow asking user {asking_user} to perform action {self.__class__.__name__}->{func.__name__} with user {target_user}, args {args}")
+                logger.warning(
+                    f"Didn't allow asking user {asking_user} to perform action {self.__class__.__name__}->{func.__name__} with user {target_user}, args {args}")
                 return {"error": "Not allowed to use this action"}, 403
 
         return wrapper

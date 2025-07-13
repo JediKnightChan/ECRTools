@@ -1,0 +1,391 @@
+import datetime
+import os
+import traceback
+import typing
+import uuid
+
+from marshmallow import fields, validate, ValidationError
+
+from common import ResourceProcessor, permission_required, APIPermission
+from ecr_discord_bot.logic_cloud_function_python.temp import json
+from resources.character import CharacterProcessor
+from resources.player import PlayerProcessor
+from resources.progression_store import ProgressionStoreProcessor
+from resources.progression_store import UnlockedProgressionContentSchema
+from tools.common_schemas import ExcludeSchema, ECR_FACTIONS
+from tools.challenge import verify_challenge
+from tools.tg_connection import send_telegram_message
+
+# Constants
+MATCH_REWARD_TIME_DELTA_THRESHOLD = int(os.getenv("MATCH_REWARD_TIME_DELTA_THRESHOLD", 0))
+
+MATCH_REWARD_SILVER_HARD_LIMIT = int(os.getenv("MATCH_REWARD_SILVER_HARD_LIMIT", 1000))
+MATCH_REWARD_XP_HARD_LIMIT = int(os.getenv("MATCH_REWARD_XP_HARD_LIMIT", 10000))
+MATCH_REWARD_SILVER_SOFT_LIMIT = int(os.getenv("MATCH_REWARD_SILVER_SOFT_LIMIT", 999))
+MATCH_REWARD_XP_SOFT_LIMIT = int(os.getenv("MATCH_REWARD_XP_SOFT_LIMIT", 9999))
+
+MATCH_REWARD_AGGREGATION_THRESHOLD_PERIOD = int(os.getenv("MATCH_REWARD_AGGREGATION_THRESHOLD", 86400))
+MATCH_REWARD_AGGREGATION_MAX_VALUE_XP = int(os.getenv("MATCH_REWARD_AGGREGATION_THRESHOLD", 50000))
+MATCH_REWARD_AGGREGATION_MAX_VALUE_SILVER = int(os.getenv("MATCH_REWARD_AGGREGATION_THRESHOLD", 5000))
+
+
+class CharMatchResultsSchema(ExcludeSchema):
+    player = fields.Int(required=True)
+    char = fields.Int(required=True)
+    silver = fields.Int(required=True)
+    xp = fields.Int(required=True)
+    achievements = fields.Dict(keys=fields.Str(), values=fields.Int(), required=True)
+
+
+class FactionMatchResultsSchema(ExcludeSchema):
+    faction = fields.Str(required=True, validate=validate.OneOf(ECR_FACTIONS))
+    is_winner = fields.Bool(required=True)
+
+
+class MatchResultsSchema(ExcludeSchema):
+    match_id = fields.UUID(required=True)
+    challenge = fields.Str(required=True)
+    char_results = fields.List(fields.Nested(CharMatchResultsSchema), required=True)
+    faction_results = fields.List(fields.Nested(FactionMatchResultsSchema), required=True)
+
+
+class MatchCreateSchema(ExcludeSchema):
+    match_id = fields.UUID(required=True)
+    token = fields.UUID(required=True)
+    host = fields.Int(required=True)
+    mission = fields.Str(required=True)
+    created_ts = fields.Int(required=True)
+    finished_ts = fields.Int(required=True)
+
+    max_granted_silver = fields.Int(required=True)
+    max_granted_xp = fields.Int(required=True)
+    players_rewarded = fields.Int(required=True)
+
+
+class MatchResultsProcessor(ResourceProcessor):
+    """Processes match results"""
+
+    def __init__(self, logger, contour, user, yc, s3):
+        super(MatchResultsProcessor, self).__init__(logger, contour, user, yc, s3)
+
+        self.player_processor = PlayerProcessor(self.logger, self.contour, self.user, self.yc, self.s3)
+        self.character_processor = CharacterProcessor(self.logger, self.contour, self.user, self.yc, self.s3)
+        self.progression_processor = ProgressionStoreProcessor(self.logger, self.contour, self.user, self.yc, self.s3)
+
+        self.table_name = "ecr_matches" if self.contour == "prod" else "ecr_matches_dev"
+
+        # Remember all quest names
+        self.all_quest_names = []
+        for faction in ECR_FACTIONS:
+            filepath = f"../data/quests/quests_{faction.lower()}.json"
+            final_filepath = os.path.join(os.path.dirname(__file__), filepath)
+            with open(final_filepath) as f:
+                quest_data = json.load(f)
+                self.all_quest_names += list(quest_data.keys())
+
+    def API_CREATE(self, request_body: dict) -> typing.Tuple[dict, int]:
+        """Registers match in the backend system. Usable by anyone, including players"""
+
+        schema = MatchCreateSchema(only=("match_id", "mission"))
+        try:
+            validated_data = schema.load(request_body)
+
+            # Generated properties
+            created_time = int(datetime.datetime.now(tz=datetime.timezone.utc).timestamp())
+            token = uuid.uuid4().hex
+
+            # Creating row in YDB table
+            query = f"""
+                DECLARE $MATCH_ID AS Utf8;
+                DECLARE $TOKEN AS Utf8;
+                DECLARE $HOST AS Utf8;
+                DECLARE $MISSION AS Utf8;
+                DECLARE $CREATED_TIME AS Datetime;
+
+                UPSERT INTO {self.table_name} (match_id, token, host, mission, created_ts, finished_ts, max_granted_silver, max_granted_xp, players_rewarded) VALUES
+                    ($MATCH_ID, $TOKEN, $HOST, $MISSION, $CREATED_TIME, NULL, NULL, NULL, NULL);
+            """
+
+            query_params = {
+                '$MATCH_ID': validated_data.get("match_id").hex,
+                '$TOKEN': token,
+                '$HOST': str(self.user),
+                '$MISSION': validated_data.get("mission"),
+                '$CREATED_TIME': created_time
+            }
+
+            result, code = self.yc.process_query(query, query_params)
+            if code == 0:
+                return {"success": True, "data": {"token": token}}, 201
+            else:
+                return self.internal_server_error_response
+
+        except ValidationError as e:
+            return {"error": e.messages}, 400
+        except Exception as e:
+            self.logger.error(f"Exception during character CREATE with body {request_body}: {traceback.format_exc()}")
+            return self.internal_server_error_response
+
+    def API_MODIFY(self, request_body: dict) -> typing.Tuple[dict, int]:
+        """Applies match results (rewards) in the backend system. Usable by anyone, including players,
+        challenge must be passed to verify results are not fake"""
+
+        match_results_schema = MatchResultsSchema()
+        try:
+            match_results_validated = match_results_schema.load(request_body)
+
+            # Received properties
+            received_challenge = match_results_validated.get("challenge")
+            match_id = match_results_validated.get("match_id").hex
+
+            # Finding match, which was created on start
+            query = f"""
+                DECLARE $MATCH_ID AS Utf8;
+
+                SELECT * FROM {self.table_name}
+                WHERE
+                    match_id = $MATCH_ID
+                ;
+            """
+
+            query_params = {
+                '$MATCH_ID': match_id,
+            }
+
+            result, code = self.yc.process_query(query, query_params)
+
+            # Check that match already exists in DB
+            if code == 0:
+                if len(result) > 0:
+                    if len(result[0].rows) > 0:
+                        match_schema = MatchCreateSchema()
+                        match_creation_data = match_schema.dump(result[0].rows[0])
+                    else:
+                        return {"success": False, "data": {}}, 404
+                else:
+                    return {"success": False, "data": None}, 500
+            else:
+                return self.internal_server_error_response
+
+            # Check challenge
+            if self.user not in ["server", "backend"]:
+                if not verify_challenge(received_challenge, match_creation_data, match_results_validated):
+                    send_telegram_message(f"Challenge fail: user {self.user} failed challenge for match {match_id}")
+                    return {"success": False, "error": "Not authorized"}, 403
+
+            # Check that user is same as created match
+            if str(match_creation_data["host"]) != str(self.user):
+                send_telegram_message(f"Attempt to grant match results by non host: user {self.user} tried for match "
+                                      f"{match_id} with host {match_creation_data['host']}")
+                return {"success": False, "error": "Not found"}, 403
+
+            # Check that match reward wasn't granted before
+            if match_creation_data["finished_ts"] is not None:
+                send_telegram_message(f"Attempt for second call to match results: user {self.user} "
+                                      f"tried for match {match_id}")
+                return {"success": False, "error": "Not found"}, 404
+
+            # Check that at least N seconds passed since match creation
+            now_ts = int(datetime.datetime.now(tz=datetime.timezone.utc).timestamp())
+
+            if now_ts - match_creation_data["created_ts"] < MATCH_REWARD_TIME_DELTA_THRESHOLD:
+                send_telegram_message(
+                    f"Attempt to grant match reward for match below time threshold ({MATCH_REWARD_TIME_DELTA_THRESHOLD}): user {self.user} "
+                    f"tried for match {match_id}")
+                return {"success": False, "error": "Bad request"}, 400
+
+            max_silver = 0
+            max_xp = 0
+
+            currency_source = "match"
+            currency_source_additional = f"match {match_id} by {match_creation_data['host']}"
+
+            # This list ensures no player will receive XP more than once in a match
+            players_granted_xp = []
+            # Char results are grouped by char to remove possible duplicates
+            char_results = {char_result["char"]: char_result for char_result in match_results_validated["char_results"]}
+
+            # Batch requests to DB data with player rewards
+            char_currency_modify_batch_request = {}
+            player_xp_modify_batch_request = {}
+            achievements_batch_request = []
+
+            for char_result in char_results.values():
+                char_result_xp = max(0, char_result["xp"])
+                char_result_silver = max(0, char_result["silver"])
+
+                # Checking soft limits to send warnings
+                if char_result_xp > MATCH_REWARD_XP_SOFT_LIMIT:
+                    send_telegram_message(
+                        f"SOFT XP limit exceeded by player {char_result['player']} (char {char_result['char']}) "
+                        f"with {char_result_xp} in match {match_id} by host {self.user}")
+                if char_result_silver > MATCH_REWARD_SILVER_SOFT_LIMIT:
+                    send_telegram_message(
+                        f"SOFT SILVER limit exceeded by player {char_result['player']} (char {char_result['char']}) "
+                        f"with {char_result_silver} in match {match_id} by host {self.user}")
+
+                # Checking hard limits to decline reward
+                if char_result_xp > MATCH_REWARD_XP_HARD_LIMIT:
+                    self.logger.error(f"Player {char_result['player']} (char {char_result['char']}) exceeded "
+                                      f"hard XP limit with {char_result_xp} in match {match_id} by {self.user}")
+                    continue
+                if char_result_silver > MATCH_REWARD_SILVER_HARD_LIMIT:
+                    self.logger.error(f"Player {char_result['player']} (char {char_result['char']}) exceeded "
+                                      f"hard SILVER limit with {char_result_silver} in match {match_id} by {self.user}")
+                    continue
+
+                # Granting XP to player
+                if char_result["player"] not in players_granted_xp:
+                    # Will grant XP to player in batch request in the future
+                    player_xp_modify_batch_request[char_result["player"]] = char_result_xp
+                    players_granted_xp.append(char_result["player"])
+
+                # Will grant XP and Silver to char in batch request in the future
+                char_currency_modify_batch_request[char_result["char"]] = {
+                    "player": char_result["player"],
+                    "free_xp": char_result_xp,
+                    "silver": char_result_silver,
+                    "gold": 0
+                }
+
+                for ach_name, ach_progress in char_result["achievements"]:
+                    if ach_name in self.all_quest_names:
+                        achievements_batch_request.append({
+                            "char": char_result["char"],
+                            "name": ach_name,
+                            "progress_delta": ach_progress,
+                        })
+
+                # Remember max given currency for statistics
+                if char_result["xp"] > max_xp:
+                    max_xp = char_result["xp"]
+                if char_result["silver"] > max_silver:
+                    max_silver = char_result["silver"]
+
+            # Granting rewards
+            self.player_processor.batch_grant_xp(player_xp_modify_batch_request)
+            self.character_processor.batch_modify_currency(char_currency_modify_batch_request, source=currency_source,
+                                                           source_additional_data=currency_source_additional)
+            self.progression_processor.batch_grant_quest_progress(achievements_batch_request)
+
+            # Update match data in DB
+            code = self.update_match_data(char_results, match_id, max_silver, max_xp)
+            if code != 0:
+                return self.internal_server_error_response
+
+            # If host is player, perform soft check to see how much max currency per match he granted within time interval
+            self.perform_aggregated_currency_grant_soft_check(match_id, max_silver, max_xp, now_ts)
+
+            # Return success
+            return {"success": True}, 200
+        except ValidationError as e:
+            return {"error": e.messages}, 400
+        except Exception as e:
+            self.logger.error(f"Exception during character CREATE with body {request_body}: {traceback.format_exc()}")
+            return self.internal_server_error_response
+
+    def update_match_data(self, char_results, match_id, max_silver, max_xp):
+        """Updating match data in DB, eg set match as completed"""
+
+        finished_time = int(datetime.datetime.now(tz=datetime.timezone.utc).timestamp())
+        query = f"""
+                DECLARE $MATCH_ID AS Utf8;
+                DECLARE $FINISHED_TIME AS Datetime;
+                DECLARE $MAX_GRANTED_SILVER AS Int32;
+                DECLARE $MAX_GRANTED_XP AS Int32;
+                DECLARE $PLAYERS_REWARDED AS Int32;
+
+                UPDATE {self.table_name}
+                SET 
+                    finished_ts = $FINISHED_TIME,
+                    max_granted_silver = $MAX_GRANTED_SILVER, 
+                    max_granted_xp = $MAX_GRANTED_XP, 
+                    players_rewarded = $PLAYERS_REWARDED
+                WHERE
+                    match_id = $MATCH_ID
+                ;
+            """
+
+        query_params = {
+            '$MATCH_ID': match_id,
+            '$FINISHED_TIME': finished_time,
+            '$MAX_GRANTED_SILVER': max_silver,
+            '$MAX_GRANTED_XP': max_xp,
+            '$PLAYERS_REWARDED': len(char_results),
+        }
+        result, code = self.yc.process_query(query, query_params)
+        return code
+
+    def perform_aggregated_currency_grant_soft_check(self, match_id, max_silver, max_xp, now_ts):
+        """If player is as host, then check soft limits for granting xp and silver within some time (eg 1 day)"""
+
+        if str(self.user) not in ["backend", "server"]:
+            query = f"""
+                        DECLARE $HOST AS Utf8;
+                        DECLARE $CREATED_TIME AS Datetime;
+
+                        SELECT
+                            COALESCE(SUM(max_granted_silver), 0) AS sum_max_granted_silver,
+                            COALESCE(SUM(max_granted_xp), 0) AS sum_max_granted_xp
+                        FROM {self.table_name}
+                        WHERE 
+                            host = $HOST AND 
+                            created_ts >= $CREATED_TIME
+                        ;
+                        """
+
+            query_params = {
+                '$HOST': str(self.user),
+                '$CREATED_TIME': now_ts - MATCH_REWARD_AGGREGATION_THRESHOLD_PERIOD,
+            }
+
+            result, code = self.yc.process_query(query, query_params)
+
+            if code == 0:
+                if len(result) > 0:
+                    if len(result[0].rows) > 0:
+                        aggregated_reward_data = result[0].rows[0]
+                        sum_max_granted_silver = aggregated_reward_data["sum_max_granted_silver"] + max_silver
+                        sum_max_granted_xp = aggregated_reward_data["sum_max_granted_xp"] + max_xp
+                        if sum_max_granted_silver > MATCH_REWARD_AGGREGATION_MAX_VALUE_SILVER:
+                            send_telegram_message(f"AGGREGATED SILVER exceeded by host {self.user} "
+                                                  f"with {sum_max_granted_silver} in match {match_id}")
+                        if sum_max_granted_xp > MATCH_REWARD_AGGREGATION_MAX_VALUE_XP:
+                            send_telegram_message(f"AGGREGATED XP exceeded by host {self.user} "
+                                                  f"with {sum_max_granted_silver} in match {match_id}")
+                    else:
+                        logger.error("Couldn't perform aggregated reward check, no rows")
+                else:
+                    logger.error("Couldn't perform aggregated reward check, no result")
+            else:
+                logger.error("Couldn't perform aggregated reward check, internal error")
+
+
+if __name__ == '__main__':
+    import logging
+    from tools.s3_connection import S3Connector
+    from tools.ydb_connection import YDBConnector
+    import time
+
+    logger = logging.getLogger(__name__)
+    yc = YDBConnector(logger)
+    s3 = S3Connector()
+
+    player = 4
+    char = 2
+    char_proc = MatchResultsProcessor(logger, "dev", player, yc, s3)
+
+    match_id = uuid.uuid4().hex
+    r, s = char_proc.API_CREATE(
+        {"match_id": match_id, "mission": "test"})
+    print(s, r)
+
+    time.sleep(2)
+
+    # match_id = "3ef1e80705d442c192c15221f883a19e"
+    r, s = char_proc.API_MODIFY(
+        {"match_id": match_id, "challenge": "", "char_results": [
+            {"player": player, "char": char, "silver": 1000, "xp": 10000, "achievements": {}}
+        ], "faction_results": []})
+
+    print(s, r)

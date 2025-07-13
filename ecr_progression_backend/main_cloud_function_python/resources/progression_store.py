@@ -5,7 +5,7 @@ import traceback
 import typing
 import os
 
-from common import ResourceProcessor, permission_required, APIPermission
+from common import ResourceProcessor, permission_required, APIPermission, batch_iterator
 from marshmallow import Schema, fields, validate, ValidationError
 
 from resources.combined_main_menu import CombinedMainMenuProcessor
@@ -31,7 +31,6 @@ ALLOWED_PROGRESSION_ITEM_TYPES = [
 
 
 class AchievementSchema(ExcludeSchema):
-    id = fields.Int()
     char = fields.Int(required=True)
     name = fields.Str(required=True)
     progress = fields.Int(required=True)
@@ -107,7 +106,6 @@ class ProgressionStoreProcessor(ResourceProcessor):
                         achievements_raw = [dump_schema.dump(r) for r in result[0].rows]
                         for achievement in achievements_raw:
                             achievements[achievement["name"]] = {
-                                "id": achievement["id"],
                                 "progress": achievement["progress"],
                                 "reward_claimed_time": achievement["reward_claimed_time"]
                             }
@@ -611,91 +609,42 @@ class ProgressionStoreProcessor(ResourceProcessor):
             self.logger.warning(f"Progression filepath {filepath} doesn't exist")
             return False, {}
 
-    def grant_quest_progress(self, player, char, quest_name, value, do_override=False):
-        quest_name = quest_name.lower()
+    def batch_grant_quest_progress(self, ach_data: list):
+        try:
+            for chunk in batch_iterator(ach_data, 100):
+                batch = [
+                    {
+                        "char": ach_data_piece["char"],
+                        "name": ach_data_piece["name"],
+                        "progress_delta": max(ach_data_piece["progress_delta"], 0),
+                    }
+                    for ach_data_piece in chunk
+                ]
 
-        already_unlocked_data, s = self.API_GET({"player": player, "char": char}, include_achievements=True)
-        if s != 200:
-            return already_unlocked_data, s
+                query = f"""
+                    DECLARE $batch AS List<Struct<char: Int64, name: Utf8, progress_delta: Int64>>;
 
-        quest_status = already_unlocked_data["data"]["quest_status"]
+                    UPSERT INTO {self.ach_table_name} (char, name, progress)
+                    SELECT
+                        b.char,
+                        b.name,
+                        COALESCE(t.progress, 0) + b.progress_delta AS progress
+                    FROM AS_TABLE($batch) AS b
+                    LEFT JOIN {self.ach_table_name} AS t
+                        ON b.char = t.char AND b.name = t.name;
+                """
 
-        main_menu_proc = CombinedMainMenuProcessor(self.logger, self.contour, self.user, self.yc, self.s3)
+                query_params = {"$batch": batch}
+                result, code = self.yc.process_query(query, query_params)
 
-        main_menu_data, main_menu_s = main_menu_proc.API_GET({"id": player})
-        if main_menu_s != 200:
-            return main_menu_data, main_menu_s
+                if code != 0:
+                    return self.internal_server_error_response
 
-        char_data = None
-        for char_data_piece in main_menu_data["data"]["characters"]:
-            if char_data_piece["id"] == char:
-                char_data = char_data_piece
+            return {"success": True}, 204
 
-        if char_data is None:
-            return {"error": f"No character {char}", "error_code": 1}, 404
-
-        char_faction = char_data["faction"]
-
-        found_quest, quest_data = self._get_quest_data(quest_name, char_faction)
-
-        if not found_quest:
-            return {"error": f"No quest found {quest_name} for faction {char_faction}", "error_code": 2}, 404
-
-        quest_current_value = quest_status.get(quest_name, {}).get("progress", 0)
-        if do_override:
-            quest_current_value = value
-        else:
-            quest_current_value += value
-
-        # Updating progress
-        if quest_name not in quest_status:
-            # Quest didn't exist, insert
-            query = f"""
-                DECLARE $CHAR AS Int64;
-                DECLARE $NAME AS Utf8;
-                DECLARE $PROGRESS AS Int64;
-
-                UPSERT INTO {self.ach_table_name} 
-                (char, name, progress, reward_claimed_time) 
-                VALUES
-                    ($CHAR, $NAME, $PROGRESS, NULL)
-                ;
-            """
-
-            query_params = {
-                '$CHAR': char,
-                '$NAME': quest_name,
-                '$PROGRESS': quest_current_value
-            }
-
-            result, code = self.yc.process_query(query, query_params)
-            if code == 0:
-                return {"success": True}, 201
-            else:
-                return self.internal_server_error_response
-        else:
-            # Quest already existed, updating progress
-            query = f"""
-                DECLARE $ID as Int64;
-                DECLARE $PROGRESS as Int64;
-    
-                UPDATE {self.ach_table_name}
-                SET
-                    progress = $PROGRESS
-                WHERE
-                    id = $ID
-                ;
-            """
-            query_params = {
-                '$ID': quest_status[quest_name]['id'],
-                '$PROGRESS': quest_current_value
-            }
-
-            result, code = self.yc.process_query(query, query_params)
-            if code == 0:
-                return {"success": True}, 200
-            else:
-                return self.internal_server_error_response
+        except Exception:
+            self.logger.error(f"Exception during player BATCH GRANT XP: {traceback.format_exc()}")
+            return self.internal_server_error_response
 
     def _clear_all_progression(self, player, char, clear_quest_status=True):
         self.update_unlocked_items(player, char, [], [], [])
@@ -736,12 +685,12 @@ if __name__ == '__main__':
     s3 = S3Connector()
     store = ProgressionStoreProcessor(logger, "dev", player, yc, s3)
 
-    r, s = store.grant_quest_progress(player, char, "ba_veteran_t1", 500, do_override=False)
-    # r, s = store.grant_quest_progress(player, char, "ba_veteran_t1", 1000, do_override=True)
     r, s = store.API_GET({"player": player, "char": char})
     # r, s = store.API_BUY({"player": player, "char": char, "item": item_id, "item_type": item_type})
     # r, s = store.API_CLAIM_QUEST_REWARD({"player": player, "char": char, "quest_name": "ba_veteran_t1"})
     # r, s = store.API_OPEN_LOOTBOX({"player": player, "char": char, "lootbox_name": "chapterbundle_ultramarines"})
+    r, s = store.batch_grant_quest_progress([{"char": char, "name": "ba_veteran_t1", "progress_delta": 500},
+                                             {"char": -1, "name": "ba_veteran_t1", "progress_delta": 500}])
     print(r, s)
 
     # store._clear_all_progression(player, char)

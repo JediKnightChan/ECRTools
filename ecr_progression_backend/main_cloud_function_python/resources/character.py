@@ -2,13 +2,11 @@ import json
 import traceback
 import typing
 import datetime
-import uuid
 
 from marshmallow import fields, validate, ValidationError
-from common import ResourceProcessor, permission_required, APIPermission
+from common import ResourceProcessor, permission_required, APIPermission, batch_iterator
 
 from tools.common_schemas import ECR_FACTIONS, ExcludeSchema
-from tools.ydb_connection import YDBConnector
 
 
 class CharacterSchema(ExcludeSchema):
@@ -336,13 +334,62 @@ class CharacterProcessor(ResourceProcessor):
             result, code = self.yc.process_query(query, query_params)
 
             if code == 0:
-                self.__log_currency_change(char_data["player"], char, old_free_xp, free_xp_delta, old_silver, silver_delta, old_gold,
+                self.__log_currency_change(char_data["player"], char, old_free_xp, free_xp_delta, old_silver,
+                                           silver_delta, old_gold,
                                            gold_delta, source, source_additional_data)
                 return {"success": True}, 204
             else:
                 return self.internal_server_error_response
         except Exception as e:
             self.logger.error(f"Exception during player MODIFY: {traceback.format_exc()}")
+            return self.internal_server_error_response
+
+    def batch_modify_currency(self, chars_to_data: dict, source: str, source_additional_data: str) -> typing.Tuple[
+        dict, int]:
+        """Used for internal batch granting XP"""
+
+        try:
+            for chunk in batch_iterator(chars_to_data.items(), 100):
+                batch = [
+                    {
+                        "id": char_id,
+                        "player": char_data["player"],
+                        "free_xp_delta": max(char_data["free_xp"], 0),
+                        "silver_delta": max(char_data["silver"], 0),
+                        "gold_delta": max(char_data["gold"], 0),
+                    }
+                    for char_id, char_data in chunk
+                ]
+
+                query = f"""
+                    DECLARE $batch AS List<Struct<id: Int64, free_xp_delta: Int64, silver_delta: Int64, gold_delta: Int64>>;
+
+                    UPSERT INTO {self.table_name} (id, free_xp, silver, gold)
+                    SELECT
+                        b.id,
+                        COALESCE(t.free_xp, 0) + b.free_xp_delta AS free_xp,
+                        COALESCE(t.silver, 0) + b.silver_delta AS silver,
+                        COALESCE(t.gold, 0) + b.gold_delta AS gold
+                    FROM AS_TABLE($batch) AS b
+                    INNER JOIN {self.table_name} AS t
+                    ON b.id = t.id;
+                """
+
+                query_params = {"$batch": batch}
+                result, code = self.yc.process_query(query, query_params)
+
+                if code != 0:
+                    return self.internal_server_error_response
+
+                # Log each XP grant
+                for row in batch:
+                    self.__log_currency_change(row["player"], row["id"], None, row["free_xp_delta"], None,
+                                               row["silver_delta"], None, row["gold_delta"], source,
+                                               source_additional_data)
+            return {"success": True}, 204
+
+        except Exception:
+            self.logger.error(f"Exception during player BATCH GRANT XP: {traceback.format_exc()}")
             return self.internal_server_error_response
 
     def __log_currency_change(self, player, char, old_free_xp, free_xp_delta, old_silver, silver_delta, old_gold,
@@ -367,6 +414,7 @@ class CharacterProcessor(ResourceProcessor):
 if __name__ == '__main__':
     import logging
     from tools.s3_connection import S3Connector
+    from tools.ydb_connection import YDBConnector
 
     logger = logging.getLogger(__name__)
     yc = YDBConnector(logger)
@@ -374,13 +422,14 @@ if __name__ == '__main__':
 
     player = 4
     char_proc = CharacterProcessor(logger, "dev", player, yc, s3)
-    r, s = char_proc.API_CREATE(
-        {"player": player, "name": "Bane Of Loyalists", "faction": "ChaosSpaceMarines"})
+    # r, s = char_proc.API_CREATE(
+    #     {"player": player, "name": "Bane Of Loyalists", "faction": "ChaosSpaceMarines"})
 
     # r, s = char_proc.API_LIST({"player": player})
-    # r, s = char_proc.API_GET({"id": 2})
+    r, s = char_proc.API_GET({"id": 2})
     print(s, r)
     # r, s = char_proc.API_MODIFY({"player": player, "id": 1, "name": "Bane of Loyalists"})
     # r, s = char_proc._delete_character(1)
     # r, s = char_proc.modify_currency(2, 50000, 50000, 1000, "api_test", "")
-    # print(s, r)
+    r, s = char_proc.batch_modify_currency({2: {"player": 4, "free_xp": 100, "silver": 100, "gold": 100}}, "api_test", "")
+    print(s, r)
