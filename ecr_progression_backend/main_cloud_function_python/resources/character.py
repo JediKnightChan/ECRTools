@@ -43,7 +43,7 @@ class CharacterProcessor(ResourceProcessor):
     def __init__(self, logger, contour, user, yc, s3):
         super(CharacterProcessor, self).__init__(logger, contour, user, yc, s3)
 
-        self.table_name = "ecr_characters" if self.contour == "prod" else "ecr_characters_dev"
+        self.table_name = self.get_table_name_for_contour("ecr_characters")
 
     @permission_required(APIPermission.SERVER_OR_OWNING_PLAYER)
     def API_LIST(self, request_body: dict) -> typing.Tuple[dict, int]:
@@ -381,11 +381,11 @@ class CharacterProcessor(ResourceProcessor):
                 if code != 0:
                     return self.internal_server_error_response
 
-                # Log each XP grant
-                for row in batch:
-                    self.__log_currency_change(row["player"], row["id"], None, row["free_xp_delta"], None,
-                                               row["silver_delta"], None, row["gold_delta"], source,
-                                               source_additional_data)
+                # # Log each XP grant
+                # for row in batch:
+                #     self.__log_currency_change(row["player"], row["id"], None, row["free_xp_delta"], None,
+                #                                row["silver_delta"], None, row["gold_delta"], source,
+                #                                source_additional_data)
             return {"success": True}, 204
 
         except Exception:
@@ -431,5 +431,5 @@ if __name__ == '__main__':
     # r, s = char_proc.API_MODIFY({"player": player, "id": 1, "name": "Bane of Loyalists"})
     # r, s = char_proc._delete_character(1)
     # r, s = char_proc.modify_currency(2, 50000, 50000, 1000, "api_test", "")
-    r, s = char_proc.batch_modify_currency({2: {"player": 4, "free_xp": 100, "silver": 100, "gold": 100}}, "api_test", "")
-    print(s, r)
+    # r, s = char_proc.batch_modify_currency({2: {"player": 4, "free_xp": 100, "silver": 100, "gold": 100}}, "api_test", "")
+    # print(s, r)

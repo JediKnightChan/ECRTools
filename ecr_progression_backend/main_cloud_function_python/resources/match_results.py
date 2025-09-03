@@ -3,15 +3,14 @@ import os
 import traceback
 import typing
 import uuid
+import json
 
 from marshmallow import fields, validate, ValidationError
 
-from common import ResourceProcessor, permission_required, APIPermission
-from ecr_discord_bot.logic_cloud_function_python.temp import json
+from common import ResourceProcessor, AdminUser, batch_iterator
 from resources.character import CharacterProcessor
 from resources.player import PlayerProcessor
 from resources.progression_store import ProgressionStoreProcessor
-from resources.progression_store import UnlockedProgressionContentSchema
 from tools.common_schemas import ExcludeSchema, ECR_FACTIONS
 from tools.challenge import verify_challenge
 from tools.tg_connection import send_telegram_message
@@ -28,6 +27,10 @@ MATCH_REWARD_AGGREGATION_THRESHOLD_PERIOD = int(os.getenv("MATCH_REWARD_AGGREGAT
 MATCH_REWARD_AGGREGATION_MAX_VALUE_XP = int(os.getenv("MATCH_REWARD_AGGREGATION_THRESHOLD", 50000))
 MATCH_REWARD_AGGREGATION_MAX_VALUE_SILVER = int(os.getenv("MATCH_REWARD_AGGREGATION_THRESHOLD", 5000))
 
+# Campaign status variables
+CURRENT_CAMPAIGN_NAME = os.getenv("CURRENT_CAMPAIGN_NAME", "TestCampaign")
+CURRENT_CAMPAIGN_FACTION = os.getenv("CURRENT_CAMPAIGN_FACTION", "SpaceMarines")
+
 
 class CharMatchResultsSchema(ExcludeSchema):
     player = fields.Int(required=True)
@@ -35,6 +38,7 @@ class CharMatchResultsSchema(ExcludeSchema):
     silver = fields.Int(required=True)
     xp = fields.Int(required=True)
     achievements = fields.Dict(keys=fields.Str(), values=fields.Int(), required=True)
+    is_winner = fields.Bool(required=True)
 
 
 class FactionMatchResultsSchema(ExcludeSchema):
@@ -72,7 +76,9 @@ class MatchResultsProcessor(ResourceProcessor):
         self.character_processor = CharacterProcessor(self.logger, self.contour, self.user, self.yc, self.s3)
         self.progression_processor = ProgressionStoreProcessor(self.logger, self.contour, self.user, self.yc, self.s3)
 
-        self.table_name = "ecr_matches" if self.contour == "prod" else "ecr_matches_dev"
+        self.table_name = self.get_table_name_for_contour("ecr_matches")
+        self.campaign_table_name = self.get_table_name_for_contour("ecr_campaign_results")
+        self.campaign_chars_table_name = self.get_table_name_for_contour("ecr_campaign_results_chars")
 
         # Remember all quest names
         self.all_quest_names = []
@@ -168,7 +174,7 @@ class MatchResultsProcessor(ResourceProcessor):
                 return self.internal_server_error_response
 
             # Check challenge
-            if self.user not in ["server", "backend"]:
+            if not self.is_user_server_or_backend():
                 if not verify_challenge(received_challenge, match_creation_data, match_results_validated):
                     send_telegram_message(f"Challenge fail: user {self.user} failed challenge for match {match_id}")
                     return {"success": False, "error": "Not authorized"}, 403
@@ -202,13 +208,16 @@ class MatchResultsProcessor(ResourceProcessor):
 
             # This list ensures no player will receive XP more than once in a match
             players_granted_xp = []
-            # Char results are grouped by char to remove possible duplicates
+            # Match results are grouped by char / faction to remove possible duplicates
             char_results = {char_result["char"]: char_result for char_result in match_results_validated["char_results"]}
+            faction_results = {faction_result["faction"]: faction_result for faction_result in
+                               match_results_validated["faction_results"]}
 
             # Batch requests to DB data with player rewards
             char_currency_modify_batch_request = {}
             player_xp_modify_batch_request = {}
             achievements_batch_request = []
+            char_winners_batch_request = {}
 
             for char_result in char_results.values():
                 char_result_xp = max(0, char_result["xp"])
@@ -248,6 +257,7 @@ class MatchResultsProcessor(ResourceProcessor):
                     "gold": 0
                 }
 
+                # Will grant achievement progress to char in batch request in the future
                 for ach_name, ach_progress in char_result["achievements"]:
                     if ach_name in self.all_quest_names:
                         achievements_batch_request.append({
@@ -255,6 +265,10 @@ class MatchResultsProcessor(ResourceProcessor):
                             "name": ach_name,
                             "progress_delta": ach_progress,
                         })
+
+                # Will increase win count if campaign is ongoing (will work only from dedicated servers)
+                if char_result["is_winner"]:
+                    char_winners_batch_request[char_result["char"]] = {}
 
                 # Remember max given currency for statistics
                 if char_result["xp"] > max_xp:
@@ -269,12 +283,20 @@ class MatchResultsProcessor(ResourceProcessor):
             self.progression_processor.batch_grant_quest_progress(achievements_batch_request)
 
             # Update match data in DB
-            code = self.update_match_data(char_results, match_id, max_silver, max_xp)
+            code = self.__mark_match_finished(char_results, match_id, max_silver, max_xp)
             if code != 0:
                 return self.internal_server_error_response
 
             # If host is player, perform soft check to see how much max currency per match he granted within time interval
-            self.perform_aggregated_currency_grant_soft_check(match_id, max_silver, max_xp, now_ts)
+            self.__perform_aggregated_currency_grant_soft_check(match_id, max_silver, max_xp, now_ts)
+
+            # If campaign is ongoing, then for factions that won increase win count (will work only from dedicated servers)
+            for faction, faction_result in faction_results:
+                if faction_result["is_winner"]:
+                    self.notify_match_won_by_faction(match_id, faction)
+
+            # If campaign is ongoing, then for characters that won increase win count (will work only from dedicated servers)
+            self.notify_chars_match_won(match_id, char_winners_batch_request)
 
             # Return success
             return {"success": True}, 200
@@ -284,26 +306,26 @@ class MatchResultsProcessor(ResourceProcessor):
             self.logger.error(f"Exception during character CREATE with body {request_body}: {traceback.format_exc()}")
             return self.internal_server_error_response
 
-    def update_match_data(self, char_results, match_id, max_silver, max_xp):
+    def __mark_match_finished(self, char_results, match_id, max_silver, max_xp):
         """Updating match data in DB, eg set match as completed"""
 
         finished_time = int(datetime.datetime.now(tz=datetime.timezone.utc).timestamp())
         query = f"""
-                DECLARE $MATCH_ID AS Utf8;
-                DECLARE $FINISHED_TIME AS Datetime;
-                DECLARE $MAX_GRANTED_SILVER AS Int32;
-                DECLARE $MAX_GRANTED_XP AS Int32;
-                DECLARE $PLAYERS_REWARDED AS Int32;
+            DECLARE $MATCH_ID AS Utf8;
+            DECLARE $FINISHED_TIME AS Datetime;
+            DECLARE $MAX_GRANTED_SILVER AS Int32;
+            DECLARE $MAX_GRANTED_XP AS Int32;
+            DECLARE $PLAYERS_REWARDED AS Int32;
 
-                UPDATE {self.table_name}
-                SET 
-                    finished_ts = $FINISHED_TIME,
-                    max_granted_silver = $MAX_GRANTED_SILVER, 
-                    max_granted_xp = $MAX_GRANTED_XP, 
-                    players_rewarded = $PLAYERS_REWARDED
-                WHERE
-                    match_id = $MATCH_ID
-                ;
+            UPDATE {self.table_name}
+            SET 
+                finished_ts = $FINISHED_TIME,
+                max_granted_silver = $MAX_GRANTED_SILVER, 
+                max_granted_xp = $MAX_GRANTED_XP, 
+                players_rewarded = $PLAYERS_REWARDED
+            WHERE
+                match_id = $MATCH_ID
+            ;
             """
 
         query_params = {
@@ -316,23 +338,23 @@ class MatchResultsProcessor(ResourceProcessor):
         result, code = self.yc.process_query(query, query_params)
         return code
 
-    def perform_aggregated_currency_grant_soft_check(self, match_id, max_silver, max_xp, now_ts):
+    def __perform_aggregated_currency_grant_soft_check(self, match_id, max_silver, max_xp, now_ts):
         """If player is as host, then check soft limits for granting xp and silver within some time (eg 1 day)"""
 
-        if str(self.user) not in ["backend", "server"]:
+        if not self.is_user_server_or_backend():
             query = f"""
-                        DECLARE $HOST AS Utf8;
-                        DECLARE $CREATED_TIME AS Datetime;
+                DECLARE $HOST AS Utf8;
+                DECLARE $CREATED_TIME AS Datetime;
 
-                        SELECT
-                            COALESCE(SUM(max_granted_silver), 0) AS sum_max_granted_silver,
-                            COALESCE(SUM(max_granted_xp), 0) AS sum_max_granted_xp
-                        FROM {self.table_name}
-                        WHERE 
-                            host = $HOST AND 
-                            created_ts >= $CREATED_TIME
-                        ;
-                        """
+                SELECT
+                    COALESCE(SUM(max_granted_silver), 0) AS sum_max_granted_silver,
+                    COALESCE(SUM(max_granted_xp), 0) AS sum_max_granted_xp
+                FROM {self.table_name}
+                WHERE 
+                    host = $HOST AND 
+                    created_ts >= $CREATED_TIME
+                ;
+                """
 
             query_params = {
                 '$HOST': str(self.user),
@@ -360,6 +382,72 @@ class MatchResultsProcessor(ResourceProcessor):
             else:
                 logger.error("Couldn't perform aggregated reward check, internal error")
 
+    def notify_match_won_by_faction(self, match_id, faction):
+        """Increases faction win count during campaign (for faction that won the match), only for dedicated servers"""
+
+        if CURRENT_CAMPAIGN_NAME:
+            if self.is_user_server_or_backend():
+                query = f"""
+                    DECLARE $batch AS List<Struct<campaign: Utf8, faction: Utf8, won_delta: Int64>>;
+
+                    UPSERT INTO {self.campaign_table_name} (campaign, faction, won_matches)
+                    SELECT
+                        b.campaign,
+                        b.faction,
+                        COALESCE(t.won_matches, 0) + b.won_delta AS won_matches
+                    FROM AS_TABLE($batch) AS b
+                    LEFT JOIN {self.campaign_table_name} AS t
+                        ON b.campaign = t.campaign AND b.faction = t.faction;
+                """
+
+                query_params = {
+                    "$batch": [{
+                        "campaign": CURRENT_CAMPAIGN_NAME,
+                        "faction": faction,
+                        "won_delta": 1
+                    }]
+                }
+
+                result, code = self.yc.process_query(query, query_params)
+                if code != 0:
+                    self.logger.error(f"Couldn't notify match {match_id} won by faction {faction}")
+
+    def notify_chars_match_won(self, match_id, char_wins):
+        """Increases character win counts in current campaign"""
+
+        if CURRENT_CAMPAIGN_NAME:
+            if self.is_user_server_or_backend():
+                for chunk in batch_iterator(char_wins.items(), 100):
+                    batch = [
+                        {
+                            "char": char_id,
+                            "campaign": CURRENT_CAMPAIGN_NAME,
+                            "won_delta": 1
+                        }
+                        for char_id, _ in chunk
+                    ]
+
+                    query = f"""
+                        DECLARE $batch AS List<Struct<char: Int64, campaign: Utf8, won_delta: Int64>>;
+    
+                        UPSERT INTO {self.campaign_chars_table_name} (char, campaign, won_matches)
+                        SELECT
+                            b.char,
+                            b.campaign,
+                            COALESCE(t.won_matches, 0) + b.won_delta AS won_matches
+                        FROM AS_TABLE($batch) AS b
+                        LEFT JOIN {self.campaign_chars_table_name} AS t
+                            ON b.char = t.char AND b.campaign = t.campaign;
+                    """
+
+                    query_params = {"$batch": batch}
+
+                    result, code = self.yc.process_query(query, query_params)
+                    if code != 0:
+                        self.logger.error(
+                            f"Couldn't notify match {match_id} char wins: {char_wins}"
+                        )
+
 
 if __name__ == '__main__':
     import logging
@@ -373,19 +461,23 @@ if __name__ == '__main__':
 
     player = 4
     char = 2
-    char_proc = MatchResultsProcessor(logger, "dev", player, yc, s3)
+    match_proc = MatchResultsProcessor(logger, "dev", player, yc, s3)
 
-    match_id = uuid.uuid4().hex
-    r, s = char_proc.API_CREATE(
-        {"match_id": match_id, "mission": "test"})
-    print(s, r)
+    # match_id = uuid.uuid4().hex
+    # r, s = match_proc.API_CREATE(
+    #     {"match_id": match_id, "mission": "test"})
+    # print(s, r)
+    #
+    # time.sleep(2)
+    #
+    # # match_id = "3ef1e80705d442c192c15221f883a19e"
+    # r, s = match_proc.API_MODIFY(
+    #     {"match_id": match_id, "challenge": "", "char_results": [
+    #         {"player": player, "char": char, "silver": 1000, "xp": 10000, "achievements": {}}
+    #     ], "faction_results": []})
+    #
+    # print(s, r)
 
-    time.sleep(2)
-
-    # match_id = "3ef1e80705d442c192c15221f883a19e"
-    r, s = char_proc.API_MODIFY(
-        {"match_id": match_id, "challenge": "", "char_results": [
-            {"player": player, "char": char, "silver": 1000, "xp": 10000, "achievements": {}}
-        ], "faction_results": []})
-
-    print(s, r)
+    match_proc.user = AdminUser.SERVER
+    # match_proc.notify_match_won_by_faction("123", "ChaosSpaceMarines")
+    match_proc.notify_chars_match_won("123", {1: {}, 2: {}})

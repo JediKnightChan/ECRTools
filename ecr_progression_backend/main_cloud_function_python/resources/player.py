@@ -38,7 +38,7 @@ class PlayerProcessor(ResourceProcessor):
     def __init__(self, logger, contour, user, yc, s3):
         super(PlayerProcessor, self).__init__(logger, contour, user, yc, s3)
 
-        self.table_name = "ecr_players" if self.contour == "prod" else "ecr_players_dev"
+        self.table_name = self.get_table_name_for_contour("ecr_players")
 
         with open(os.path.join(os.path.dirname(__file__), "../data/levels.json")) as f:
             self.levelling_data = json.load(f)

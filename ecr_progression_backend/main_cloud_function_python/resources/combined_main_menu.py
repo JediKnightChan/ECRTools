@@ -32,7 +32,7 @@ class CombinedMainMenuProcessor(ResourceProcessor):
         """Same, but doesn't require to specify internal user id, will take it from current user"""
 
         player = self.user
-        if not player or player in ["backend", "server"]:
+        if not player or self.is_user_server_or_backend():
             raise ValueError(f"Can't get self player data for user {player}")
         return self.API_GET({"id": player})
 

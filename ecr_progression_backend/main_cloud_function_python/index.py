@@ -4,6 +4,7 @@ import os
 
 from pythonjsonlogger import jsonlogger
 
+from common import AdminUser
 from resources.auth import AuthenticationProcessor
 from resources.character import CharacterProcessor
 from resources.player import PlayerProcessor
@@ -88,9 +89,9 @@ def handler(event, context):
         else:
             return json_response({"error": f"Unknown auth type: {external_auth}"}, status_code=401)
     elif auth_header == "Api-Key " + SERVER_API_KEY and SERVER_API_KEY:
-        user = "server"
+        user = AdminUser.SERVER
     elif auth_header == "Api-Key " + BACKEND_API_KEY and BACKEND_API_KEY:
-        user = "backend"
+        user = AdminUser.BACKEND
     else:
         return json_response({"error": "Not authorized (Api-Key)"}, status_code=401)
 

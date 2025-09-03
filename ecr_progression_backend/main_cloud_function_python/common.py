@@ -13,7 +13,16 @@ def batch_iterator(iterable, n):
         yield chunk
 
 
+class AdminUser:
+    """Types of admin users, which have absolute trust, opposite to player hosts"""
+
+    SERVER = "server"
+    BACKEND = "backend"
+
+
 class APIAction:
+    """List of API actions available for resource processors (specified in JSON body at field 'action')"""
+
     GET = "get"
     LIST = "list"
     CREATE = "create"
@@ -41,8 +50,8 @@ def permission_required(permission_type, player_arg_name="player"):
             asking_user = getattr(self, "user", None)
             target_user = args[0].get(player_arg_name)
 
-            is_backend = asking_user == "backend"
-            is_server = asking_user == "server"
+            is_backend = asking_user == AdminUser.BACKEND
+            is_server = asking_user == AdminUser.SERVER
             is_owning_player = asking_user == target_user
 
             if permission_type == APIPermission.ANYONE:
@@ -99,6 +108,21 @@ class ResourceProcessor:
     @property
     def internal_server_error_response(self) -> typing.Tuple[dict, int]:
         return {"error": "Internal server error"}, 500
+
+    def is_user_server_or_backend(self):
+        """Checks if user who initiated request is server or backend, opposite to player host"""
+
+        return str(self.user) in [AdminUser.SERVER, AdminUser.BACKEND]
+
+    def get_table_name_for_contour(self, raw_table_name):
+        """Returns a table name in the database for the current contour (prod with no suffix, dev with '_dev' suffix)"""
+
+        if self.contour == "prod":
+            return raw_table_name
+        elif self.contour == "dev":
+            return raw_table_name + "_dev"
+        else:
+            raise NotImplementedError
 
     def API_PROCESS_REQUEST(self, action: str, request_body: dict) -> typing.Tuple[dict, int]:
         """Default entrypoint for processing API request"""
