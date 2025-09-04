@@ -1,7 +1,11 @@
 import os
+import traceback
 import typing
 import logging
 import itertools
+
+from marshmallow import ValidationError
+
 from tools.s3_path_builder import S3PathBuilder
 
 
@@ -38,6 +42,34 @@ class APIPermission:
     OWNING_PLAYER_ONLY = "OWNING_PLAYER_ONLY"
     SERVER_ONLY = "SERVER_ONLY"
     SERVER_OR_OWNING_PLAYER = "SERVER_OR_OWNING_PLAYER"
+
+
+def api_view(func):
+    """API wrapper around ResourceProcessor.API_PROCESS_REQUEST for error handling and logging"""
+
+    def wrapper(self, *args, **kwargs):
+        logger = getattr(self, "logger", None)
+        if logger is None:
+            raise RuntimeError("Logger (self.logger) not set on class using @api_view")
+
+        # Try to get request_body from args
+        request_body = None
+        if args and isinstance(args[0], dict):
+            request_body = args[0]
+
+        try:
+            return func(self, *args, **kwargs)
+        except ValidationError as e:
+            return {"error": e.messages}, 400
+        except Exception as e:
+            logger.error(
+                f"Exception in {self.__class__.__name__}.{func.__name__}: {e} for request body {request_body}",
+                exc_info=True
+            )
+            logger.error(traceback.format_exc())
+            return self.internal_server_error_response
+
+    return wrapper
 
 
 def permission_required(permission_type, player_arg_name="player"):

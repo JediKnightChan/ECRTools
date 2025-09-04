@@ -1,6 +1,6 @@
 import typing
 
-from common import ResourceProcessor, permission_required, APIPermission
+from common import ResourceProcessor, permission_required, APIPermission, api_view
 from resources.character import CharacterProcessor
 from resources.player import PlayerProcessor
 
@@ -14,6 +14,7 @@ class CombinedMainMenuProcessor(ResourceProcessor):
         self.player_processor = PlayerProcessor(self.logger, self.contour, self.user, self.yc, self.s3)
         self.character_processor = CharacterProcessor(self.logger, self.contour, self.user, self.yc, self.s3)
 
+    @api_view
     @permission_required(APIPermission.SERVER_OR_OWNING_PLAYER, player_arg_name="id")
     def API_GET(self, request_body: dict) -> typing.Tuple[dict, int]:
         """Get all required data about player for main menu: basic player data, list of characters"""
@@ -28,6 +29,7 @@ class CombinedMainMenuProcessor(ResourceProcessor):
         else:
             return r1, s1
 
+    @api_view
     def API_GET_FOR_SELF(self, request_body: dict) -> typing.Tuple[dict, int]:
         """Same, but doesn't require to specify internal user id, will take it from current user"""
 

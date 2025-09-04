@@ -55,41 +55,38 @@ class AuthenticationProcessor:
 
     def __create_player_by_egs_id(self, egs_id: str, egs_nickname: str) -> typing.Tuple[dict, int]:
         """Create character, only called from API_GET when player doesn't exist"""
-        try:
-            # Creating row in YDB table
-            query = f"""
-                DECLARE $EGS_ID AS Utf8;
-                DECLARE $EGS_NICK AS Utf8;
-                DECLARE $CREATED_TIME AS Datetime;
 
-                UPSERT INTO {self.table_name} 
+        # Creating row in YDB table
+        query = f"""
+            DECLARE $EGS_ID AS Utf8;
+            DECLARE $EGS_NICK AS Utf8;
+            DECLARE $CREATED_TIME AS Datetime;
+
+            UPSERT INTO {self.table_name} 
+            (
+            egs_id, egs_nickname, steam_id, steam_nickname, 
+            email, email_confirmed, email_confirmation_code, 
+            xp, subscription_status, subscription_end, 
+            permissions, created_time
+            ) 
+            VALUES
                 (
-                egs_id, egs_nickname, steam_id, steam_nickname, 
-                email, email_confirmed, email_confirmation_code, 
-                xp, subscription_status, subscription_end, 
-                permissions, created_time
-                ) 
-                VALUES
-                    (
-                    $EGS_ID, $EGS_NICK, "", "",
-                    "", false, "",
-                    0, 0, NULL,
-                    0, $CREATED_TIME);
-            """
+                $EGS_ID, $EGS_NICK, "", "",
+                "", false, "",
+                0, 0, NULL,
+                0, $CREATED_TIME);
+        """
 
-            query_params = {
-                '$EGS_ID': egs_id,
-                '$EGS_NICK': egs_nickname,
-                '$CREATED_TIME': int(datetime.datetime.now().timestamp()),
-            }
+        query_params = {
+            '$EGS_ID': egs_id,
+            '$EGS_NICK': egs_nickname,
+            '$CREATED_TIME': int(datetime.datetime.now().timestamp()),
+        }
 
-            result, code = self.yc.process_query(query, query_params)
-            if code == 0:
-                return {"success": True}, 201
-            else:
-                return self.internal_server_error_response
-        except Exception as e:
-            self.logger.error(f"Exception during player CREATE for egs_id {egs_id}: {traceback.format_exc()}")
+        result, code = self.yc.process_query(query, query_params)
+        if code == 0:
+            return {"success": True}, 201
+        else:
             return self.internal_server_error_response
 
     @property

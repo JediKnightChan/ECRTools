@@ -5,7 +5,7 @@ import traceback
 import typing
 import os
 
-from common import ResourceProcessor, permission_required, APIPermission, batch_iterator
+from common import ResourceProcessor, permission_required, APIPermission, batch_iterator, api_view
 from marshmallow import Schema, fields, validate, ValidationError
 
 from resources.combined_main_menu import CombinedMainMenuProcessor
@@ -72,67 +72,61 @@ class ProgressionStoreProcessor(ResourceProcessor):
         elif action == "open_lootbox":
             return self.API_OPEN_LOOTBOX(request_body)
 
+    @api_view
     @permission_required(APIPermission.ANYONE)
     def API_GET(self, request_body: dict, include_achievements: bool = True) -> typing.Tuple[dict, int]:
         """Gets unlocked progression for given character. Anyone can do it"""
 
         schema = CharPlayerSchema()
-        try:
-            validated_data = schema.load(request_body)
+        validated_data = schema.load(request_body)
 
-            player = validated_data.get("player")
-            char = validated_data.get("char")
-            progression_path = self.s3_paths.get_unlocked_progression_s3_path(player, char)
+        player = validated_data.get("player")
+        char = validated_data.get("char")
+        progression_path = self.s3_paths.get_unlocked_progression_s3_path(player, char)
 
-            achievements = {}
-            if include_achievements:
-                query = f"""
-                    DECLARE $CHAR AS Int64;
+        achievements = {}
+        if include_achievements:
+            query = f"""
+                DECLARE $CHAR AS Int64;
 
-                    SELECT * FROM {self.ach_table_name}
-                    WHERE
-                        char = $CHAR
-                    ;
-                """
+                SELECT * FROM {self.ach_table_name}
+                WHERE
+                    char = $CHAR
+                ;
+            """
 
-                query_params = {
-                    '$CHAR': validated_data.get("char"),
-                }
+            query_params = {
+                '$CHAR': validated_data.get("char"),
+            }
 
-                result, code = self.yc.process_query(query, query_params)
-                if code == 0:
-                    if len(result) > 0:
-                        dump_schema = AchievementSchema()
-                        achievements_raw = [dump_schema.dump(r) for r in result[0].rows]
-                        for achievement in achievements_raw:
-                            achievements[achievement["name"]] = {
-                                "progress": achievement["progress"],
-                                "reward_claimed_time": achievement["reward_claimed_time"]
-                            }
-                else:
-                    return self.internal_server_error_response
-
-            # Check if file with unlocked cosmetics data exists
-            if self.s3.check_exists(progression_path):
-                content = self.s3.get_file_from_s3(progression_path)
-                data = json.loads(content)
-
-                json_schema = UnlockedProgressionContentSchema()
-                try:
-                    data = json_schema.load(data)
-                except ValidationError:
-                    return {"success": False, "error_code": 2, "error": "Unlocked progression data malformed"}, 500
-
-                return {"success": True, "data": {**data, "quest_status": achievements}}, 200
+            result, code = self.yc.process_query(query, query_params)
+            if code == 0:
+                if len(result) > 0:
+                    dump_schema = AchievementSchema()
+                    achievements_raw = [dump_schema.dump(r) for r in result[0].rows]
+                    for achievement in achievements_raw:
+                        achievements[achievement["name"]] = {
+                            "progress": achievement["progress"],
+                            "reward_claimed_time": achievement["reward_claimed_time"]
+                        }
             else:
-                return {"success": True, "data": {"unlocked_gameplay_items": [], "unlocked_cosmetic_items": [],
-                                                  "unlocked_advancements": [], "quest_status": achievements}}, 200
+                return self.internal_server_error_response
 
-        except ValidationError as e:
-            return {"error": e.messages}, 400
-        except Exception as e:
-            self.logger.error(f"Exception during progression GET with body {request_body}: {traceback.format_exc()}")
-            return self.internal_server_error_response
+        # Check if file with unlocked cosmetics data exists
+        if self.s3.check_exists(progression_path):
+            content = self.s3.get_file_from_s3(progression_path)
+            data = json.loads(content)
+
+            json_schema = UnlockedProgressionContentSchema()
+            try:
+                data = json_schema.load(data)
+            except ValidationError:
+                return {"success": False, "error_code": 2, "error": "Unlocked progression data malformed"}, 500
+
+            return {"success": True, "data": {**data, "quest_status": achievements}}, 200
+        else:
+            return {"success": True, "data": {"unlocked_gameplay_items": [], "unlocked_cosmetic_items": [],
+                                              "unlocked_advancements": [], "quest_status": achievements}}, 200
 
     @permission_required(APIPermission.OWNING_PLAYER_ONLY)
     def API_BUY(self, request_body: dict) -> typing.Tuple[dict, int]:
@@ -149,116 +143,111 @@ class ProgressionStoreProcessor(ResourceProcessor):
 
         schema = PurchaseEntityRequestSchema()
 
-        try:
-            validated_data = schema.load(request_body)
+        validated_data = schema.load(request_body)
 
-            player = validated_data.get("player")
-            char = validated_data.get("char")
-            item_id = validated_data.get("item").lower()
-            item_type = validated_data.get("item_type")
+        player = validated_data.get("player")
+        char = validated_data.get("char")
+        item_id = validated_data.get("item").lower()
+        item_type = validated_data.get("item_type")
 
-            unlocked_gameplay_items = already_unlocked_data["data"]["unlocked_gameplay_items"]
-            unlocked_cosmetic_items = already_unlocked_data["data"]["unlocked_cosmetic_items"]
-            unlocked_advancements = already_unlocked_data["data"]["unlocked_advancements"]
+        unlocked_gameplay_items = already_unlocked_data["data"]["unlocked_gameplay_items"]
+        unlocked_cosmetic_items = already_unlocked_data["data"]["unlocked_cosmetic_items"]
+        unlocked_advancements = already_unlocked_data["data"]["unlocked_advancements"]
 
-            if item_type == ProgressionItemType.GAMEPLAY_ITEM:
-                old_unlocked_items = unlocked_gameplay_items.copy()
-                unlocked_gameplay_items.append(item_id)
-                log_action = "buy_gameplay_item"
-            elif item_type == ProgressionItemType.COSMETIC_ITEM:
-                old_unlocked_items = unlocked_cosmetic_items.copy()
-                unlocked_cosmetic_items.append(item_id)
-                log_action = "buy_cosmetic_item"
-            elif item_type == ProgressionItemType.ADVANCEMENT:
-                old_unlocked_items = unlocked_advancements.copy()
-                unlocked_advancements.append(item_id)
-                log_action = "buy_advancement"
+        if item_type == ProgressionItemType.GAMEPLAY_ITEM:
+            old_unlocked_items = unlocked_gameplay_items.copy()
+            unlocked_gameplay_items.append(item_id)
+            log_action = "buy_gameplay_item"
+        elif item_type == ProgressionItemType.COSMETIC_ITEM:
+            old_unlocked_items = unlocked_cosmetic_items.copy()
+            unlocked_cosmetic_items.append(item_id)
+            log_action = "buy_cosmetic_item"
+        elif item_type == ProgressionItemType.ADVANCEMENT:
+            old_unlocked_items = unlocked_advancements.copy()
+            unlocked_advancements.append(item_id)
+            log_action = "buy_advancement"
+        else:
+            raise ValueError(f"Wrong ProgressionItemType: {item_type}")
+
+        if item_id in old_unlocked_items:
+            # Already unlocked this
+            return {"success": False, "error_code": 3, "error": "Already unlocked"}, 400
+
+        main_menu_proc = CombinedMainMenuProcessor(self.logger, self.contour, self.user, self.yc, self.s3)
+
+        main_menu_data, main_menu_s = main_menu_proc.API_GET({"id": player})
+        if main_menu_s != 200:
+            return main_menu_data, main_menu_s
+
+        player_data = main_menu_data["data"]["player"]
+        player_level = main_menu_proc.player_processor.get_level_from_xp(player_data["xp"])
+
+        char_data = None
+        for char_data_piece in main_menu_data["data"]["characters"]:
+            if char_data_piece["id"] == char:
+                char_data = char_data_piece
+
+        if char_data is None:
+            return {"error": f"No character {char}", "error_code": 1}, 404
+
+        char_faction = char_data["faction"]
+        char_free_xp = char_data["free_xp"]
+        char_silver = char_data["silver"]
+        char_gold = char_data["gold"]
+
+        item_found, item_data = self._get_item_data(item_id, item_type, char_faction)
+        if not item_found:
+            # Item not found
+            self.logger.warning(f"Entity not found {item_type} for faction {char_faction}: item {item_id}")
+            return {"success": False, "error_code": 4, "error": f"Entity not found: "
+                                                                f"{item_id}, {item_type}, {char_faction}"}, 404
+
+        item_cost_xp, item_cost_silver, item_cost_gold = item_data["cost"]
+
+        item_is_enabled = item_data["is_enabled"]
+        item_is_purchasable = item_data["is_purchasable"]
+        item_required_level = item_data.get("required_level", 0)
+        item_required_advancement = item_data.get("required_advancement", None)
+
+        # Check item is purchasable
+        if not item_is_purchasable or not item_is_enabled:
+            return {"error": "Item can't be purchased", "error_code": 5}, 400
+
+        # Check item advancement was unlocked
+        if item_required_advancement and item_required_advancement not in unlocked_advancements:
+            return {"error": f"Advancement {item_required_advancement} required", "error_code": 6}, 400
+
+        # Check level
+        if player_level < item_required_level:
+            return {"error": f"Not enough level ({player_level} < {item_required_level})", "error_code": 8}, 400
+
+        # Check cost
+        if char_gold >= item_cost_gold and char_silver >= item_cost_silver and char_free_xp >= item_cost_xp:
+            # Can afford, buy
+
+            # For advancement, unlock granted gameplay items too
+            if item_type == ProgressionItemType.ADVANCEMENT:
+                for granted_gameplay_item in item_data.get("granted_gameplay_items", []):
+                    unlocked_gameplay_items.append(granted_gameplay_item)
+
+            self.update_unlocked_items(player, char, unlocked_gameplay_items,
+                                       unlocked_cosmetic_items, unlocked_advancements)
+            r, s = main_menu_proc.character_processor.modify_currency(char, -item_cost_xp, -item_cost_silver,
+                                                                      -item_cost_gold, log_action,
+                                                                      f"{item_id} for {char}")
+            if s == 204:
+                return {"success": True, "cost": [item_cost_xp, item_cost_silver, item_cost_gold]}, 200
             else:
-                raise ValueError(f"Wrong ProgressionItemType: {item_type}")
+                return r, s
+        else:
+            # Can't afford
+            return {
+                "error": f"Not enough currency, "
+                         f"needed: ({item_cost_xp}, {item_cost_silver}, {item_cost_gold}), "
+                         f"available ({char_free_xp}, {char_silver}, {char_gold})",
+                "error_code": 9}, 400
 
-            if item_id in old_unlocked_items:
-                # Already unlocked this
-                return {"success": False, "error_code": 3, "error": "Already unlocked"}, 400
-
-            main_menu_proc = CombinedMainMenuProcessor(self.logger, self.contour, self.user, self.yc, self.s3)
-
-            main_menu_data, main_menu_s = main_menu_proc.API_GET({"id": player})
-            if main_menu_s != 200:
-                return main_menu_data, main_menu_s
-
-            player_data = main_menu_data["data"]["player"]
-            player_level = main_menu_proc.player_processor.get_level_from_xp(player_data["xp"])
-
-            char_data = None
-            for char_data_piece in main_menu_data["data"]["characters"]:
-                if char_data_piece["id"] == char:
-                    char_data = char_data_piece
-
-            if char_data is None:
-                return {"error": f"No character {char}", "error_code": 1}, 404
-
-            char_faction = char_data["faction"]
-            char_free_xp = char_data["free_xp"]
-            char_silver = char_data["silver"]
-            char_gold = char_data["gold"]
-
-            item_found, item_data = self._get_item_data(item_id, item_type, char_faction)
-            if not item_found:
-                # Item not found
-                self.logger.warning(f"Entity not found {item_type} for faction {char_faction}: item {item_id}")
-                return {"success": False, "error_code": 4, "error": f"Entity not found: "
-                                                                    f"{item_id}, {item_type}, {char_faction}"}, 404
-
-            item_cost_xp, item_cost_silver, item_cost_gold = item_data["cost"]
-
-            item_is_enabled = item_data["is_enabled"]
-            item_is_purchasable = item_data["is_purchasable"]
-            item_required_level = item_data.get("required_level", 0)
-            item_required_advancement = item_data.get("required_advancement", None)
-
-            # Check item is purchasable
-            if not item_is_purchasable or not item_is_enabled:
-                return {"error": "Item can't be purchased", "error_code": 5}, 400
-
-            # Check item advancement was unlocked
-            if item_required_advancement and item_required_advancement not in unlocked_advancements:
-                return {"error": f"Advancement {item_required_advancement} required", "error_code": 6}, 400
-
-            # Check level
-            if player_level < item_required_level:
-                return {"error": f"Not enough level ({player_level} < {item_required_level})", "error_code": 8}, 400
-
-            # Check cost
-            if char_gold >= item_cost_gold and char_silver >= item_cost_silver and char_free_xp >= item_cost_xp:
-                # Can afford, buy
-
-                # For advancement, unlock granted gameplay items too
-                if item_type == ProgressionItemType.ADVANCEMENT:
-                    for granted_gameplay_item in item_data.get("granted_gameplay_items", []):
-                        unlocked_gameplay_items.append(granted_gameplay_item)
-
-                self.update_unlocked_items(player, char, unlocked_gameplay_items,
-                                           unlocked_cosmetic_items, unlocked_advancements)
-                r, s = main_menu_proc.character_processor.modify_currency(char, -item_cost_xp, -item_cost_silver,
-                                                                          -item_cost_gold, log_action,
-                                                                          f"{item_id} for {char}")
-                if s == 204:
-                    return {"success": True, "cost": [item_cost_xp, item_cost_silver, item_cost_gold]}, 200
-                else:
-                    return r, s
-            else:
-                # Can't afford
-                return {
-                    "error": f"Not enough currency, "
-                             f"needed: ({item_cost_xp}, {item_cost_silver}, {item_cost_gold}), "
-                             f"available ({char_free_xp}, {char_silver}, {char_gold})",
-                    "error_code": 9}, 400
-        except ValidationError as e:
-            return {"error": e.messages}, 400
-        except Exception as e:
-            self.logger.error(f"Exception during cosmetics BUY with body {request_body}: {traceback.format_exc()}")
-            return self.internal_server_error_response
-
+    @api_view
     @permission_required(APIPermission.OWNING_PLAYER_ONLY)
     def API_CLAIM_QUEST_REWARD(self, request_body: dict) -> typing.Tuple[dict, int]:
         """
@@ -273,98 +262,92 @@ class ProgressionStoreProcessor(ResourceProcessor):
 
         schema = ClaimQuestRewardRequestSchema()
 
-        try:
-            validated_data = schema.load(request_body)
+        validated_data = schema.load(request_body)
 
-            player = validated_data.get("player")
-            char = validated_data.get("char")
-            quest_name = validated_data.get("quest_name").lower()
+        player = validated_data.get("player")
+        char = validated_data.get("char")
+        quest_name = validated_data.get("quest_name").lower()
 
-            unlocked_gameplay_items = already_unlocked_data["data"]["unlocked_gameplay_items"]
-            unlocked_cosmetic_items = already_unlocked_data["data"]["unlocked_cosmetic_items"]
-            unlocked_advancements = already_unlocked_data["data"]["unlocked_advancements"]
+        unlocked_gameplay_items = already_unlocked_data["data"]["unlocked_gameplay_items"]
+        unlocked_cosmetic_items = already_unlocked_data["data"]["unlocked_cosmetic_items"]
+        unlocked_advancements = already_unlocked_data["data"]["unlocked_advancements"]
 
-            main_menu_proc = CombinedMainMenuProcessor(self.logger, self.contour, self.user, self.yc, self.s3)
+        main_menu_proc = CombinedMainMenuProcessor(self.logger, self.contour, self.user, self.yc, self.s3)
 
-            main_menu_data, main_menu_s = main_menu_proc.API_GET({"id": player})
-            if main_menu_s != 200:
-                return main_menu_data, main_menu_s
+        main_menu_data, main_menu_s = main_menu_proc.API_GET({"id": player})
+        if main_menu_s != 200:
+            return main_menu_data, main_menu_s
 
-            char_data = None
-            for char_data_piece in main_menu_data["data"]["characters"]:
-                if char_data_piece["id"] == char:
-                    char_data = char_data_piece
+        char_data = None
+        for char_data_piece in main_menu_data["data"]["characters"]:
+            if char_data_piece["id"] == char:
+                char_data = char_data_piece
 
-            if char_data is None:
-                return {"error": f"No character {char}", "error_code": 1}, 404
+        if char_data is None:
+            return {"error": f"No character {char}", "error_code": 1}, 404
 
-            char_faction = char_data["faction"]
+        char_faction = char_data["faction"]
 
-            found_quest, quest_data = self._get_quest_data(quest_name, char_faction)
-            if not found_quest:
-                return {"error": f"No quest {quest_name} for faction {char_faction}", "error_code": 2}, 404
+        found_quest, quest_data = self._get_quest_data(quest_name, char_faction)
+        if not found_quest:
+            return {"error": f"No quest {quest_name} for faction {char_faction}", "error_code": 2}, 404
 
-            if self._check_quest(quest_name, already_unlocked_data["data"]["quest_status"], quest_data):
-                # Grant item rewards
-                for reward_gameplay_item in quest_data["reward_gameplay_items"]:
-                    if reward_gameplay_item not in unlocked_gameplay_items:
-                        unlocked_gameplay_items.append(reward_gameplay_item)
+        if self._check_quest(quest_name, already_unlocked_data["data"]["quest_status"], quest_data):
+            # Grant item rewards
+            for reward_gameplay_item in quest_data["reward_gameplay_items"]:
+                if reward_gameplay_item not in unlocked_gameplay_items:
+                    unlocked_gameplay_items.append(reward_gameplay_item)
 
-                for reward_cosmetic_item in quest_data["reward_cosmetic_items"]:
-                    if reward_cosmetic_item not in unlocked_cosmetic_items:
-                        unlocked_cosmetic_items.append(reward_cosmetic_item)
+            for reward_cosmetic_item in quest_data["reward_cosmetic_items"]:
+                if reward_cosmetic_item not in unlocked_cosmetic_items:
+                    unlocked_cosmetic_items.append(reward_cosmetic_item)
 
-                self.update_unlocked_items(player, char, unlocked_gameplay_items,
-                                           unlocked_cosmetic_items, unlocked_advancements)
+            self.update_unlocked_items(player, char, unlocked_gameplay_items,
+                                       unlocked_cosmetic_items, unlocked_advancements)
 
-                # Grant currencies
-                reward_gold = quest_data["reward_gold"]
-                reward_silver = quest_data["reward_silver"]
-                reward_free_xp = quest_data["reward_free_xp"]
+            # Grant currencies
+            reward_gold = quest_data["reward_gold"]
+            reward_silver = quest_data["reward_silver"]
+            reward_free_xp = quest_data["reward_free_xp"]
 
-                if reward_gold != 0 or reward_silver != 0 or reward_free_xp != 0:
-                    r, s = main_menu_proc.character_processor.modify_currency(char, reward_free_xp, reward_silver,
-                                                                              reward_gold, "quest_reward",
-                                                                              f"{quest_name} for {char}")
-                    if s != 200:
-                        return r, s
+            if reward_gold != 0 or reward_silver != 0 or reward_free_xp != 0:
+                r, s = main_menu_proc.character_processor.modify_currency(char, reward_free_xp, reward_silver,
+                                                                          reward_gold, "quest_reward",
+                                                                          f"{quest_name} for {char}")
+                if s != 200:
+                    return r, s
 
-                # Marking quest as reward claimed
-                query = f"""
-                    DECLARE $CHAR AS Int64;
-                    DECLARE $NAME AS Utf8;
-                    DECLARE $REWARD_CLAIMED_TIME AS Datetime;
+            # Marking quest as reward claimed
+            query = f"""
+                DECLARE $CHAR AS Int64;
+                DECLARE $NAME AS Utf8;
+                DECLARE $REWARD_CLAIMED_TIME AS Datetime;
 
-                    UPDATE {self.ach_table_name}
-                    SET
-                        reward_claimed_time = $REWARD_CLAIMED_TIME
-                    WHERE
-                        char = $CHAR
-                        AND name = $NAME
-                    ;
-                """
+                UPDATE {self.ach_table_name}
+                SET
+                    reward_claimed_time = $REWARD_CLAIMED_TIME
+                WHERE
+                    char = $CHAR
+                    AND name = $NAME
+                ;
+            """
 
-                query_params = {
-                    '$CHAR': char,
-                    '$NAME': quest_name,
-                    '$REWARD_CLAIMED_TIME': int(datetime.datetime.now(tz=datetime.timezone.utc).timestamp()),
-                }
+            query_params = {
+                '$CHAR': char,
+                '$NAME': quest_name,
+                '$REWARD_CLAIMED_TIME': int(datetime.datetime.now(tz=datetime.timezone.utc).timestamp()),
+            }
 
-                result, code = self.yc.process_query(query, query_params)
-                if code == 0:
-                    return {"success": True}, 200
-                else:
-                    return self.internal_server_error_response
+            result, code = self.yc.process_query(query, query_params)
+            if code == 0:
+                return {"success": True}, 200
             else:
-                return {"error": f"Quest {quest_name} not completed or already claimed on char {char}",
-                        "error_code": 3}, 400
-        except ValidationError as e:
-            return {"error": e.messages}, 400
-        except Exception as e:
-            self.logger.error(
-                f"Exception during cosmetics CLAIM_QUEST_REWARD with body {request_body}: {traceback.format_exc()}")
-            return self.internal_server_error_response
+                return self.internal_server_error_response
+        else:
+            return {"error": f"Quest {quest_name} not completed or already claimed on char {char}",
+                    "error_code": 3}, 400
 
+    @api_view
     @permission_required(APIPermission.OWNING_PLAYER_ONLY)
     def API_OPEN_LOOTBOX(self, request_body: dict) -> typing.Tuple[dict, int]:
         """
@@ -379,87 +362,80 @@ class ProgressionStoreProcessor(ResourceProcessor):
 
         schema = OpenLootboxRequestSchema()
 
-        try:
-            validated_data = schema.load(request_body)
+        validated_data = schema.load(request_body)
 
-            player = validated_data.get("player")
-            char = validated_data.get("char")
-            lootbox_name = validated_data.get("lootbox_name").lower()
+        player = validated_data.get("player")
+        char = validated_data.get("char")
+        lootbox_name = validated_data.get("lootbox_name").lower()
 
-            unlocked_gameplay_items = already_unlocked_data["data"]["unlocked_gameplay_items"]
-            unlocked_cosmetic_items = already_unlocked_data["data"]["unlocked_cosmetic_items"]
-            unlocked_advancements = already_unlocked_data["data"]["unlocked_advancements"]
+        unlocked_gameplay_items = already_unlocked_data["data"]["unlocked_gameplay_items"]
+        unlocked_cosmetic_items = already_unlocked_data["data"]["unlocked_cosmetic_items"]
+        unlocked_advancements = already_unlocked_data["data"]["unlocked_advancements"]
 
-            main_menu_proc = CombinedMainMenuProcessor(self.logger, self.contour, self.user, self.yc, self.s3)
+        main_menu_proc = CombinedMainMenuProcessor(self.logger, self.contour, self.user, self.yc, self.s3)
 
-            main_menu_data, main_menu_s = main_menu_proc.API_GET({"id": player})
-            if main_menu_s != 200:
-                return main_menu_data, main_menu_s
+        main_menu_data, main_menu_s = main_menu_proc.API_GET({"id": player})
+        if main_menu_s != 200:
+            return main_menu_data, main_menu_s
 
-            char_data = None
-            for char_data_piece in main_menu_data["data"]["characters"]:
-                if char_data_piece["id"] == char:
-                    char_data = char_data_piece
+        char_data = None
+        for char_data_piece in main_menu_data["data"]["characters"]:
+            if char_data_piece["id"] == char:
+                char_data = char_data_piece
 
-            if char_data is None:
-                return {"error": f"No character {char}", "error_code": 1}, 404
+        if char_data is None:
+            return {"error": f"No character {char}", "error_code": 1}, 404
 
-            char_faction = char_data["faction"]
-            char_silver = char_data["silver"]
-            char_gold = char_data["gold"]
+        char_faction = char_data["faction"]
+        char_silver = char_data["silver"]
+        char_gold = char_data["gold"]
 
-            found_lootbox, lootbox_data = self._get_lootbox_data(lootbox_name, char_faction)
-            if not found_lootbox:
-                return {"error": f"No lootbox {lootbox_name} for faction {char_faction}", "error_code": 2}, 404
+        found_lootbox, lootbox_data = self._get_lootbox_data(lootbox_name, char_faction)
+        if not found_lootbox:
+            return {"error": f"No lootbox {lootbox_name} for faction {char_faction}", "error_code": 2}, 404
 
-            _, lootbox_cost_silver, lootbox_cost_gold = lootbox_data["cost"]
+        _, lootbox_cost_silver, lootbox_cost_gold = lootbox_data["cost"]
 
-            # Check cost
-            if char_gold >= lootbox_cost_gold and char_silver >= lootbox_cost_silver:
+        # Check cost
+        if char_gold >= lootbox_cost_gold and char_silver >= lootbox_cost_silver:
 
-                won_items = self._get_random_item_from_lootbox(char_faction, unlocked_gameplay_items,
-                                                               unlocked_cosmetic_items,
-                                                               lootbox_data)
-                if won_items is None:
-                    return {"error": f"Lootbox {lootbox_name} not available for char {char}",
-                            "error_code": 3}, 400
+            won_items = self._get_random_item_from_lootbox(char_faction, unlocked_gameplay_items,
+                                                           unlocked_cosmetic_items,
+                                                           lootbox_data)
+            if won_items is None:
+                return {"error": f"Lootbox {lootbox_name} not available for char {char}",
+                        "error_code": 3}, 400
 
-                if lootbox_data["type"] == LootboxType.SUPPLY_CRATE:
-                    for won_item in won_items:
-                        if won_item not in unlocked_gameplay_items:
-                            unlocked_gameplay_items.append(won_item)
-                elif lootbox_data["type"] == LootboxType.COSMETIC_BUNDLE_ONE_ITEM:
-                    for won_item in won_items:
-                        if won_item not in unlocked_cosmetic_items:
-                            unlocked_cosmetic_items.append(won_item)
-                else:
-                    raise NotImplementedError(f"Unknown lootbox type {lootbox_data['type']}")
-
-                # Can afford, buy
-                self.update_unlocked_items(player, char, unlocked_gameplay_items,
-                                           unlocked_cosmetic_items, unlocked_advancements)
-                r, s = main_menu_proc.character_processor.modify_currency(char, 0, -lootbox_cost_silver,
-                                                                          -lootbox_cost_gold, "buy_lootbox",
-                                                                          f"{lootbox_name} (won {won_items}) for {char}")
-
-                if s == 204:
-                    return {"success": True, "cost": [0, lootbox_cost_silver, lootbox_cost_gold],
-                            "won_items": won_items}, 200
-                else:
-                    return r, s
+            if lootbox_data["type"] == LootboxType.SUPPLY_CRATE:
+                for won_item in won_items:
+                    if won_item not in unlocked_gameplay_items:
+                        unlocked_gameplay_items.append(won_item)
+            elif lootbox_data["type"] == LootboxType.COSMETIC_BUNDLE_ONE_ITEM:
+                for won_item in won_items:
+                    if won_item not in unlocked_cosmetic_items:
+                        unlocked_cosmetic_items.append(won_item)
             else:
-                # Can't afford
-                return {
-                    "error": f"Not enough currency, "
-                             f"needed: ({lootbox_cost_silver}, {lootbox_cost_gold}), "
-                             f"available ({char_silver}, {char_gold})",
-                    "error_code": 4}, 400
-        except ValidationError as e:
-            return {"error": e.messages}, 400
-        except Exception as e:
-            self.logger.error(
-                f"Exception during cosmetics CLAIM_QUEST_REWARD with body {request_body}: {traceback.format_exc()}")
-            return self.internal_server_error_response
+                raise NotImplementedError(f"Unknown lootbox type {lootbox_data['type']}")
+
+            # Can afford, buy
+            self.update_unlocked_items(player, char, unlocked_gameplay_items,
+                                       unlocked_cosmetic_items, unlocked_advancements)
+            r, s = main_menu_proc.character_processor.modify_currency(char, 0, -lootbox_cost_silver,
+                                                                      -lootbox_cost_gold, "buy_lootbox",
+                                                                      f"{lootbox_name} (won {won_items}) for {char}")
+
+            if s == 204:
+                return {"success": True, "cost": [0, lootbox_cost_silver, lootbox_cost_gold],
+                        "won_items": won_items}, 200
+            else:
+                return r, s
+        else:
+            # Can't afford
+            return {
+                "error": f"Not enough currency, "
+                         f"needed: ({lootbox_cost_silver}, {lootbox_cost_gold}), "
+                         f"available ({char_silver}, {char_gold})",
+                "error_code": 4}, 400
 
     def update_unlocked_items(self, player, char, unlocked_gameplay_items,
                               unlocked_cosmetic_items, unlocked_advancements):
@@ -608,7 +584,6 @@ class ProgressionStoreProcessor(ResourceProcessor):
         else:
             self.logger.warning(f"Progression filepath {filepath} doesn't exist")
             return False, {}
-
 
     def _clear_all_progression(self, player, char, clear_quest_status=True):
         self.update_unlocked_items(player, char, [], [], [])

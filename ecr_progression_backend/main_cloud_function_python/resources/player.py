@@ -5,7 +5,7 @@ import datetime
 import json
 import os
 
-from common import ResourceProcessor, permission_required, APIPermission, batch_iterator
+from common import ResourceProcessor, permission_required, APIPermission, batch_iterator, api_view
 from tools.common_schemas import ExcludeSchema
 from tools.ydb_connection import YDBConnector
 from marshmallow import fields, ValidationError
@@ -43,44 +43,39 @@ class PlayerProcessor(ResourceProcessor):
         with open(os.path.join(os.path.dirname(__file__), "../data/levels.json")) as f:
             self.levelling_data = json.load(f)
 
+    @api_view
     @permission_required(APIPermission.ANYONE)
     def API_GET(self, request_body: dict) -> typing.Tuple[dict, int]:
         """Gets player data by internal id"""
 
         schema = PlayerSchema(only=("id",))
-        try:
-            validated_data = schema.load(request_body)
-            query = f"""
-                DECLARE $ID AS Int64;
+        validated_data = schema.load(request_body)
+        query = f"""
+            DECLARE $ID AS Int64;
 
-                SELECT * FROM {self.table_name}
-                WHERE
-                    id = $ID
-                ;
-            """
+            SELECT * FROM {self.table_name}
+            WHERE
+                id = $ID
+            ;
+        """
 
-            query_params = {
-                '$ID': validated_data.get("id"),
-            }
+        query_params = {
+            '$ID': validated_data.get("id"),
+        }
 
-            result, code = self.yc.process_query(query, query_params)
+        result, code = self.yc.process_query(query, query_params)
 
-            if code == 0:
-                if len(result) > 0:
-                    dump_schema = PlayerSchema()
-                    if len(result[0].rows) > 0:
-                        return {"success": True, "data": dump_schema.dump(result[0].rows[0])}, 200
-                    else:
-                        # User not found by internal id
-                        return {"success": False}, 404
+        if code == 0:
+            if len(result) > 0:
+                dump_schema = PlayerSchema()
+                if len(result[0].rows) > 0:
+                    return {"success": True, "data": dump_schema.dump(result[0].rows[0])}, 200
                 else:
-                    return {"success": False, "data": None}, 500
+                    # User not found by internal id
+                    return {"success": False}, 404
             else:
-                return self.internal_server_error_response
-        except ValidationError as e:
-            return {"error": e.messages}, 400
-        except Exception as e:
-            self.logger.error(f"Exception during character GET with body {request_body}: {traceback.format_exc()}")
+                return {"success": False, "data": None}, 500
+        else:
             return self.internal_server_error_response
 
 
@@ -163,7 +158,6 @@ if __name__ == '__main__':
 
     player_proc = PlayerProcessor(logger, "dev", egs_id, yc, s3)
 
-    # r, s = player_proc.API_GET({"id": player})
+    r, s = player_proc.API_GET({"id": player})
     # r, s = player_proc.grant_xp(player, 100, "api_test", "")
-    # r, s = player_proc._get_by_egs_id(egs_id, egs_nickname)
     print(s, r)

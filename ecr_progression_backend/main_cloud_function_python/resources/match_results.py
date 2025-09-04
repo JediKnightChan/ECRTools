@@ -260,7 +260,7 @@ class MatchResultsProcessor(ResourceProcessor):
                 }
 
                 # Will grant achievement progress to char in batch request in the future
-                for ach_name, ach_progress in char_result["achievements"]:
+                for ach_name, ach_progress in char_result["achievements"].items():
                     if ach_name in self.all_quest_names:
                         achievements_batch_request.append({
                             "char": char_result["char"],
@@ -455,7 +455,7 @@ class MatchResultsProcessor(ResourceProcessor):
         """Constructs queries for batch granting quest progress"""
 
         queries_and_params = []
-        for chunk in batch_iterator(ach_data, 100):
+        for chunk in batch_iterator(ach_data, 200):
             batch = [
                 {
                     "char": ach_data_piece["char"],
@@ -579,7 +579,9 @@ if __name__ == '__main__':
                     "char": char,
                     "silver": 1000,
                     "xp": 10000,
-                    "achievements": {},
+                    "achievements": {
+                        "sm_altweapon_bolter": 10
+                    },
                     "is_winner": True
                 }
             ],

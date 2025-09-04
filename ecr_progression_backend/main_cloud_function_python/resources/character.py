@@ -4,7 +4,7 @@ import typing
 import datetime
 
 from marshmallow import fields, validate, ValidationError
-from common import ResourceProcessor, permission_required, APIPermission, batch_iterator
+from common import ResourceProcessor, permission_required, APIPermission, batch_iterator, api_view
 
 from tools.common_schemas import ECR_FACTIONS, ExcludeSchema
 
@@ -45,165 +45,91 @@ class CharacterProcessor(ResourceProcessor):
 
         self.table_name = self.get_table_name_for_contour("ecr_characters")
 
+    @api_view
     @permission_required(APIPermission.SERVER_OR_OWNING_PLAYER)
     def API_LIST(self, request_body: dict) -> typing.Tuple[dict, int]:
         """Get all characters data for given player. Only owning player or server can do it"""
 
         schema = CharacterSchema(only=("player",))
 
-        try:
-            validated_data = schema.load(request_body)
+        validated_data = schema.load(request_body)
 
-            query = f"""
-                DECLARE $PLAYER AS Int64;
+        query = f"""
+            DECLARE $PLAYER AS Int64;
 
-                SELECT * FROM {self.table_name}
-                WHERE
-                    player = $PLAYER
-                ;
-            """
+            SELECT * FROM {self.table_name}
+            WHERE
+                player = $PLAYER
+            ;
+        """
 
-            query_params = {
-                '$PLAYER': validated_data.get("player"),
-            }
+        query_params = {
+            '$PLAYER': validated_data.get("player"),
+        }
 
-            result, code = self.yc.process_query(query, query_params)
-            if code == 0:
-                if len(result) > 0:
-                    dump_schema = CharacterSchema()
-                    return {"success": True, "data": [dump_schema.dump(r) for r in result[0].rows]}, 200
-                else:
-                    return {"success": False, "data": []}, 500
+        result, code = self.yc.process_query(query, query_params)
+        if code == 0:
+            if len(result) > 0:
+                dump_schema = CharacterSchema()
+                return {"success": True, "data": [dump_schema.dump(r) for r in result[0].rows]}, 200
             else:
-                return self.internal_server_error_response
-
-        except ValidationError as e:
-            return {"error": e.messages}, 400
-        except Exception as e:
-            self.logger.error(f"Exception during character LIST with body {request_body}: {traceback.format_exc()}")
+                return {"success": False, "data": []}, 500
+        else:
             return self.internal_server_error_response
 
+    @api_view
     @permission_required(APIPermission.ANYONE)
     def API_GET(self, request_body: dict) -> typing.Tuple[dict, int]:
         """Get character by id, everyone can do it"""
 
         schema = CharacterSchema(only=("id",))
 
-        try:
-            validated_data = schema.load(request_body)
+        validated_data = schema.load(request_body)
 
-            query = f"""
-                DECLARE $ID AS Int64;
+        query = f"""
+            DECLARE $ID AS Int64;
 
-                SELECT * FROM {self.table_name}
-                WHERE
-                    id = $ID
-                ;
-            """
+            SELECT * FROM {self.table_name}
+            WHERE
+                id = $ID
+            ;
+        """
 
-            query_params = {
-                '$ID': validated_data.get("id"),
-            }
+        query_params = {
+            '$ID': validated_data.get("id"),
+        }
 
-            result, code = self.yc.process_query(query, query_params)
+        result, code = self.yc.process_query(query, query_params)
 
-            if code == 0:
-                if len(result) > 0:
-                    if len(result[0].rows) > 0:
-                        dump_schema = CharacterSchema()
-                        return {"success": True, "data": dump_schema.dump(result[0].rows[0])}, 200
-                    else:
-                        return {"success": True, "data": {}}, 404
+        if code == 0:
+            if len(result) > 0:
+                if len(result[0].rows) > 0:
+                    dump_schema = CharacterSchema()
+                    return {"success": True, "data": dump_schema.dump(result[0].rows[0])}, 200
                 else:
-                    return {"success": False, "data": None}, 500
+                    return {"success": True, "data": {}}, 404
             else:
-                return self.internal_server_error_response
-
-        except ValidationError as e:
-            return {"error": e.messages}, 400
-        except Exception as e:
-            self.logger.error(f"Exception during character GET with body {request_body}: {traceback.format_exc()}")
+                return {"success": False, "data": None}, 500
+        else:
             return self.internal_server_error_response
 
+    @api_view
     @permission_required(APIPermission.OWNING_PLAYER_ONLY)
     def API_CREATE(self, request_body: dict) -> typing.Tuple[dict, int]:
         """Create character, ID is generated with UUID. Only owning player can do it"""
 
         schema = CharacterSchema(only=("player", "faction", "name"))
+        validated_data = schema.load(request_body)
 
-        try:
-            validated_data = schema.load(request_body)
-
-            r, s = self.API_LIST({"player": validated_data.get("player")})
-            if s == 200:
-                # Checking if character with the same faction doesn't exist for the player
-                already_existing_factions = [c["faction"] for c in r["data"]]
-                if validated_data.get("faction") in already_existing_factions:
-                    return {"success": False,
-                            "error_code": 1,
-                            "error": "Character of this faction already exists for this player"}, \
-                        400
-
-                name_code, name_result = self._validate_character_name_is_unique(validated_data)
-                if name_code == 0:
-                    if len(name_result) > 0:
-                        if len(name_result[0].rows) > 0:
-                            return {"success": False,
-                                    "error_code": 2,
-                                    "error": "Character with this name already exists"}, \
-                                400
-                        else:
-                            # No characters with such name, can create
-                            pass
-                    else:
-                        return {"success": False, "data": None}, 500
-                else:
-                    return self.internal_server_error_response
-            else:
-                return {"success": False}, s
-
-            # Generating character id
-            created_time = int(datetime.datetime.now(tz=datetime.timezone.utc).timestamp())
-
-            # Creating row in YDB table
-            query = f"""
-                DECLARE $PLAYER AS Int64;
-                DECLARE $CHARACTER_NAME AS String;
-                DECLARE $FACTION AS Utf8;
-                DECLARE $CREATED_TIME AS Datetime;
-
-                UPSERT INTO {self.table_name} (player, name, faction, free_xp, silver, gold, guild, guild_role, created_time) VALUES
-                    ($PLAYER, $CHARACTER_NAME, $FACTION, 0, 0, 0, NULL, 0, $CREATED_TIME);
-            """
-
-            query_params = {
-                '$PLAYER': validated_data.get("player"),
-                '$CHARACTER_NAME': validated_data.get("name").encode("utf-8"),
-                '$FACTION': validated_data.get("faction"),
-                '$CREATED_TIME': created_time
-            }
-
-            result, code = self.yc.process_query(query, query_params)
-            if code == 0:
-                return {"success": True}, 201
-            else:
-                return self.internal_server_error_response
-
-        except ValidationError as e:
-            return {"error": e.messages}, 400
-        except Exception as e:
-            self.logger.error(f"Exception during character CREATE with body {request_body}: {traceback.format_exc()}")
-            return self.internal_server_error_response
-
-    @permission_required(APIPermission.OWNING_PLAYER_ONLY)
-    def API_MODIFY(self, request_body: dict) -> typing.Tuple[dict, int]:
-        """Allow to modify only character of yours (its name), query is filtered by player"""
-
-        # Excluding faction from schema
-        schema = CharacterSchema(only=("player", "id", "name"))
-
-        try:
-            validated_data = schema.load(request_body)
+        r, s = self.API_LIST({"player": validated_data.get("player")})
+        if s == 200:
+            # Checking if character with the same faction doesn't exist for the player
+            already_existing_factions = [c["faction"] for c in r["data"]]
+            if validated_data.get("faction") in already_existing_factions:
+                return {"success": False,
+                        "error_code": 1,
+                        "error": "Character of this faction already exists for this player"}, \
+                    400
 
             name_code, name_result = self._validate_character_name_is_unique(validated_data)
             if name_code == 0:
@@ -214,44 +140,92 @@ class CharacterProcessor(ResourceProcessor):
                                 "error": "Character with this name already exists"}, \
                             400
                     else:
-                        # No characters with such name, can modify name
+                        # No characters with such name, can create
                         pass
                 else:
                     return {"success": False, "data": None}, 500
             else:
                 return self.internal_server_error_response
+        else:
+            return {"success": False}, s
 
-            query = f"""
-                DECLARE $ID AS Int64;
-                DECLARE $PLAYER AS Int64;
-                DECLARE $CHARACTER_NAME AS String;
+        # Creation time of a character is now
+        created_time = int(datetime.datetime.now(tz=datetime.timezone.utc).timestamp())
 
-                UPDATE {self.table_name}
-                SET 
-                    name = $CHARACTER_NAME
-                WHERE
-                    id = $ID 
-                    AND player = $PLAYER
-                ;
-            """
+        # Creating row in YDB table
+        query = f"""
+            DECLARE $PLAYER AS Int64;
+            DECLARE $CHARACTER_NAME AS String;
+            DECLARE $FACTION AS Utf8;
+            DECLARE $CREATED_TIME AS Datetime;
 
-            query_params = {
-                '$ID': validated_data.get("id"),
-                '$PLAYER': validated_data.get("player"),
-                '$CHARACTER_NAME': validated_data.get("name").encode("utf-8")
-            }
+            UPSERT INTO {self.table_name} (player, name, faction, free_xp, silver, gold, guild, guild_role, created_time) VALUES
+                ($PLAYER, $CHARACTER_NAME, $FACTION, 0, 0, 0, NULL, 0, $CREATED_TIME);
+        """
 
-            result, code = self.yc.process_query(query, query_params)
+        query_params = {
+            '$PLAYER': validated_data.get("player"),
+            '$CHARACTER_NAME': validated_data.get("name").encode("utf-8"),
+            '$FACTION': validated_data.get("faction"),
+            '$CREATED_TIME': created_time
+        }
 
-            if code == 0:
-                return {"success": True}, 204
+        result, code = self.yc.process_query(query, query_params)
+        if code == 0:
+            return {"success": True}, 201
+        else:
+            return self.internal_server_error_response
+
+    @api_view
+    @permission_required(APIPermission.OWNING_PLAYER_ONLY)
+    def API_MODIFY(self, request_body: dict) -> typing.Tuple[dict, int]:
+        """Allow to modify only character of yours (its name), query is filtered by player"""
+
+        # Excluding faction from schema
+        schema = CharacterSchema(only=("player", "id", "name"))
+
+        validated_data = schema.load(request_body)
+
+        name_code, name_result = self._validate_character_name_is_unique(validated_data)
+        if name_code == 0:
+            if len(name_result) > 0:
+                if len(name_result[0].rows) > 0:
+                    return {"success": False,
+                            "error_code": 2,
+                            "error": "Character with this name already exists"}, \
+                        400
+                else:
+                    # No characters with such name, can modify name
+                    pass
             else:
-                return self.internal_server_error_response
+                return {"success": False, "data": None}, 500
+        else:
+            return self.internal_server_error_response
 
-        except ValidationError as e:
-            return {"error": e.messages}, 400
-        except Exception as e:
-            self.logger.error(f"Exception during character MODIFY with body {request_body}: {traceback.format_exc()}")
+        query = f"""
+            DECLARE $ID AS Int64;
+            DECLARE $PLAYER AS Int64;
+            DECLARE $CHARACTER_NAME AS String;
+
+            UPDATE {self.table_name}
+            SET 
+                name = $CHARACTER_NAME
+            WHERE
+                id = $ID 
+                AND player = $PLAYER
+            ;
+        """
+
+        query_params = {
+            '$ID': validated_data.get("id"),
+            '$PLAYER': validated_data.get("player"),
+            '$CHARACTER_NAME': validated_data.get("name").encode("utf-8")
+        }
+
+        result, code = self.yc.process_query(query, query_params)
+        if code == 0:
+            return {"success": True}, 204
+        else:
             return self.internal_server_error_response
 
     def _validate_character_name_is_unique(self, validated_data):
@@ -295,7 +269,7 @@ class CharacterProcessor(ResourceProcessor):
     def modify_currency(self, char: int, free_xp_delta: int, silver_delta: int, gold_delta: int, source: str,
                         source_additional_data: str) -> typing.Tuple[
         dict, int]:
-        """Used for chaing currency"""
+        """Used for changing currency (match rewards use internal batch granting function)"""
 
         r, s = self.API_GET({"id": char})
         if s != 200:
@@ -303,45 +277,41 @@ class CharacterProcessor(ResourceProcessor):
         else:
             char_data = r["data"]
 
-        try:
-            query = f"""
-                DECLARE $ID AS Int64;
-                DECLARE $FREE_XP AS Int64;
-                DECLARE $SILVER AS Int64;
-                DECLARE $GOLD AS Int64;
-                
-                UPDATE {self.table_name}
-                SET 
-                    free_xp = $FREE_XP,
-                    silver = $SILVER,
-                    gold = $GOLD
-                WHERE
-                    id = $ID
-                ;
-            """
+        query = f"""
+            DECLARE $ID AS Int64;
+            DECLARE $FREE_XP AS Int64;
+            DECLARE $SILVER AS Int64;
+            DECLARE $GOLD AS Int64;
+            
+            UPDATE {self.table_name}
+            SET 
+                free_xp = $FREE_XP,
+                silver = $SILVER,
+                gold = $GOLD
+            WHERE
+                id = $ID
+            ;
+        """
 
-            old_free_xp = char_data.get("free_xp")
-            old_silver = char_data.get("silver")
-            old_gold = char_data.get("gold")
+        old_free_xp = char_data.get("free_xp")
+        old_silver = char_data.get("silver")
+        old_gold = char_data.get("gold")
 
-            query_params = {
-                '$ID': char,
-                '$FREE_XP': max(old_free_xp + free_xp_delta, 0),
-                '$SILVER': max(old_silver + silver_delta, 0),
-                '$GOLD': max(old_gold + gold_delta, 0)
-            }
+        query_params = {
+            '$ID': char,
+            '$FREE_XP': max(old_free_xp + free_xp_delta, 0),
+            '$SILVER': max(old_silver + silver_delta, 0),
+            '$GOLD': max(old_gold + gold_delta, 0)
+        }
 
-            result, code = self.yc.process_query(query, query_params)
+        result, code = self.yc.process_query(query, query_params)
 
-            if code == 0:
-                self.__log_currency_change(char_data["player"], char, old_free_xp, free_xp_delta, old_silver,
-                                           silver_delta, old_gold,
-                                           gold_delta, source, source_additional_data)
-                return {"success": True}, 204
-            else:
-                return self.internal_server_error_response
-        except Exception as e:
-            self.logger.error(f"Exception during player MODIFY: {traceback.format_exc()}")
+        if code == 0:
+            self.__log_currency_change(char_data["player"], char, old_free_xp, free_xp_delta, old_silver,
+                                       silver_delta, old_gold,
+                                       gold_delta, source, source_additional_data)
+            return {"success": True}, 204
+        else:
             return self.internal_server_error_response
 
     def __log_currency_change(self, player, char, old_free_xp, free_xp_delta, old_silver, silver_delta, old_gold,

@@ -54,7 +54,7 @@ class YDBConnector:
             r = self.pool.retry_operation_sync(self.__execute_query, None, query, query_params)
             return r, 0
         except TimeoutError:
-            self.logger.error(f"YDB query raised timeout")
+            self.logger.critical(f"YDB query raised timeout")
             return None, 1
         except Exception as e:
             self.logger.critical(
@@ -70,7 +70,7 @@ class YDBConnector:
             r = self.pool.retry_operation_sync(self.__execute_queries_with_explicit_commit, None, queries_and_params)
             return r, 0
         except TimeoutError:
-            self.logger.error(f"YDB query raised timeout")
+            self.logger.critical(f"YDB query raised timeout")
             return None, 1
         except Exception as e:
             self.logger.critical(
