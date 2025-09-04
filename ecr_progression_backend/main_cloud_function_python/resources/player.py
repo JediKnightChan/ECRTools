@@ -83,45 +83,6 @@ class PlayerProcessor(ResourceProcessor):
             self.logger.error(f"Exception during character GET with body {request_body}: {traceback.format_exc()}")
             return self.internal_server_error_response
 
-    def batch_grant_xp(self, players_to_xp_deltas: dict, source: str, source_additional_data: str) -> typing.Tuple[
-        dict, int]:
-        """Used for internal batch granting XP"""
-
-        try:
-            for chunk in batch_iterator(players_to_xp_deltas.items(), 100):
-                batch = [
-                    {"id": player_id, "delta": max(xp_delta, 0)}
-                    for player_id, xp_delta in chunk
-                ]
-
-                query = f"""
-                    DECLARE $batch AS List<Struct<id: Int64, delta: Int64>>;
-
-                    UPSERT INTO {self.table_name} (id, xp)
-                    SELECT
-                        b.id,
-                        COALESCE(t.xp, 0) + b.delta AS xp
-                    FROM AS_TABLE($batch) AS b
-                    INNER JOIN {self.table_name} AS t
-                    ON b.id = t.id;
-                """
-
-                query_params = {"$batch": batch}
-                result, code = self.yc.process_query(query, query_params)
-
-                if code != 0:
-                    return self.internal_server_error_response
-
-                # Log each XP grant
-                for row in batch:
-                    self.__log_currency_change(row["id"], None, row["delta"], source, source_additional_data)
-
-            return {"success": True}, 204
-
-        except Exception:
-            self.logger.error(f"Exception during player BATCH GRANT XP: {traceback.format_exc()}")
-            return self.internal_server_error_response
-
 
     def grant_xp(self, player: int, xp_delta: int, source: str, source_additional_data: str) -> typing.Tuple[
         dict, int]:
@@ -205,5 +166,4 @@ if __name__ == '__main__':
     # r, s = player_proc.API_GET({"id": player})
     # r, s = player_proc.grant_xp(player, 100, "api_test", "")
     # r, s = player_proc._get_by_egs_id(egs_id, egs_nickname)
-    r, s = player_proc.batch_grant_xp({player: 888}, "api_test", "")
     print(s, r)

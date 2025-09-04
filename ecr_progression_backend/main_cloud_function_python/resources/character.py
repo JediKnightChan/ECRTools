@@ -344,54 +344,6 @@ class CharacterProcessor(ResourceProcessor):
             self.logger.error(f"Exception during player MODIFY: {traceback.format_exc()}")
             return self.internal_server_error_response
 
-    def batch_modify_currency(self, chars_to_data: dict, source: str, source_additional_data: str) -> typing.Tuple[
-        dict, int]:
-        """Used for internal batch granting XP"""
-
-        try:
-            for chunk in batch_iterator(chars_to_data.items(), 100):
-                batch = [
-                    {
-                        "id": char_id,
-                        "player": char_data["player"],
-                        "free_xp_delta": max(char_data["free_xp"], 0),
-                        "silver_delta": max(char_data["silver"], 0),
-                        "gold_delta": max(char_data["gold"], 0),
-                    }
-                    for char_id, char_data in chunk
-                ]
-
-                query = f"""
-                    DECLARE $batch AS List<Struct<id: Int64, free_xp_delta: Int64, silver_delta: Int64, gold_delta: Int64>>;
-
-                    UPSERT INTO {self.table_name} (id, free_xp, silver, gold)
-                    SELECT
-                        b.id,
-                        COALESCE(t.free_xp, 0) + b.free_xp_delta AS free_xp,
-                        COALESCE(t.silver, 0) + b.silver_delta AS silver,
-                        COALESCE(t.gold, 0) + b.gold_delta AS gold
-                    FROM AS_TABLE($batch) AS b
-                    INNER JOIN {self.table_name} AS t
-                    ON b.id = t.id;
-                """
-
-                query_params = {"$batch": batch}
-                result, code = self.yc.process_query(query, query_params)
-
-                if code != 0:
-                    return self.internal_server_error_response
-
-                # # Log each XP grant
-                # for row in batch:
-                #     self.__log_currency_change(row["player"], row["id"], None, row["free_xp_delta"], None,
-                #                                row["silver_delta"], None, row["gold_delta"], source,
-                #                                source_additional_data)
-            return {"success": True}, 204
-
-        except Exception:
-            self.logger.error(f"Exception during player BATCH GRANT XP: {traceback.format_exc()}")
-            return self.internal_server_error_response
-
     def __log_currency_change(self, player, char, old_free_xp, free_xp_delta, old_silver, silver_delta, old_gold,
                               gold_delta, source, source_additional_data):
         ts = datetime.datetime.now(tz=datetime.timezone.utc)

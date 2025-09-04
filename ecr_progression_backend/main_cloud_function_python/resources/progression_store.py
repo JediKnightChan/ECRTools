@@ -609,42 +609,6 @@ class ProgressionStoreProcessor(ResourceProcessor):
             self.logger.warning(f"Progression filepath {filepath} doesn't exist")
             return False, {}
 
-    def batch_grant_quest_progress(self, ach_data: list):
-        try:
-            for chunk in batch_iterator(ach_data, 100):
-                batch = [
-                    {
-                        "char": ach_data_piece["char"],
-                        "name": ach_data_piece["name"],
-                        "progress_delta": max(ach_data_piece["progress_delta"], 0),
-                    }
-                    for ach_data_piece in chunk
-                ]
-
-                query = f"""
-                    DECLARE $batch AS List<Struct<char: Int64, name: Utf8, progress_delta: Int64>>;
-
-                    UPSERT INTO {self.ach_table_name} (char, name, progress)
-                    SELECT
-                        b.char,
-                        b.name,
-                        COALESCE(t.progress, 0) + b.progress_delta AS progress
-                    FROM AS_TABLE($batch) AS b
-                    LEFT JOIN {self.ach_table_name} AS t
-                        ON b.char = t.char AND b.name = t.name;
-                """
-
-                query_params = {"$batch": batch}
-                result, code = self.yc.process_query(query, query_params)
-
-                if code != 0:
-                    return self.internal_server_error_response
-
-            return {"success": True}, 204
-
-        except Exception:
-            self.logger.error(f"Exception during player BATCH GRANT XP: {traceback.format_exc()}")
-            return self.internal_server_error_response
 
     def _clear_all_progression(self, player, char, clear_quest_status=True):
         self.update_unlocked_items(player, char, [], [], [])
@@ -689,8 +653,6 @@ if __name__ == '__main__':
     # r, s = store.API_BUY({"player": player, "char": char, "item": item_id, "item_type": item_type})
     # r, s = store.API_CLAIM_QUEST_REWARD({"player": player, "char": char, "quest_name": "ba_veteran_t1"})
     # r, s = store.API_OPEN_LOOTBOX({"player": player, "char": char, "lootbox_name": "chapterbundle_ultramarines"})
-    r, s = store.batch_grant_quest_progress([{"char": char, "name": "ba_veteran_t1", "progress_delta": 500},
-                                             {"char": -1, "name": "ba_veteran_t1", "progress_delta": 500}])
     print(r, s)
 
     # store._clear_all_progression(player, char)

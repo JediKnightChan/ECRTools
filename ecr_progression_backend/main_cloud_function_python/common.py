@@ -1,3 +1,4 @@
+import os
 import typing
 import logging
 import itertools
@@ -109,10 +110,12 @@ class ResourceProcessor:
     def internal_server_error_response(self) -> typing.Tuple[dict, int]:
         return {"error": "Internal server error"}, 500
 
-    def is_user_server_or_backend(self):
+    def is_user_server_or_backend(self, allow_emulation=False):
         """Checks if user who initiated request is server or backend, opposite to player host"""
 
-        return str(self.user) in [AdminUser.SERVER, AdminUser.BACKEND]
+        is_server_or_backend = str(self.user) in [AdminUser.SERVER, AdminUser.BACKEND]
+        is_server_emulated_for_test = os.getenv("USER_ALWAYS_SERVER_OR_BACKEND") == "1" and allow_emulation
+        return is_server_or_backend or is_server_emulated_for_test
 
     def get_table_name_for_contour(self, raw_table_name):
         """Returns a table name in the database for the current contour (prod with no suffix, dev with '_dev' suffix)"""
