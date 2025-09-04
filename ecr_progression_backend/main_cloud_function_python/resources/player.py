@@ -156,7 +156,7 @@ if __name__ == '__main__':
     yc = YDBConnector(logger)
     s3 = S3Connector()
 
-    player_proc = PlayerProcessor(logger, "dev", egs_id, yc, s3)
+    player_proc = PlayerProcessor(logger, "dev", player, yc, s3)
 
     r, s = player_proc.API_GET({"id": player})
     # r, s = player_proc.grant_xp(player, 100, "api_test", "")

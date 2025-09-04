@@ -7,6 +7,8 @@ from pythonjsonlogger import jsonlogger
 from common import AdminUser
 from resources.auth import AuthenticationProcessor
 from resources.character import CharacterProcessor
+from resources.daily_activity import DailyActivityProcessor
+from resources.match_results import MatchResultsProcessor
 from resources.player import PlayerProcessor
 from resources.progression_store import ProgressionStoreProcessor
 from resources.combined_main_menu import CombinedMainMenuProcessor
@@ -102,18 +104,21 @@ def handler(event, context):
 
         logger.debug(f"Executing {resource}.{action}() by user {user} with params {action_data}")
 
-        processor_init_args = (logger, contour, user, yc, s3)
-        if resource == "character":
-            processor = CharacterProcessor(*processor_init_args)
-        elif resource == "player":
-            processor = PlayerProcessor(*processor_init_args)
-        elif resource == "progression":
-            processor = ProgressionStoreProcessor(*processor_init_args)
-        elif resource == "main_menu":
-            processor = CombinedMainMenuProcessor(*processor_init_args)
-        else:
+        # Mapping of resources requested by client to class that processes them
+        resource_to_class = {
+            "character": CharacterProcessor,
+            "player": PlayerProcessor,
+            "progression": ProgressionStoreProcessor,
+            "main_menu": CombinedMainMenuProcessor,
+            "match_results": MatchResultsProcessor,
+            "daily_activity": DailyActivityProcessor
+        }
+
+        processor_class = resource_to_class.get(resource, None)
+        if processor_class is None:
             return json_response({"error": "Unknown resource"}, status_code=400)
 
+        processor = processor_class(logger, contour, user, yc, s3)
         result_data, result_code = processor.API_PROCESS_REQUEST(action, action_data)
         return json_response(result_data, status_code=result_code)
 

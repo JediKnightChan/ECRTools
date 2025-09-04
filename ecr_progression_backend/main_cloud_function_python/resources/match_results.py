@@ -8,9 +8,6 @@ import json
 from marshmallow import fields, validate, ValidationError
 
 from common import ResourceProcessor, AdminUser, batch_iterator
-from resources.character import CharacterProcessor
-from resources.player import PlayerProcessor
-from resources.progression_store import ProgressionStoreProcessor
 from tools.common_schemas import ExcludeSchema, ECR_FACTIONS
 from tools.challenge import verify_challenge
 from tools.tg_connection import send_telegram_message
@@ -70,10 +67,6 @@ class MatchResultsProcessor(ResourceProcessor):
 
     def __init__(self, logger, contour, user, yc, s3):
         super(MatchResultsProcessor, self).__init__(logger, contour, user, yc, s3)
-
-        self.player_processor = PlayerProcessor(self.logger, self.contour, self.user, self.yc, self.s3)
-        self.character_processor = CharacterProcessor(self.logger, self.contour, self.user, self.yc, self.s3)
-        self.progression_processor = ProgressionStoreProcessor(self.logger, self.contour, self.user, self.yc, self.s3)
 
         self.table_name = self.get_table_name_for_contour("ecr_matches")
         self.players_table_name = self.get_table_name_for_contour("ecr_players")
@@ -139,180 +132,175 @@ class MatchResultsProcessor(ResourceProcessor):
         challenge must be passed to verify results are not fake"""
 
         match_results_schema = MatchResultsSchema()
-        try:
-            match_results_validated = match_results_schema.load(request_body)
 
-            # Received properties
-            received_challenge = match_results_validated.get("challenge")
-            match_id = match_results_validated.get("match_id").hex
+        match_results_validated = match_results_schema.load(request_body)
 
-            # Finding match, which was created on start
-            query = f"""
-                DECLARE $MATCH_ID AS Utf8;
+        # Received properties
+        received_challenge = match_results_validated.get("challenge")
+        match_id = match_results_validated.get("match_id").hex
 
-                SELECT * FROM {self.table_name}
-                WHERE
-                    match_id = $MATCH_ID
-                ;
-            """
+        # Finding match, which was created on start
+        query = f"""
+            DECLARE $MATCH_ID AS Utf8;
 
-            query_params = {
-                '$MATCH_ID': match_id,
+            SELECT * FROM {self.table_name}
+            WHERE
+                match_id = $MATCH_ID
+            ;
+        """
+
+        query_params = {
+            '$MATCH_ID': match_id,
+        }
+
+        result, code = self.yc.process_query(query, query_params)
+
+        # Check that match already exists in DB
+        if code == 0:
+            if len(result) > 0:
+                if len(result[0].rows) > 0:
+                    match_schema = MatchCreateSchema()
+                    match_creation_data = match_schema.dump(result[0].rows[0])
+                else:
+                    return {"success": False, "data": {}}, 404
+            else:
+                return {"success": False, "data": None}, 500
+        else:
+            return self.internal_server_error_response
+
+        # Check challenge
+        if not self.is_user_server_or_backend():
+            if not verify_challenge(received_challenge, match_creation_data, match_results_validated):
+                send_telegram_message(f"Challenge fail: user {self.user} failed challenge for match {match_id}")
+                return {"success": False, "error": "Not authorized"}, 403
+
+        # Check that user is same as created match
+        if str(match_creation_data["host"]) != str(self.user):
+            send_telegram_message(f"Attempt to grant match results by non host: user {self.user} tried for match "
+                                  f"{match_id} with host {match_creation_data['host']}")
+            return {"success": False, "error": "Not found"}, 403
+
+        # Check that match reward wasn't granted before
+        if match_creation_data["finished_ts"] is not None:
+            send_telegram_message(f"Attempt for second call to match results: user {self.user} "
+                                  f"tried for match {match_id}")
+            return {"success": False, "error": "Not found"}, 404
+
+        # Check that at least N seconds passed since match creation
+        now_ts = int(datetime.datetime.now(tz=datetime.timezone.utc).timestamp())
+
+        if now_ts - match_creation_data["created_ts"] < MATCH_REWARD_TIME_DELTA_THRESHOLD:
+            send_telegram_message(
+                f"Attempt to grant match reward for match below time threshold ({MATCH_REWARD_TIME_DELTA_THRESHOLD}): user {self.user} "
+                f"tried for match {match_id}")
+            return {"success": False, "error": "Bad request"}, 400
+
+        max_silver = 0
+        max_xp = 0
+
+        currency_source = "match"
+        currency_source_additional = f"match {match_id} by {match_creation_data['host']}"
+
+        # This list ensures no player will receive XP more than once in a match
+        players_granted_xp = []
+        # Match results are grouped by char / faction to remove possible duplicates
+        char_results = {char_result["char"]: char_result for char_result in match_results_validated["char_results"]}
+        faction_results = {faction_result["faction"]: faction_result for faction_result in
+                           match_results_validated["faction_results"]}
+
+        # Batch requests to DB data with player rewards
+        char_currency_modify_batch_request = {}
+        player_xp_modify_batch_request = {}
+        achievements_batch_request = []
+        char_winners_batch_request = {}
+
+        for char_result in char_results.values():
+            char_result_xp = max(0, char_result["xp"])
+            char_result_silver = max(0, char_result["silver"])
+
+            # Checking soft limits to send warnings
+            if char_result_xp > MATCH_REWARD_XP_SOFT_LIMIT:
+                send_telegram_message(
+                    f"SOFT XP limit exceeded by player {char_result['player']} (char {char_result['char']}) "
+                    f"with {char_result_xp} in match {match_id} by host {self.user}")
+            if char_result_silver > MATCH_REWARD_SILVER_SOFT_LIMIT:
+                send_telegram_message(
+                    f"SOFT SILVER limit exceeded by player {char_result['player']} (char {char_result['char']}) "
+                    f"with {char_result_silver} in match {match_id} by host {self.user}")
+
+            # Checking hard limits to decline reward
+            if char_result_xp > MATCH_REWARD_XP_HARD_LIMIT:
+                self.logger.error(f"Player {char_result['player']} (char {char_result['char']}) exceeded "
+                                  f"hard XP limit with {char_result_xp} in match {match_id} by {self.user}")
+                continue
+            if char_result_silver > MATCH_REWARD_SILVER_HARD_LIMIT:
+                self.logger.error(f"Player {char_result['player']} (char {char_result['char']}) exceeded "
+                                  f"hard SILVER limit with {char_result_silver} in match {match_id} by {self.user}")
+                continue
+
+            # Granting XP to player
+            if char_result["player"] not in players_granted_xp:
+                # Will grant XP to player in batch request in the future
+                player_xp_modify_batch_request[char_result["player"]] = char_result_xp
+                players_granted_xp.append(char_result["player"])
+
+            # Will grant XP and Silver to char in batch request in the future
+            char_currency_modify_batch_request[char_result["char"]] = {
+                "player": char_result["player"],
+                "free_xp": char_result_xp,
+                "silver": char_result_silver,
+                "gold": 0
             }
 
-            result, code = self.yc.process_query(query, query_params)
+            # Will grant achievement progress to char in batch request in the future
+            for ach_name, ach_progress in char_result["achievements"].items():
+                if ach_name in self.all_quest_names:
+                    achievements_batch_request.append({
+                        "char": char_result["char"],
+                        "name": ach_name,
+                        "progress_delta": ach_progress,
+                    })
 
-            # Check that match already exists in DB
-            if code == 0:
-                if len(result) > 0:
-                    if len(result[0].rows) > 0:
-                        match_schema = MatchCreateSchema()
-                        match_creation_data = match_schema.dump(result[0].rows[0])
-                    else:
-                        return {"success": False, "data": {}}, 404
-                else:
-                    return {"success": False, "data": None}, 500
-            else:
-                return self.internal_server_error_response
+            # Will increase win count if campaign is ongoing (will work only from dedicated servers)
+            if char_result["is_winner"]:
+                char_winners_batch_request[char_result["char"]] = {}
 
-            # Check challenge
-            if not self.is_user_server_or_backend():
-                if not verify_challenge(received_challenge, match_creation_data, match_results_validated):
-                    send_telegram_message(f"Challenge fail: user {self.user} failed challenge for match {match_id}")
-                    return {"success": False, "error": "Not authorized"}, 403
+            # Remember max given currency for statistics
+            if char_result["xp"] > max_xp:
+                max_xp = char_result["xp"]
+            if char_result["silver"] > max_silver:
+                max_silver = char_result["silver"]
 
-            # Check that user is same as created match
-            if str(match_creation_data["host"]) != str(self.user):
-                send_telegram_message(f"Attempt to grant match results by non host: user {self.user} tried for match "
-                                      f"{match_id} with host {match_creation_data['host']}")
-                return {"success": False, "error": "Not found"}, 403
+        # Atomic transaction database changes (grant rewards, then mark match as finished, to avoid multiple rewards granting)
+        tx_queries_and_params = []
 
-            # Check that match reward wasn't granted before
-            if match_creation_data["finished_ts"] is not None:
-                send_telegram_message(f"Attempt for second call to match results: user {self.user} "
-                                      f"tried for match {match_id}")
-                return {"success": False, "error": "Not found"}, 404
+        # Rewards (player xp, chars currencies, quest progress)
+        tx_queries_and_params += self.__get_queries_for_batch_grant_xp(player_xp_modify_batch_request)
+        tx_queries_and_params += self.__get_queries_for_batch_modify_currency(char_currency_modify_batch_request)
+        tx_queries_and_params += self.__get_queries_for_batch_grant_quest_progress(achievements_batch_request)
 
-            # Check that at least N seconds passed since match creation
-            now_ts = int(datetime.datetime.now(tz=datetime.timezone.utc).timestamp())
+        # If campaign is ongoing, then for factions that won increase win count (will work only from dedicated servers)
+        print(faction_results)
+        for faction, faction_result in faction_results.items():
+            if faction_result["is_winner"]:
+                tx_queries_and_params += self.__get_queries_to_notify_match_won_by_faction(faction)
+        tx_queries_and_params += self.__get_queries_to_notify_chars_match_won(char_winners_batch_request)
 
-            if now_ts - match_creation_data["created_ts"] < MATCH_REWARD_TIME_DELTA_THRESHOLD:
-                send_telegram_message(
-                    f"Attempt to grant match reward for match below time threshold ({MATCH_REWARD_TIME_DELTA_THRESHOLD}): user {self.user} "
-                    f"tried for match {match_id}")
-                return {"success": False, "error": "Bad request"}, 400
-
-            max_silver = 0
-            max_xp = 0
-
-            currency_source = "match"
-            currency_source_additional = f"match {match_id} by {match_creation_data['host']}"
-
-            # This list ensures no player will receive XP more than once in a match
-            players_granted_xp = []
-            # Match results are grouped by char / faction to remove possible duplicates
-            char_results = {char_result["char"]: char_result for char_result in match_results_validated["char_results"]}
-            faction_results = {faction_result["faction"]: faction_result for faction_result in
-                               match_results_validated["faction_results"]}
-
-            # Batch requests to DB data with player rewards
-            char_currency_modify_batch_request = {}
-            player_xp_modify_batch_request = {}
-            achievements_batch_request = []
-            char_winners_batch_request = {}
-
-            for char_result in char_results.values():
-                char_result_xp = max(0, char_result["xp"])
-                char_result_silver = max(0, char_result["silver"])
-
-                # Checking soft limits to send warnings
-                if char_result_xp > MATCH_REWARD_XP_SOFT_LIMIT:
-                    send_telegram_message(
-                        f"SOFT XP limit exceeded by player {char_result['player']} (char {char_result['char']}) "
-                        f"with {char_result_xp} in match {match_id} by host {self.user}")
-                if char_result_silver > MATCH_REWARD_SILVER_SOFT_LIMIT:
-                    send_telegram_message(
-                        f"SOFT SILVER limit exceeded by player {char_result['player']} (char {char_result['char']}) "
-                        f"with {char_result_silver} in match {match_id} by host {self.user}")
-
-                # Checking hard limits to decline reward
-                if char_result_xp > MATCH_REWARD_XP_HARD_LIMIT:
-                    self.logger.error(f"Player {char_result['player']} (char {char_result['char']}) exceeded "
-                                      f"hard XP limit with {char_result_xp} in match {match_id} by {self.user}")
-                    continue
-                if char_result_silver > MATCH_REWARD_SILVER_HARD_LIMIT:
-                    self.logger.error(f"Player {char_result['player']} (char {char_result['char']}) exceeded "
-                                      f"hard SILVER limit with {char_result_silver} in match {match_id} by {self.user}")
-                    continue
-
-                # Granting XP to player
-                if char_result["player"] not in players_granted_xp:
-                    # Will grant XP to player in batch request in the future
-                    player_xp_modify_batch_request[char_result["player"]] = char_result_xp
-                    players_granted_xp.append(char_result["player"])
-
-                # Will grant XP and Silver to char in batch request in the future
-                char_currency_modify_batch_request[char_result["char"]] = {
-                    "player": char_result["player"],
-                    "free_xp": char_result_xp,
-                    "silver": char_result_silver,
-                    "gold": 0
-                }
-
-                # Will grant achievement progress to char in batch request in the future
-                for ach_name, ach_progress in char_result["achievements"].items():
-                    if ach_name in self.all_quest_names:
-                        achievements_batch_request.append({
-                            "char": char_result["char"],
-                            "name": ach_name,
-                            "progress_delta": ach_progress,
-                        })
-
-                # Will increase win count if campaign is ongoing (will work only from dedicated servers)
-                if char_result["is_winner"]:
-                    char_winners_batch_request[char_result["char"]] = {}
-
-                # Remember max given currency for statistics
-                if char_result["xp"] > max_xp:
-                    max_xp = char_result["xp"]
-                if char_result["silver"] > max_silver:
-                    max_silver = char_result["silver"]
-
-            # Atomic transaction database changes (grant rewards, then mark match as finished, to avoid multiple rewards granting)
-            tx_queries_and_params = []
-
-            # Rewards (player xp, chars currencies, quest progress)
-            tx_queries_and_params += self.__get_queries_for_batch_grant_xp(player_xp_modify_batch_request)
-            tx_queries_and_params += self.__get_queries_for_batch_modify_currency(char_currency_modify_batch_request)
-            tx_queries_and_params += self.__get_queries_for_batch_grant_quest_progress(achievements_batch_request)
-
-            # If campaign is ongoing, then for factions that won increase win count (will work only from dedicated servers)
-            print(faction_results)
-            for faction, faction_result in faction_results.items():
-                if faction_result["is_winner"]:
-                    tx_queries_and_params += self.__get_queries_to_notify_match_won_by_faction(faction)
-            tx_queries_and_params += self.__get_queries_to_notify_chars_match_won(char_winners_batch_request)
-
-            # Mark match as finished
-            tx_queries_and_params += self.__get_queries_for_mark_match_finished(char_results, match_id, max_silver,
-                                                                                max_xp)
-            print(tx_queries_and_params)
-            # Apply atomic transaction
-            result, code = self.yc.process_queries_in_atomic_transaction(tx_queries_and_params)
-            if code != 0:
-                logger.error("Couldn't grant rewards because atomic transaction failed")
-                return self.internal_server_error_response
-
-            # If host is player, perform soft check to see how much max currency per match he granted within time interval
-            self.__perform_aggregated_currency_grant_soft_check(match_id, max_silver, max_xp, now_ts)
-
-            # Return success
-            return {"success": True}, 200
-        except ValidationError as e:
-            return {"error": e.messages}, 400
-        except Exception as e:
-            self.logger.error(f"Exception during character CREATE with body {request_body}: {traceback.format_exc()}")
+        # Mark match as finished
+        tx_queries_and_params += self.__get_queries_for_mark_match_finished(char_results, match_id, max_silver,
+                                                                            max_xp)
+        print(tx_queries_and_params)
+        # Apply atomic transaction
+        result, code = self.yc.process_queries_in_atomic_transaction(tx_queries_and_params)
+        if code != 0:
+            logger.error("Couldn't grant rewards because atomic transaction failed")
             return self.internal_server_error_response
+
+        # If host is player, perform soft check to see how much max currency per match he granted within time interval
+        self.__perform_aggregated_currency_grant_soft_check(match_id, max_silver, max_xp, now_ts)
+
+        # Return success
+        return {"success": True}, 200
 
     def __get_queries_for_mark_match_finished(self, char_results, match_id, max_silver, max_xp):
         """Constructs query for updating match data in DB, eg set match as completed"""
