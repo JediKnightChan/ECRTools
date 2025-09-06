@@ -134,12 +134,35 @@ class MatchResultsProcessor(ResourceProcessor):
         challenge must be passed to verify results are not fake"""
 
         match_results_schema = MatchResultsSchema()
+        match_results = match_results_schema.load(request_body)
+        match_id = match_results.get("match_id").hex
 
-        match_results_validated = match_results_schema.load(request_body)
+        # 1. Fetch match data and verify it can accept match results
+        match_creation_data = self._get_and_verify_match(match_id, match_results.get("challenge"), match_results)
+        if match_creation_data is None:
+            return {"success": False, "error": "Granting results not possible"}, 404
 
-        # Received properties
-        received_challenge = match_results_validated.get("challenge")
-        match_id = match_results_validated.get("match_id").hex
+        # 2. Process match results into batch DB operations
+        tx_queries_and_params, max_silver, max_xp = self._process_match_results(match_results)
+
+        # 3. Apply transaction
+        result, code = self.yc.process_queries_in_atomic_transaction(tx_queries_and_params)
+        if code != 0:
+            self.logger.error("Couldn't grant rewards because atomic transaction failed")
+            return self.internal_server_error_response
+
+        # 4. Soft check for suspicious grants
+        now_ts = int(datetime.datetime.now(tz=datetime.timezone.utc).timestamp())
+        self.__perform_aggregated_currency_grant_soft_check(
+            match_id, max_silver, max_xp, now_ts
+        )
+
+        # Return success
+        return {"success": True}, 200
+
+    def _get_and_verify_match(self, match_id: str, received_challenge: str, match_results: dict) -> typing.Optional[
+        dict]:
+        """Fetch match from DB and check challenge, host, timing rules."""
 
         # Finding match, which was created on start
         query = f"""
@@ -158,188 +181,200 @@ class MatchResultsProcessor(ResourceProcessor):
         result, code = self.yc.process_query(query, query_params)
 
         # Check that match already exists in DB
-        if code == 0:
-            if len(result) > 0:
-                if len(result[0].rows) > 0:
-                    match_schema = MatchCreateSchema()
-                    match_creation_data = match_schema.dump(result[0].rows[0])
-                else:
-                    return {"success": False, "data": {}}, 404
-            else:
-                return {"success": False, "data": None}, 500
+        if code == 0 and len(result) > 0 and len(result[0].rows) > 0:
+            match_schema = MatchCreateSchema()
+            match_creation_data = match_schema.dump(result[0].rows[0])
         else:
-            return self.internal_server_error_response
+            return None
 
         # Check challenge
         if not self.is_user_server_or_backend():
-            if not verify_challenge(received_challenge, match_creation_data, match_results_validated):
+            if not verify_challenge(received_challenge, match_creation_data, match_results):
                 send_telegram_message(f"Challenge fail: user {self.user} failed challenge for match {match_id}")
-                return {"success": False, "error": "Not authorized"}, 403
+                return None
 
         # Check that user is same as created match
         if str(match_creation_data["host"]) != str(self.user):
             send_telegram_message(f"Attempt to grant match results by non host: user {self.user} tried for match "
                                   f"{match_id} with host {match_creation_data['host']}")
-            return {"success": False, "error": "Not found"}, 403
+            return None
 
         # Check that match reward wasn't granted before
         if match_creation_data["finished_ts"] is not None:
             send_telegram_message(f"Attempt for second call to match results: user {self.user} "
                                   f"tried for match {match_id}")
-            return {"success": False, "error": "Not found"}, 404
+            return None
 
         # Check that at least N seconds passed since match creation
-        now_raw = datetime.datetime.now(tz=datetime.timezone.utc)
-        now_ts = int(now_raw.timestamp())
-
+        now_ts = int(datetime.datetime.now(tz=datetime.timezone.utc).timestamp())
         if now_ts - match_creation_data["created_ts"] < MATCH_REWARD_TIME_DELTA_THRESHOLD:
             send_telegram_message(
                 f"Attempt to grant match reward for match below time threshold ({MATCH_REWARD_TIME_DELTA_THRESHOLD}): user {self.user} "
                 f"tried for match {match_id}")
-            return {"success": False, "error": "Bad request"}, 400
+            return None
 
-        max_silver = 0
-        max_xp = 0
+        return match_creation_data
 
+    def _process_match_results(self, match_results: dict):
+        """Constructs batch queries for atomic transaction to save match results"""
+
+        now_raw = datetime.datetime.now(tz=datetime.timezone.utc)
         daily_key, weekly_key = self.dap.get_daily_and_weekly_key_for_timestamp(now_raw)
 
-        # This list ensures no player will receive XP more than once in a match
-        players_granted_xp = []
-        # Match results are grouped by char / faction to remove possible duplicates
-        char_results = {char_result["char"]: char_result for char_result in match_results_validated["char_results"]}
-        faction_results = {faction_result["faction"]: faction_result for faction_result in
-                           match_results_validated["faction_results"]}
-        # Retrieving old dailies progress
-        chars_old_dailies_progress = self.__get_chars_dailies_progress(char_results.keys(), daily_key, weekly_key)
-        if chars_old_dailies_progress is None:
-            raise Exception("Couldn't retrieve old dailies progress, aborting")
+        # Prepare batch requests
+        player_xp_req, char_currency_req, achievements_req = {}, {}, []
+        dailies_req, dailies_gold_req, char_winners_req = [], {}, {}
+        max_silver, max_xp = 0, 0
 
-        # Batch requests to DB data with player rewards
-        char_currency_modify_batch_request = {}
-        player_xp_modify_batch_request = {}
-        achievements_batch_request = []
-        dailies_batch_request = []
-        dailies_gold_batch_request = {}
-        char_winners_batch_request = {}
+        char_results = {c["char"]: c for c in match_results["char_results"]}
+        faction_results = {f["faction"]: f for f in match_results["faction_results"]}
+
+        chars_old_progress = self.__get_chars_dailies_progress(char_results.keys(), daily_key, weekly_key)
+        if chars_old_progress is None:
+            raise Exception("Couldn't fetch old daily progress for characters, aborting")
+
+        players_granted_xp = []
 
         for char_result in char_results.values():
-            char_result_xp = max(0, char_result["xp"])
-            char_result_silver = max(0, char_result["silver"])
+            self._process_char_result(
+                char_result, match_results["match_id"].hex,
+                players_granted_xp, chars_old_progress,
+                daily_key, weekly_key,
+                player_xp_req, char_currency_req,
+                achievements_req, dailies_req,
+                dailies_gold_req, char_winners_req
+            )
+            max_xp = max(max_xp, char_result["xp"])
+            max_silver = max(max_silver, char_result["silver"])
 
-            # Checking soft limits to send warnings
-            if char_result_xp > MATCH_REWARD_XP_SOFT_LIMIT:
-                send_telegram_message(
-                    f"SOFT XP limit exceeded by player {char_result['player']} (char {char_result['char']}) "
-                    f"with {char_result_xp} in match {match_id} by host {self.user}")
-            if char_result_silver > MATCH_REWARD_SILVER_SOFT_LIMIT:
-                send_telegram_message(
-                    f"SOFT SILVER limit exceeded by player {char_result['player']} (char {char_result['char']}) "
-                    f"with {char_result_silver} in match {match_id} by host {self.user}")
+        # Build final queries
+        tx_queries = []
+        tx_queries += self.__get_queries_for_batch_grant_xp(player_xp_req)
+        tx_queries += self.__get_queries_for_batch_modify_currency(char_currency_req)
+        tx_queries += self.__get_queries_for_batch_grant_achievements_progress(achievements_req)
+        tx_queries += self.__get_queries_for_batch_grant_daily_activity_progress(dailies_req)
+        tx_queries += self.__get_queries_for_batch_grant_daily_activity_rewards(dailies_gold_req)
 
-            # Checking hard limits to decline reward
-            if char_result_xp > MATCH_REWARD_XP_HARD_LIMIT:
-                self.logger.error(f"Player {char_result['player']} (char {char_result['char']}) exceeded "
-                                  f"hard XP limit with {char_result_xp} in match {match_id} by {self.user}")
+        # If campaign is ongoing, then queries to notify about win (for faction, char) are added
+        for faction, res in faction_results.items():
+            if res["is_winner"]:
+                tx_queries += self.__get_queries_to_notify_match_won_by_faction(faction)
+        tx_queries += self.__get_queries_to_notify_chars_match_won(char_winners_req)
+
+        tx_queries += self.__get_queries_for_mark_match_finished(char_results, match_results["match_id"].hex,
+                                                                 max_silver, max_xp)
+
+        return tx_queries, max_silver, max_xp
+
+    def _process_char_result(
+            self,
+            char_result: dict,
+            match_id: str,
+            players_granted_xp: list,
+            chars_old_progress: dict,
+            daily_key: str,
+            weekly_key: str,
+            player_xp_req: dict,
+            char_currency_req: dict,
+            achievements_req: list,
+            dailies_req: list,
+            dailies_gold_req: dict,
+            char_winners_req: dict,
+    ) -> None:
+        """Process a single character result and update batch request collections."""
+
+        char_id = char_result["char"]
+        player_id = char_result["player"]
+        char_xp = max(0, char_result["xp"])
+        char_silver = max(0, char_result["silver"])
+
+        # Limit checks
+        self._check_reward_limits(char_id, player_id, char_xp, char_silver, match_id)
+
+        # XP grant
+        if player_id not in players_granted_xp:
+            player_xp_req[player_id] = char_xp
+            players_granted_xp.append(player_id)
+
+        # Currency grant
+        char_currency_req[char_id] = {
+            "player": player_id,
+            "free_xp": char_xp,
+            "silver": char_silver,
+        }
+
+        # --- Achievements ---
+        for ach_name, ach_progress in char_result["achievements"].items():
+            if ach_name in self.all_achievements_names:
+                achievements_req.append({
+                    "char": char_id,
+                    "name": ach_name,
+                    "progress_delta": ach_progress,
+                })
+
+        # Dailies and weeklies
+        for daily_quest, progress_delta in char_result["dailies"].items():
+            if daily_quest not in self.dap.dailies_data or progress_delta <= 0:
                 continue
-            if char_result_silver > MATCH_REWARD_SILVER_HARD_LIMIT:
-                self.logger.error(f"Player {char_result['player']} (char {char_result['char']}) exceeded "
-                                  f"hard SILVER limit with {char_result_silver} in match {match_id} by {self.user}")
-                continue
 
-            # Granting XP to player
-            if char_result["player"] not in players_granted_xp:
-                # Will grant XP to player in batch request in the future
-                player_xp_modify_batch_request[char_result["player"]] = char_result_xp
-                players_granted_xp.append(char_result["player"])
+            quest_data = self.dap.dailies_data[daily_quest]
+            quest_type = quest_data["type"]
+            quest_target_progress = quest_data["max_value"]
+            quest_reward = quest_data["reward_gold"]
 
-            # Will grant XP and Silver to char in batch request in the future
-            char_currency_modify_batch_request[char_result["char"]] = {
-                "player": char_result["player"],
-                "free_xp": char_result_xp,
-                "silver": char_result_silver
-            }
+            # Date key differs for dailies and weeklies
+            date_key = weekly_key if quest_type == "weekly" else daily_key
 
-            # Will grant achievement progress to char in batch request in the future
-            for ach_name, ach_progress in char_result["achievements"].items():
-                if ach_name in self.all_achievements_names:
-                    achievements_batch_request.append({
-                        "char": char_result["char"],
-                        "name": ach_name,
-                        "progress_delta": ach_progress,
-                    })
+            # Daily wins capped at +1 per match
+            if daily_quest == "daily_wins":
+                progress_delta = min(progress_delta, 1)
 
-            # Will grant dailies progress to char in batch request in the future, and rewards in separate one
-            for daily_quest, progress_delta in char_result["dailies"].items():
-                if daily_quest in self.dap.dailies_data and progress_delta > 0:
-                    # Date key will differ for dailies and weeklies
-                    quest_data = self.dap.dailies_data[daily_quest]
-                    quest_type = quest_data["type"]
-                    quest_target_progress = quest_data["max_value"]
-                    date_key = weekly_key if quest_type == "weekly" else daily_key
+            dailies_req.append({
+                "char": char_id,
+                "date_key": date_key,
+                "type": quest_type,
+                "quest": daily_quest,
+                "progress_delta": progress_delta,
+            })
 
-                    # Daily wins max quest progress is 1 per match
-                    if daily_quest == "daily_wins":
-                        progress_delta = min(progress_delta, 1)
+            # Daily rewards
+            old_progress_key = (char_id, quest_type, daily_quest)
+            if old_progress_key in chars_old_progress:
+                old_progress = chars_old_progress[old_progress_key]["progress"]
+                if old_progress < quest_target_progress <= old_progress + progress_delta:
+                    dailies_gold_req[char_id] = dailies_gold_req.get(char_id, 0) + quest_reward
 
-                    dailies_batch_request.append({
-                        "char": char_result["char"],
-                        "date_key": date_key,
-                        "type": quest_type,
-                        "quest": daily_quest,
-                        "progress_delta": progress_delta
-                    })
+        # Campaign winner tracking for chars
+        if char_result.get("is_winner"):
+            char_winners_req[char_id] = {}
 
-                    # Saving rewards from dailies for future batch request
-                    old_progress_key = (char_result["char"], quest_type, daily_quest)
-                    # Only grant reward if daily with (char, date, type, quest) already exists, otherwise it's fake
-                    if old_progress_key in chars_old_dailies_progress:
-                        old_progress = chars_old_dailies_progress[old_progress_key]["progress"]
-                        # Grant reward if old progress is less than desired, but new is more or equal
-                        if old_progress < quest_target_progress <= old_progress + progress_delta:
-                            dailies_gold_batch_request[char_result["char"]] = dailies_gold_batch_request.get(
-                                char_result["char"], 0) + quest_data["reward_gold"]
+    def _check_reward_limits(self, char_id: int, player_id: int, xp: int, silver: int, match_id: str) -> None:
+        """Checks that for given player rewards are within soft / hard limits"""
 
-            # Will increase win count if campaign is ongoing (will work only from dedicated servers)
-            if char_result["is_winner"]:
-                char_winners_batch_request[char_result["char"]] = {}
+        if xp > MATCH_REWARD_XP_SOFT_LIMIT:
+            send_telegram_message(
+                f"SOFT XP limit exceeded by player {player_id} (char {char_id}) "
+                f"with {xp} in match {match_id} by host {self.user}"
+            )
+        if silver > MATCH_REWARD_SILVER_SOFT_LIMIT:
+            send_telegram_message(
+                f"SOFT SILVER limit exceeded by player {player_id} (char {char_id}) "
+                f"with {silver} in match {match_id} by host {self.user}"
+            )
 
-            # Remember max given currency for statistics
-            if char_result["xp"] > max_xp:
-                max_xp = char_result["xp"]
-            if char_result["silver"] > max_silver:
-                max_silver = char_result["silver"]
+        if xp > MATCH_REWARD_XP_HARD_LIMIT:
+            self.logger.error(
+                f"Player {player_id} (char {char_id}) exceeded hard XP limit "
+                f"with {xp} in match {match_id} by {self.user}"
+            )
+            raise ValueError("Hard XP limit exceeded")
 
-        # Atomic transaction database changes (grant rewards, then mark match as finished, to avoid multiple rewards granting)
-        tx_queries_and_params = []
-
-        # Rewards (player xp, chars currencies, quest progress)
-        tx_queries_and_params += self.__get_queries_for_batch_grant_xp(player_xp_modify_batch_request)
-        tx_queries_and_params += self.__get_queries_for_batch_modify_currency(char_currency_modify_batch_request)
-        tx_queries_and_params += self.__get_queries_for_batch_grant_quest_progress(achievements_batch_request)
-        tx_queries_and_params += self.__get_queries_for_batch_grant_daily_activity_progress(dailies_batch_request)
-        tx_queries_and_params += self.__get_queries_for_batch_grant_daily_activity_rewards(dailies_gold_batch_request)
-
-        # If campaign is ongoing, then for factions that won increase win count (will work only from dedicated servers)
-        for faction, faction_result in faction_results.items():
-            if faction_result["is_winner"]:
-                tx_queries_and_params += self.__get_queries_to_notify_match_won_by_faction(faction)
-        tx_queries_and_params += self.__get_queries_to_notify_chars_match_won(char_winners_batch_request)
-
-        # Mark match as finished
-        tx_queries_and_params += self.__get_queries_for_mark_match_finished(char_results, match_id, max_silver,
-                                                                            max_xp)
-        print(tx_queries_and_params)
-        # Apply atomic transaction
-        result, code = self.yc.process_queries_in_atomic_transaction(tx_queries_and_params)
-        if code != 0:
-            logger.error("Couldn't grant rewards because atomic transaction failed")
-            return self.internal_server_error_response
-
-        # If host is player, perform soft check to see how much max currency per match he granted within time interval
-        self.__perform_aggregated_currency_grant_soft_check(match_id, max_silver, max_xp, now_ts)
-
-        # Return success
-        return {"success": True}, 200
+        if silver > MATCH_REWARD_SILVER_HARD_LIMIT:
+            self.logger.error(
+                f"Player {player_id} (char {char_id}) exceeded hard SILVER limit "
+                f"with {silver} in match {match_id} by {self.user}"
+            )
+            raise ValueError("Hard Silver limit exceeded")
 
     def __get_chars_dailies_progress(self, chars: typing.Iterable, daily_key: str, weekly_key: str) -> typing.Union[
         dict, None]:
@@ -514,8 +549,8 @@ class MatchResultsProcessor(ResourceProcessor):
             queries_and_params.append((query, query_params))
         return queries_and_params
 
-    def __get_queries_for_batch_grant_quest_progress(self, ach_data: list):
-        """Constructs queries for batch granting quest progress"""
+    def __get_queries_for_batch_grant_achievements_progress(self, ach_data: list):
+        """Constructs queries for batch granting achievements progress"""
 
         queries_and_params = []
         for chunk in batch_iterator(ach_data, 200):
