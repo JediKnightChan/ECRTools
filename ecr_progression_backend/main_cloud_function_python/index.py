@@ -97,31 +97,26 @@ def handler(event, context):
     else:
         return json_response({"error": "Not authorized (Api-Key)"}, status_code=401)
 
-    try:
-        resource = body["resource"]
-        action = body["action"]
-        action_data = body["action_data"]
+    resource = body["resource"]
+    action = body["action"]
+    action_data = body["action_data"]
 
-        logger.debug(f"Executing {resource}.{action}() by user {user} with params {action_data}")
+    logger.debug(f"Executing {resource}.{action}() by user {user} with params {action_data}")
 
-        # Mapping of resources requested by client to class that processes them
-        resource_to_class = {
-            "character": CharacterProcessor,
-            "player": PlayerProcessor,
-            "progression": ProgressionStoreProcessor,
-            "main_menu": CombinedMainMenuProcessor,
-            "match_results": MatchResultsProcessor,
-            "daily_activity": DailyActivityProcessor
-        }
+    # Mapping of resources requested by client to class that processes them
+    resource_to_class = {
+        "character": CharacterProcessor,
+        "player": PlayerProcessor,
+        "progression": ProgressionStoreProcessor,
+        "main_menu": CombinedMainMenuProcessor,
+        "match_results": MatchResultsProcessor,
+        "daily_activity": DailyActivityProcessor
+    }
 
-        processor_class = resource_to_class.get(resource, None)
-        if processor_class is None:
-            return json_response({"error": "Unknown resource"}, status_code=400)
+    processor_class = resource_to_class.get(resource, None)
+    if processor_class is None:
+        return json_response({"error": "Unknown resource"}, status_code=400)
 
-        processor = processor_class(logger, contour, user, yc, s3)
-        result_data, result_code = processor.API_PROCESS_REQUEST(action, action_data)
-        return json_response(result_data, status_code=result_code)
-
-    except Exception as e:
-        logger.error(f"Error: {e}")
-        return json_response({"error": "Internal error"}, status_code=500)
+    processor = processor_class(logger, contour, user, yc, s3)
+    result_data, result_code = processor.API_PROCESS_REQUEST(action, action_data)
+    return json_response(result_data, status_code=result_code)

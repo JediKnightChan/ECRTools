@@ -35,7 +35,7 @@ class CombinedMainMenuProcessor(ResourceProcessor):
 
         player = self.user
         if not player or self.is_user_server_or_backend():
-            raise ValueError(f"Can't get self player data for user {player}")
+            return {"success": False, "message": "Player not specified or server"}, 404
         return self.API_GET({"id": player})
 
     def API_CUSTOM_ACTION(self, action: str, request_body: dict) -> typing.Tuple[dict, int]:
