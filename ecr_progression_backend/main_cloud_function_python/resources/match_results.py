@@ -303,7 +303,7 @@ class MatchResultsProcessor(ResourceProcessor):
             "silver": char_silver,
         }
 
-        # --- Achievements ---
+        # Achievements
         for ach_name, ach_progress in char_result["achievements"].items():
             if ach_name in self.all_achievements_names:
                 achievements_req.append({
@@ -742,7 +742,7 @@ if __name__ == '__main__':
                 {
                     "player": player,
                     "char": char,
-                    "silver": 1000,
+                    "silver": 100000,
                     "xp": 10000,
                     "achievements": {
                         "sm_altweapon_bolter": 10
