@@ -7,7 +7,8 @@ import json
 
 from marshmallow import fields, validate, ValidationError
 
-from common import ResourceProcessor, AdminUser, batch_iterator
+from common import ResourceProcessor, AdminUser, batch_iterator, permission_required, api_view, APIPermission
+from resources.daily_activity import DailyActivityProcessor, DailyActivitySchema
 from tools.common_schemas import ExcludeSchema, ECR_FACTIONS
 from tools.challenge import verify_challenge
 from tools.tg_connection import send_telegram_message
@@ -34,6 +35,7 @@ class CharMatchResultsSchema(ExcludeSchema):
     silver = fields.Int(required=True)
     xp = fields.Int(required=True)
     achievements = fields.Dict(keys=fields.Str(), values=fields.Int(), required=True)
+    dailies = fields.Dict(keys=fields.Str(), values=fields.Int(), required=True, validate=validate.Length(max=3))
     is_winner = fields.Bool(required=True)
 
 
@@ -68,65 +70,65 @@ class MatchResultsProcessor(ResourceProcessor):
     def __init__(self, logger, contour, user, yc, s3):
         super(MatchResultsProcessor, self).__init__(logger, contour, user, yc, s3)
 
+        self.dap = DailyActivityProcessor(logger, contour, user, yc, s3)
+
         self.table_name = self.get_table_name_for_contour("ecr_matches")
         self.players_table_name = self.get_table_name_for_contour("ecr_players")
         self.chars_table_name = self.get_table_name_for_contour("ecr_characters")
         self.ach_table_name = self.get_table_name_for_contour("ecr_achievements")
         self.campaign_table_name = self.get_table_name_for_contour("ecr_campaign_results")
         self.campaign_chars_table_name = self.get_table_name_for_contour("ecr_campaign_results_chars")
+        self.dailies_table_name = self.get_table_name_for_contour("ecr_dailies")
 
         # Remember all quest names
-        self.all_quest_names = []
+        self.all_achievements_names = []
         for faction in ECR_FACTIONS:
             filepath = f"../data/quests/quests_{faction.lower()}.json"
             final_filepath = os.path.join(os.path.dirname(__file__), filepath)
             with open(final_filepath) as f:
-                quest_data = json.load(f)
-                self.all_quest_names += list(quest_data.keys())
+                achievements_data = json.load(f)
+                self.all_achievements_names += list(achievements_data.keys())
 
+    @api_view
+    @permission_required(APIPermission.ANYONE)
     def API_CREATE(self, request_body: dict) -> typing.Tuple[dict, int]:
         """Registers match in the backend system. Usable by anyone, including players"""
 
         schema = MatchCreateSchema(only=("match_id", "mission"))
-        try:
-            validated_data = schema.load(request_body)
+        validated_data = schema.load(request_body)
 
-            # Generated properties
-            created_time = int(datetime.datetime.now(tz=datetime.timezone.utc).timestamp())
-            token = uuid.uuid4().hex
+        # Generated properties
+        created_time = int(datetime.datetime.now(tz=datetime.timezone.utc).timestamp())
+        token = uuid.uuid4().hex
 
-            # Creating row in YDB table
-            query = f"""
-                DECLARE $MATCH_ID AS Utf8;
-                DECLARE $TOKEN AS Utf8;
-                DECLARE $HOST AS Utf8;
-                DECLARE $MISSION AS Utf8;
-                DECLARE $CREATED_TIME AS Datetime;
+        # Creating row in YDB table
+        query = f"""
+            DECLARE $MATCH_ID AS Utf8;
+            DECLARE $TOKEN AS Utf8;
+            DECLARE $HOST AS Utf8;
+            DECLARE $MISSION AS Utf8;
+            DECLARE $CREATED_TIME AS Datetime;
 
-                UPSERT INTO {self.table_name} (match_id, token, host, mission, created_ts, finished_ts, max_granted_silver, max_granted_xp, players_rewarded) VALUES
-                    ($MATCH_ID, $TOKEN, $HOST, $MISSION, $CREATED_TIME, NULL, NULL, NULL, NULL);
-            """
+            UPSERT INTO {self.table_name} (match_id, token, host, mission, created_ts, finished_ts, max_granted_silver, max_granted_xp, players_rewarded) VALUES
+                ($MATCH_ID, $TOKEN, $HOST, $MISSION, $CREATED_TIME, NULL, NULL, NULL, NULL);
+        """
 
-            query_params = {
-                '$MATCH_ID': validated_data.get("match_id").hex,
-                '$TOKEN': token,
-                '$HOST': str(self.user),
-                '$MISSION': validated_data.get("mission"),
-                '$CREATED_TIME': created_time
-            }
+        query_params = {
+            '$MATCH_ID': validated_data.get("match_id").hex,
+            '$TOKEN': token,
+            '$HOST': str(self.user),
+            '$MISSION': validated_data.get("mission"),
+            '$CREATED_TIME': created_time
+        }
 
-            result, code = self.yc.process_query(query, query_params)
-            if code == 0:
-                return {"success": True, "data": {"token": token}}, 201
-            else:
-                return self.internal_server_error_response
-
-        except ValidationError as e:
-            return {"error": e.messages}, 400
-        except Exception as e:
-            self.logger.error(f"Exception during character CREATE with body {request_body}: {traceback.format_exc()}")
+        result, code = self.yc.process_query(query, query_params)
+        if code == 0:
+            return {"success": True, "data": {"token": token}}, 201
+        else:
             return self.internal_server_error_response
 
+    @api_view
+    @permission_required(APIPermission.ANYONE)
     def API_MODIFY(self, request_body: dict) -> typing.Tuple[dict, int]:
         """Applies match results (rewards) in the backend system. Usable by anyone, including players,
         challenge must be passed to verify results are not fake"""
@@ -187,7 +189,8 @@ class MatchResultsProcessor(ResourceProcessor):
             return {"success": False, "error": "Not found"}, 404
 
         # Check that at least N seconds passed since match creation
-        now_ts = int(datetime.datetime.now(tz=datetime.timezone.utc).timestamp())
+        now_raw = datetime.datetime.now(tz=datetime.timezone.utc)
+        now_ts = int(now_raw.timestamp())
 
         if now_ts - match_creation_data["created_ts"] < MATCH_REWARD_TIME_DELTA_THRESHOLD:
             send_telegram_message(
@@ -198,8 +201,7 @@ class MatchResultsProcessor(ResourceProcessor):
         max_silver = 0
         max_xp = 0
 
-        currency_source = "match"
-        currency_source_additional = f"match {match_id} by {match_creation_data['host']}"
+        daily_key, weekly_key = self.dap.get_daily_and_weekly_key_for_timestamp(now_raw)
 
         # This list ensures no player will receive XP more than once in a match
         players_granted_xp = []
@@ -207,11 +209,17 @@ class MatchResultsProcessor(ResourceProcessor):
         char_results = {char_result["char"]: char_result for char_result in match_results_validated["char_results"]}
         faction_results = {faction_result["faction"]: faction_result for faction_result in
                            match_results_validated["faction_results"]}
+        # Retrieving old dailies progress
+        chars_old_dailies_progress = self.__get_chars_dailies_progress(char_results.keys(), daily_key, weekly_key)
+        if chars_old_dailies_progress is None:
+            raise Exception("Couldn't retrieve old dailies progress, aborting")
 
         # Batch requests to DB data with player rewards
         char_currency_modify_batch_request = {}
         player_xp_modify_batch_request = {}
         achievements_batch_request = []
+        dailies_batch_request = []
+        dailies_gold_batch_request = {}
         char_winners_batch_request = {}
 
         for char_result in char_results.values():
@@ -248,18 +256,48 @@ class MatchResultsProcessor(ResourceProcessor):
             char_currency_modify_batch_request[char_result["char"]] = {
                 "player": char_result["player"],
                 "free_xp": char_result_xp,
-                "silver": char_result_silver,
-                "gold": 0
+                "silver": char_result_silver
             }
 
             # Will grant achievement progress to char in batch request in the future
             for ach_name, ach_progress in char_result["achievements"].items():
-                if ach_name in self.all_quest_names:
+                if ach_name in self.all_achievements_names:
                     achievements_batch_request.append({
                         "char": char_result["char"],
                         "name": ach_name,
                         "progress_delta": ach_progress,
                     })
+
+            # Will grant dailies progress to char in batch request in the future, and rewards in separate one
+            for daily_quest, progress_delta in char_result["dailies"].items():
+                if daily_quest in self.dap.dailies_data and progress_delta > 0:
+                    # Date key will differ for dailies and weeklies
+                    quest_data = self.dap.dailies_data[daily_quest]
+                    quest_type = quest_data["type"]
+                    quest_target_progress = quest_data["max_value"]
+                    date_key = weekly_key if quest_type == "weekly" else daily_key
+
+                    # Daily wins max quest progress is 1 per match
+                    if daily_quest == "daily_wins":
+                        progress_delta = min(progress_delta, 1)
+
+                    dailies_batch_request.append({
+                        "char": char_result["char"],
+                        "date_key": date_key,
+                        "type": quest_type,
+                        "quest": daily_quest,
+                        "progress_delta": progress_delta
+                    })
+
+                    # Saving rewards from dailies for future batch request
+                    old_progress_key = (char_result["char"], quest_type, daily_quest)
+                    # Only grant reward if daily with (char, date, type, quest) already exists, otherwise it's fake
+                    if old_progress_key in chars_old_dailies_progress:
+                        old_progress = chars_old_dailies_progress[old_progress_key]["progress"]
+                        # Grant reward if old progress is less than desired, but new is more or equal
+                        if old_progress < quest_target_progress <= old_progress + progress_delta:
+                            dailies_gold_batch_request[char_result["char"]] = dailies_gold_batch_request.get(
+                                char_result["char"], 0) + quest_data["reward_gold"]
 
             # Will increase win count if campaign is ongoing (will work only from dedicated servers)
             if char_result["is_winner"]:
@@ -278,9 +316,10 @@ class MatchResultsProcessor(ResourceProcessor):
         tx_queries_and_params += self.__get_queries_for_batch_grant_xp(player_xp_modify_batch_request)
         tx_queries_and_params += self.__get_queries_for_batch_modify_currency(char_currency_modify_batch_request)
         tx_queries_and_params += self.__get_queries_for_batch_grant_quest_progress(achievements_batch_request)
+        tx_queries_and_params += self.__get_queries_for_batch_grant_daily_activity_progress(dailies_batch_request)
+        tx_queries_and_params += self.__get_queries_for_batch_grant_daily_activity_rewards(dailies_gold_batch_request)
 
         # If campaign is ongoing, then for factions that won increase win count (will work only from dedicated servers)
-        print(faction_results)
         for faction, faction_result in faction_results.items():
             if faction_result["is_winner"]:
                 tx_queries_and_params += self.__get_queries_to_notify_match_won_by_faction(faction)
@@ -301,6 +340,44 @@ class MatchResultsProcessor(ResourceProcessor):
 
         # Return success
         return {"success": True}, 200
+
+    def __get_chars_dailies_progress(self, chars: typing.Iterable, daily_key: str, weekly_key: str) -> typing.Union[
+        dict, None]:
+        """Retrieves from DB daily activity progress for the specified chars"""
+
+        query = f"""
+            DECLARE $batch AS List<Struct<char:Int64, date:Utf8, type:Utf8>>;
+            
+            SELECT t.*
+            FROM AS_TABLE($batch) AS b
+            LEFT JOIN {self.dailies_table_name} AS t
+              ON  t.char = b.char
+              AND t.date = b.date
+              AND t.type = b.type;
+        """
+
+        batch = []
+        for char in chars:
+            batch += [
+                {"char": char, "date": daily_key, "type": "daily1"},
+                {"char": char, "date": daily_key, "type": "daily2"},
+                {"char": char, "date": weekly_key, "type": "weekly"},
+            ]
+        query_params = {"$batch": batch}
+
+        result, code = self.yc.process_query(query, query_params)
+        if code == 0:
+            if len(result) > 0:
+                if len(result[0].rows) > 0:
+                    dump_schema = DailyActivitySchema()
+                    dumped_rows = [dump_schema.dump(r) for r in result[0].rows]
+                    dailies_index = {}
+                    for row in dumped_rows:
+                        dailies_index[(row["char"], row["type"], row["quest"])] = row
+                    return dailies_index
+
+        logger.error("Couldn't retrieve data about daily activity")
+        return None
 
     def __get_queries_for_mark_match_finished(self, char_results, match_id, max_silver, max_xp):
         """Constructs query for updating match data in DB, eg set match as completed"""
@@ -405,7 +482,7 @@ class MatchResultsProcessor(ResourceProcessor):
         return queries_and_params
 
     def __get_queries_for_batch_modify_currency(self, chars_to_data: dict) -> list:
-        """Constructs queries for batch currency modifying for characters"""
+        """Constructs queries for batch currency (XP, silver) modifying for characters"""
 
         queries_and_params = []
 
@@ -415,21 +492,19 @@ class MatchResultsProcessor(ResourceProcessor):
                     "id": char_id,
                     "player": char_data["player"],
                     "free_xp_delta": max(char_data["free_xp"], 0),
-                    "silver_delta": max(char_data["silver"], 0),
-                    "gold_delta": max(char_data["gold"], 0),
+                    "silver_delta": max(char_data["silver"], 0)
                 }
                 for char_id, char_data in chunk
             ]
 
             query = f"""
-                DECLARE $batch AS List<Struct<id: Int64, free_xp_delta: Int64, silver_delta: Int64, gold_delta: Int64>>;
+                DECLARE $batch AS List<Struct<id: Int64, free_xp_delta: Int64, silver_delta: Int64>>;
 
-                UPSERT INTO {self.chars_table_name} (id, free_xp, silver, gold)
+                UPSERT INTO {self.chars_table_name} (id, free_xp, silver)
                 SELECT
                     b.id,
                     COALESCE(t.free_xp, 0) + b.free_xp_delta AS free_xp,
-                    COALESCE(t.silver, 0) + b.silver_delta AS silver,
-                    COALESCE(t.gold, 0) + b.gold_delta AS gold
+                    COALESCE(t.silver, 0) + b.silver_delta AS silver
                 FROM AS_TABLE($batch) AS b
                 INNER JOIN {self.chars_table_name} AS t
                 ON b.id = t.id;
@@ -464,6 +539,73 @@ class MatchResultsProcessor(ResourceProcessor):
                 FROM AS_TABLE($batch) AS b
                 LEFT JOIN {self.ach_table_name} AS t
                     ON b.char = t.char AND b.name = t.name;
+            """
+
+            query_params = {"$batch": batch}
+            queries_and_params.append((query, query_params))
+        return queries_and_params
+
+    def __get_queries_for_batch_grant_daily_activity_progress(self, daily_progress):
+        """Constructs queries for batch update daily activities"""
+
+        queries_and_params = []
+        for chunk in batch_iterator(daily_progress, 200):
+            batch = [
+                {
+                    "char": el["char"],
+                    "date": el["date_key"],
+                    "type": el["type"],
+                    "quest": el["quest"],
+                    "progress_delta": max(el["progress_delta"], 0),
+                }
+                for el in chunk
+            ]
+
+            query = f"""
+                DECLARE $batch AS List<Struct<char: Int64, date: Utf8, type: Utf8, quest: Utf8, progress_delta: Int64>>;
+
+                UPSERT INTO {self.dailies_table_name} (char, date, type, quest, progress)
+                SELECT
+                    b.char,
+                    b.date,
+                    b.type,
+                    b.quest,
+                    COALESCE(t.progress, 0) + b.progress_delta AS progress
+                FROM AS_TABLE($batch) AS b
+                INNER JOIN {self.dailies_table_name} AS t
+                    ON t.char = b.char
+                   AND t.date = b.date
+                   AND t.type = b.type
+                   AND t.quest = b.quest;
+            """
+
+            query_params = {"$batch": batch}
+            queries_and_params.append((query, query_params))
+        return queries_and_params
+
+    def __get_queries_for_batch_grant_daily_activity_rewards(self, chars_to_gold):
+        """Constructs queries for batch grant gold reward for daily activities"""
+
+        queries_and_params = []
+        for chunk in batch_iterator(chars_to_gold.items(), 200):
+            batch = [
+                {
+                    "id": char,
+                    "gold_delta": max(gold, 0)
+                }
+                for char, gold in chunk
+            ]
+
+            query = f"""
+                DECLARE $batch AS List<Struct<id: Int64, gold_delta: Int64>>;
+
+                UPSERT INTO {self.chars_table_name} (id, gold)
+                SELECT
+                    b.id,
+                    COALESCE(t.gold, 0) + b.gold_delta AS gold
+                FROM AS_TABLE($batch) AS b
+                INNER JOIN {self.chars_table_name} AS t
+                ON b.id = t.id;
             """
 
             query_params = {"$batch": batch}
@@ -569,6 +711,11 @@ if __name__ == '__main__':
                     "xp": 10000,
                     "achievements": {
                         "sm_altweapon_bolter": 10
+                    },
+                    "dailies": {
+                        "weekly_captures": 100,
+                        "daily_wins": 1,
+                        "non_existing_daily": 13,
                     },
                     "is_winner": True
                 }

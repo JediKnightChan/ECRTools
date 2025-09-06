@@ -11,11 +11,11 @@ from tools.common_schemas import ExcludeSchema
 from tools.ydb_connection import YDBConnector
 from marshmallow import fields, validate, ValidationError
 
-DAILY_TYPES_TO_REWARDS = {
-    "Daily1": 25,
-    "Daily2": 25,
-    "Weekly": 200
-}
+DAILY_TYPES = [
+    "daily1",
+    "daily2",
+    "weekly"
+]
 
 
 class DailyActivitySchema(ExcludeSchema):
@@ -23,7 +23,7 @@ class DailyActivitySchema(ExcludeSchema):
 
     char = fields.Int(required=True)
     date = fields.Str(required=True)
-    type = fields.Str(required=True, validate=validate.OneOf(DAILY_TYPES_TO_REWARDS.keys()))
+    type = fields.Str(required=True, validate=validate.OneOf(DAILY_TYPES))
     quest = fields.Str(required=True)
     progress = fields.Int(required=True)
     created_time = fields.Int()
@@ -43,6 +43,10 @@ class DailyActivityProcessor(ResourceProcessor):
 
         self.table_name = self.get_table_name_for_contour("ecr_dailies")
 
+        dailies_filepath = os.path.join(os.path.dirname(__file__), f"../data/dailies/dailies.json")
+        with open(dailies_filepath, "r") as f:
+            self.dailies_data = json.load(f)
+
     @api_view
     @permission_required(APIPermission.ANYONE)
     def API_GET(self, request_body: dict) -> typing.Tuple[dict, int]:
@@ -53,7 +57,7 @@ class DailyActivityProcessor(ResourceProcessor):
         validated_data = schema.load(request_body)
 
         now = datetime.datetime.now(datetime.timezone.utc)
-        daily_key, weekly_key = self.__get_daily_and_weekly_key_for_timestamp(now)
+        daily_key, weekly_key = self.get_daily_and_weekly_key_for_timestamp(now)
 
         query = f"""
             DECLARE $batch AS List<Struct<char: Int64, date: Utf8, type: Utf8, quest: Utf8, created_time: Datetime>>;
@@ -82,17 +86,20 @@ class DailyActivityProcessor(ResourceProcessor):
         """
 
         # Pick quests
-        daily1_quest = "DailyWins"  # constant
-        daily2_quest = random.choice(["DailyKills", "DailyExecutions", "DailyCaptures"])
-        weekly_quest = random.choice(["WeeklyKills", "WeeklyExecutions", "WeeklyCaptures"])
+        daily1_quest = self._get_random_daily_with_type("daily1")  # constant "daily_wins" right now
+        daily2_quest = self._get_random_daily_with_type("daily2")
+        weekly_quest = self._get_random_daily_with_type("weekly")
 
         char = validated_data.get("char")
         created_time = int(now.timestamp())
         query_params = {
             "$batch": [
-                {"char": char, "date": daily_key, "type": "daily1", "quest": daily1_quest, 'created_time': created_time},
-                {"char": char, "date": daily_key, "type": "daily2", "quest": daily2_quest, 'created_time': created_time},
-                {"char": char, "date": weekly_key, "type": "weekly", "quest": weekly_quest, 'created_time': created_time},
+                {"char": char, "date": daily_key, "type": "daily1", "quest": daily1_quest,
+                 'created_time': created_time},
+                {"char": char, "date": daily_key, "type": "daily2", "quest": daily2_quest,
+                 'created_time': created_time},
+                {"char": char, "date": weekly_key, "type": "weekly", "quest": weekly_quest,
+                 'created_time': created_time},
             ]
         }
 
@@ -102,7 +109,9 @@ class DailyActivityProcessor(ResourceProcessor):
                 if len(result[0].rows) > 0:
                     dump_schema = DailyActivitySchema()
                     dumped_rows = [dump_schema.dump(r) for r in result[0].rows]
-                    return {"success": True, "data": {el["type"]: el for el in dumped_rows}}, 200
+                    return {"success": True, "data": {
+                        el["type"]: {**el, "gold": self.dailies_data.get(el["quest"], {}).get("reward_gold")} for el in
+                        dumped_rows}}, 200
                 else:
                     return {"success": False, "data": {}}, 404
             else:
@@ -111,7 +120,7 @@ class DailyActivityProcessor(ResourceProcessor):
             return self.internal_server_error_response
 
     @staticmethod
-    def __get_daily_and_weekly_key_for_timestamp(timestamp):
+    def get_daily_and_weekly_key_for_timestamp(timestamp):
         """Gets for given timestamp daily and weekly date ids according to their reset times"""
 
         # Reset dailies at 12:00 UTC
@@ -124,6 +133,20 @@ class DailyActivityProcessor(ResourceProcessor):
         tuesday = weekly_moment - datetime.timedelta(days=days_since_tuesday)
         weekly_key = tuesday.strftime("%Y-%m-%d")
         return daily_key, weekly_key
+
+    def _get_random_daily_with_type(self, daily_type):
+        """From possible dailies selects 1 random with given type"""
+
+        options = []
+        for daily_name, daily_data in self.dailies_data.items():
+            if daily_data["is_enabled"] and daily_data["type"] == daily_type:
+                options.append(daily_name)
+
+        # Check for empty
+        if len(options) == 0:
+            raise Exception(f"No enabled dailies with type {daily_type}, couldn't select")
+
+        return random.choice(options)
 
 
 if __name__ == '__main__':
