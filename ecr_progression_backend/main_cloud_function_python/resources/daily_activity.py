@@ -102,9 +102,16 @@ class DailyActivityProcessor(ResourceProcessor):
                 if len(result[0].rows) > 0:
                     dump_schema = DailyActivitySchema()
                     dumped_rows = [dump_schema.dump(r) for r in result[0].rows]
-                    return {"success": True, "data": {
-                        el["type"]: {**el, "gold": self.dailies_data.get(el["quest"], {}).get("reward_gold")} for el in
-                        dumped_rows}}, 200
+                    return {
+                        "success": True,
+                        "data": {
+                            el["type"]: {
+                                **el,
+                                "gold": self.dailies_data.get(el["quest"], {}).get("reward_gold"),
+                                "reset_ts": self.get_next_reset_timestamp(el['type'] != 'weekly')}
+                            for el in dumped_rows
+                        }
+                    }, 200
                 else:
                     return {"success": False, "data": {}}, 404
             else:
@@ -126,6 +133,35 @@ class DailyActivityProcessor(ResourceProcessor):
         tuesday = weekly_moment - datetime.timedelta(days=days_since_tuesday)
         weekly_key = tuesday.strftime("%Y-%m-%d")
         return daily_key, weekly_key
+
+    @staticmethod
+    def get_next_reset_timestamp(
+            is_daily: bool,
+            daily_reset_hour: int = 12,
+            daily_reset_minute: int = 0,
+            weekly_reset_weekday: int = 1,  # 0 = Monday, 1 = Tuesday ... 6 = Sunday
+            tz=datetime.timezone.utc
+    ) -> int:
+        """
+        Returns the timestamp (epoch seconds) of the next reset for daily / weekly
+        """
+
+        now = datetime.datetime.now(tz)
+
+        # Start from today's daily reset
+        reset = datetime.datetime(
+            now.year, now.month, now.day,
+            daily_reset_hour, daily_reset_minute, tzinfo=tz
+        )
+        if now >= reset:
+            reset += datetime.timedelta(days=1)
+
+        # Adjust for weekly reset if needed
+        if not is_daily:
+            while reset.weekday() != weekly_reset_weekday:
+                reset += datetime.timedelta(days=1)
+
+        return int(reset.timestamp())
 
     def _get_random_daily_with_type(self, daily_type):
         """From possible dailies selects 1 random with given type"""
