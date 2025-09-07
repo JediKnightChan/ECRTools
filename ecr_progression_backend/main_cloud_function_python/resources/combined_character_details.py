@@ -1,7 +1,5 @@
 import typing
 
-from prompt_toolkit.shortcuts.progress_bar import Progress
-
 from common import ResourceProcessor, permission_required, APIPermission, api_view
 from resources.progression_store import ProgressionStoreProcessor
 from resources.daily_activity import DailyActivityProcessor
