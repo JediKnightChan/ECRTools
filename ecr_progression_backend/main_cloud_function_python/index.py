@@ -7,6 +7,7 @@ from pythonjsonlogger import jsonlogger
 from common import AdminUser
 from resources.auth import AuthenticationProcessor
 from resources.character import CharacterProcessor
+from resources.combined_character_details import CombinedCharacterDetailsProcessor
 from resources.daily_activity import DailyActivityProcessor
 from resources.match_results import MatchResultsProcessor
 from resources.player import PlayerProcessor
@@ -107,10 +108,11 @@ def handler(event, context):
     resource_to_class = {
         "character": CharacterProcessor,
         "player": PlayerProcessor,
+        "main_menu": CombinedMainMenuProcessor,  # combines character and player processors GET
         "progression": ProgressionStoreProcessor,
-        "main_menu": CombinedMainMenuProcessor,
+        "daily_activity": DailyActivityProcessor,
+        "character_details": CombinedCharacterDetailsProcessor, # combines progression and daily activity GET
         "match_results": MatchResultsProcessor,
-        "daily_activity": DailyActivityProcessor
     }
 
     processor_class = resource_to_class.get(resource, None)

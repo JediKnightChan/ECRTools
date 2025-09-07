@@ -7,7 +7,7 @@ import json
 import os
 
 from common import ResourceProcessor, permission_required, APIPermission, batch_iterator, api_view
-from tools.common_schemas import ExcludeSchema
+from tools.common_schemas import ExcludeSchema, CharPlayerSchema
 from tools.ydb_connection import YDBConnector
 from marshmallow import fields, validate, ValidationError
 
@@ -29,12 +29,6 @@ class DailyActivitySchema(ExcludeSchema):
     created_time = fields.Int()
 
 
-class DailyActivityGetSchema(ExcludeSchema):
-    """GET request to retrieve daily and weekly activity for a given char"""
-
-    char = fields.Int(required=True)
-
-
 class DailyActivityProcessor(ResourceProcessor):
     """Retrieve data about players"""
 
@@ -52,8 +46,7 @@ class DailyActivityProcessor(ResourceProcessor):
     def API_GET(self, request_body: dict) -> typing.Tuple[dict, int]:
         """Gets daily activity for today"""
 
-        # Excluding faction from schema
-        schema = DailyActivityGetSchema()
+        schema = CharPlayerSchema(only=("char",))
         validated_data = schema.load(request_body)
 
         now = datetime.datetime.now(datetime.timezone.utc)
