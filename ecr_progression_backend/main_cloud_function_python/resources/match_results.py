@@ -13,17 +13,18 @@ from tools.common_schemas import ExcludeSchema, ECR_FACTIONS
 from tools.challenge import verify_challenge
 from tools.tg_connection import send_telegram_message
 
-# Constants
+# Constants for checking rewards granting abuse (due to P2P nature of the game)
 MATCH_REWARD_TIME_DELTA_THRESHOLD = int(os.getenv("MATCH_REWARD_TIME_DELTA_THRESHOLD", 0))
-
-MATCH_REWARD_SILVER_HARD_LIMIT = int(os.getenv("MATCH_REWARD_SILVER_HARD_LIMIT", 1000))
 MATCH_REWARD_XP_HARD_LIMIT = int(os.getenv("MATCH_REWARD_XP_HARD_LIMIT", 10000))
-MATCH_REWARD_SILVER_SOFT_LIMIT = int(os.getenv("MATCH_REWARD_SILVER_SOFT_LIMIT", 999))
-MATCH_REWARD_XP_SOFT_LIMIT = int(os.getenv("MATCH_REWARD_XP_SOFT_LIMIT", 9999))
+MATCH_AGGREGATION_THRESHOLD_PERIOD = int(os.getenv("MATCH_REWARD_AGGREGATION_THRESHOLD", 86400))
+MATCH_AGGREGATION_MAX_VALUE_XP = int(os.getenv("MATCH_REWARD_AGGREGATION_THRESHOLD", 100000))
+MATCH_AGGREGATION_MAX_VALUE_MATCH_COUNT = int(os.getenv("MATCH_REWARD_AGGREGATION_THRESHOLD", 10))
 
-MATCH_REWARD_AGGREGATION_THRESHOLD_PERIOD = int(os.getenv("MATCH_REWARD_AGGREGATION_THRESHOLD", 86400))
-MATCH_REWARD_AGGREGATION_MAX_VALUE_XP = int(os.getenv("MATCH_REWARD_AGGREGATION_THRESHOLD", 50000))
-MATCH_REWARD_AGGREGATION_MAX_VALUE_SILVER = int(os.getenv("MATCH_REWARD_AGGREGATION_THRESHOLD", 5000))
+# Silver rewards for PvP and PvE modes for winning team / losing team
+MATCH_SILVER_REWARDS = {
+    "pvp": [200, 200],
+    "pve": [300, 0]
+}
 
 # Campaign status variables
 CURRENT_CAMPAIGN_NAME = os.getenv("CURRENT_CAMPAIGN_NAME", "TestCampaign")
@@ -32,7 +33,6 @@ CURRENT_CAMPAIGN_NAME = os.getenv("CURRENT_CAMPAIGN_NAME", "TestCampaign")
 class CharMatchResultsSchema(ExcludeSchema):
     player = fields.Int(required=True)
     char = fields.Int(required=True)
-    silver = fields.Int(required=True)
     xp = fields.Int(required=True)
     achievements = fields.Dict(keys=fields.Str(), values=fields.Int(), required=True)
     dailies = fields.Dict(keys=fields.Str(), values=fields.Int(), required=True, validate=validate.Length(max=3))
@@ -59,7 +59,6 @@ class MatchCreateSchema(ExcludeSchema):
     created_ts = fields.Int(required=True)
     finished_ts = fields.Int(required=True)
 
-    max_granted_silver = fields.Int(required=True)
     max_granted_xp = fields.Int(required=True)
     players_rewarded = fields.Int(required=True)
 
@@ -80,7 +79,7 @@ class MatchResultsProcessor(ResourceProcessor):
         self.campaign_chars_table_name = self.get_table_name_for_contour("ecr_campaign_results_chars")
         self.dailies_table_name = self.get_table_name_for_contour("ecr_dailies")
 
-        # Remember all quest names
+        # Remember all achievements names
         self.all_achievements_names = []
         for faction in ECR_FACTIONS:
             filepath = f"../data/quests/quests_{faction.lower()}.json"
@@ -89,6 +88,11 @@ class MatchResultsProcessor(ResourceProcessor):
                 achievements_data = json.load(f)
                 self.all_achievements_names += list(achievements_data.keys())
 
+        # Remember all missions data
+        missions_filepath = os.path.join(os.path.dirname(__file__), f"../data/missions/missions.json")
+        with open(missions_filepath, "r") as f:
+            self.missions_data = json.load(f)
+
     @api_view
     @permission_required(APIPermission.ANYONE)
     def API_CREATE(self, request_body: dict) -> typing.Tuple[dict, int]:
@@ -96,6 +100,11 @@ class MatchResultsProcessor(ResourceProcessor):
 
         schema = MatchCreateSchema(only=("match_id", "mission"))
         validated_data = schema.load(request_body)
+        mission = validated_data.get("mission")
+
+        # Check mission is correct
+        if mission not in self.missions_data:
+            return {"error": f"Mission {mission} is unknown"}, 400
 
         # Generated properties
         created_time = int(datetime.datetime.now(tz=datetime.timezone.utc).timestamp())
@@ -117,13 +126,22 @@ class MatchResultsProcessor(ResourceProcessor):
             '$MATCH_ID': validated_data.get("match_id").hex,
             '$TOKEN': token,
             '$HOST': str(self.user),
-            '$MISSION': validated_data.get("mission"),
+            '$MISSION': mission,
             '$CREATED_TIME': created_time
         }
 
         result, code = self.yc.process_query(query, query_params)
         if code == 0:
-            return {"success": True, "data": {"token": token}}, 201
+            silver_reward_win = self.get_silver_reward_for_mission(mission, True)
+            silver_reward_lose = self.get_silver_reward_for_mission(mission, False)
+            return {
+                "success": True,
+                "data": {
+                    "token": token,
+                    "silver_reward_win": silver_reward_win,
+                    "silver_reward_lose": silver_reward_lose
+                }
+            }, 201
         else:
             return self.internal_server_error_response
 
@@ -143,7 +161,7 @@ class MatchResultsProcessor(ResourceProcessor):
             return {"success": False, "error": "Granting results not possible"}, 404
 
         # 2. Process match results into batch DB operations
-        tx_queries_and_params, max_silver, max_xp = self._process_match_results(match_results)
+        tx_queries_and_params, max_xp = self._process_match_results(match_results, match_creation_data)
 
         # 3. Apply transaction
         result, code = self.yc.process_queries_in_atomic_transaction(tx_queries_and_params)
@@ -154,7 +172,7 @@ class MatchResultsProcessor(ResourceProcessor):
         # 4. Soft check for suspicious grants
         now_ts = int(datetime.datetime.now(tz=datetime.timezone.utc).timestamp())
         self.__perform_aggregated_currency_grant_soft_check(
-            match_id, max_silver, max_xp, now_ts
+            match_id, now_ts
         )
 
         # Return success
@@ -215,7 +233,7 @@ class MatchResultsProcessor(ResourceProcessor):
 
         return match_creation_data
 
-    def _process_match_results(self, match_results: dict):
+    def _process_match_results(self, match_results: dict, match_creation_data: dict):
         """Constructs batch queries for atomic transaction to save match results"""
 
         now_raw = datetime.datetime.now(tz=datetime.timezone.utc)
@@ -224,7 +242,7 @@ class MatchResultsProcessor(ResourceProcessor):
         # Prepare batch requests
         player_xp_req, char_currency_req, achievements_req = {}, {}, []
         dailies_req, dailies_gold_req, char_winners_req = [], {}, {}
-        max_silver, max_xp = 0, 0
+        max_xp = 0
 
         char_results = {c["char"]: c for c in match_results["char_results"]}
         faction_results = {f["faction"]: f for f in match_results["faction_results"]}
@@ -237,7 +255,7 @@ class MatchResultsProcessor(ResourceProcessor):
 
         for char_result in char_results.values():
             self._process_char_result(
-                char_result, match_results["match_id"].hex,
+                char_result, match_creation_data["mission"], match_results["match_id"].hex,
                 players_granted_xp, chars_old_progress,
                 daily_key, weekly_key,
                 player_xp_req, char_currency_req,
@@ -245,7 +263,6 @@ class MatchResultsProcessor(ResourceProcessor):
                 dailies_gold_req, char_winners_req
             )
             max_xp = max(max_xp, char_result["xp"])
-            max_silver = max(max_silver, char_result["silver"])
 
         # Build final queries
         tx_queries = []
@@ -255,20 +272,20 @@ class MatchResultsProcessor(ResourceProcessor):
         tx_queries += self.__get_queries_for_batch_grant_daily_activity_progress(dailies_req)
         tx_queries += self.__get_queries_for_batch_grant_daily_activity_rewards(dailies_gold_req)
 
-        # If campaign is ongoing, then queries to notify about win (for faction, char) are added
+        # If campaign is ongoing, and it's PvP, then queries to notify about win (for faction, char) are added
         for faction, res in faction_results.items():
             if res["is_winner"]:
-                tx_queries += self.__get_queries_to_notify_match_won_by_faction(faction)
-        tx_queries += self.__get_queries_to_notify_chars_match_won(char_winners_req)
+                tx_queries += self.__get_queries_to_notify_match_won_by_faction(faction, match_creation_data["mission"])
+        tx_queries += self.__get_queries_to_notify_chars_match_won(char_winners_req, match_creation_data["mission"])
 
-        tx_queries += self.__get_queries_for_mark_match_finished(char_results, match_results["match_id"].hex,
-                                                                 max_silver, max_xp)
+        tx_queries += self.__get_queries_for_mark_match_finished(char_results, match_results["match_id"].hex, max_xp)
 
-        return tx_queries, max_silver, max_xp
+        return tx_queries, max_xp
 
     def _process_char_result(
             self,
             char_result: dict,
+            mission: str,
             match_id: str,
             players_granted_xp: list,
             chars_old_progress: dict,
@@ -286,10 +303,10 @@ class MatchResultsProcessor(ResourceProcessor):
         char_id = char_result["char"]
         player_id = char_result["player"]
         char_xp = max(0, char_result["xp"])
-        char_silver = max(0, char_result["silver"])
+        char_silver = self.get_silver_reward_for_mission(mission, char_result["is_winner"])
 
         # Limit checks
-        self._check_reward_limits(char_id, player_id, char_xp, char_silver, match_id)
+        self._check_reward_limits(char_id, player_id, char_xp, match_id)
 
         # XP grant
         if player_id not in players_granted_xp:
@@ -348,33 +365,19 @@ class MatchResultsProcessor(ResourceProcessor):
         if char_result.get("is_winner"):
             char_winners_req[char_id] = {}
 
-    def _check_reward_limits(self, char_id: int, player_id: int, xp: int, silver: int, match_id: str) -> None:
+    def _check_reward_limits(self, char_id: int, player_id: int, xp: int, match_id: str) -> None:
         """Checks that for given player rewards are within soft / hard limits"""
 
-        if xp > MATCH_REWARD_XP_SOFT_LIMIT:
+        if xp > MATCH_REWARD_XP_HARD_LIMIT:
             send_telegram_message(
-                f"SOFT XP limit exceeded by player {player_id} (char {char_id}) "
+                f"HARD XP limit exceeded by player {player_id} (char {char_id}) "
                 f"with {xp} in match {match_id} by host {self.user}"
             )
-        if silver > MATCH_REWARD_SILVER_SOFT_LIMIT:
-            send_telegram_message(
-                f"SOFT SILVER limit exceeded by player {player_id} (char {char_id}) "
-                f"with {silver} in match {match_id} by host {self.user}"
-            )
-
-        if xp > MATCH_REWARD_XP_HARD_LIMIT:
             self.logger.error(
                 f"Player {player_id} (char {char_id}) exceeded hard XP limit "
                 f"with {xp} in match {match_id} by {self.user}"
             )
             raise ValueError("Hard XP limit exceeded")
-
-        if silver > MATCH_REWARD_SILVER_HARD_LIMIT:
-            self.logger.error(
-                f"Player {player_id} (char {char_id}) exceeded hard SILVER limit "
-                f"with {silver} in match {match_id} by {self.user}"
-            )
-            raise ValueError("Hard Silver limit exceeded")
 
     def __get_chars_dailies_progress(self, chars: typing.Iterable, daily_key: str, weekly_key: str) -> typing.Union[
         dict, None]:
@@ -414,7 +417,7 @@ class MatchResultsProcessor(ResourceProcessor):
         logger.error("Couldn't retrieve data about daily activity")
         return None
 
-    def __get_queries_for_mark_match_finished(self, char_results, match_id, max_silver, max_xp):
+    def __get_queries_for_mark_match_finished(self, char_results, match_id, max_xp):
         """Constructs query for updating match data in DB, eg set match as completed"""
 
         finished_time = int(datetime.datetime.now(tz=datetime.timezone.utc).timestamp())
@@ -428,7 +431,6 @@ class MatchResultsProcessor(ResourceProcessor):
             UPDATE {self.table_name}
             SET 
                 finished_ts = $FINISHED_TIME,
-                max_granted_silver = $MAX_GRANTED_SILVER, 
                 max_granted_xp = $MAX_GRANTED_XP, 
                 players_rewarded = $PLAYERS_REWARDED
             WHERE
@@ -439,13 +441,12 @@ class MatchResultsProcessor(ResourceProcessor):
         query_params = {
             '$MATCH_ID': match_id,
             '$FINISHED_TIME': finished_time,
-            '$MAX_GRANTED_SILVER': max_silver,
             '$MAX_GRANTED_XP': max_xp,
             '$PLAYERS_REWARDED': len(char_results),
         }
         return [(query, query_params)]
 
-    def __perform_aggregated_currency_grant_soft_check(self, match_id, max_silver, max_xp, now_ts):
+    def __perform_aggregated_currency_grant_soft_check(self, match_id, now_ts):
         """If player is as host, then check soft limits for granting xp and silver within some time (eg 1 day)"""
 
         if not self.is_user_server_or_backend():
@@ -454,8 +455,8 @@ class MatchResultsProcessor(ResourceProcessor):
                 DECLARE $CREATED_TIME AS Datetime;
 
                 SELECT
-                    COALESCE(SUM(max_granted_silver), 0) AS sum_max_granted_silver,
-                    COALESCE(SUM(max_granted_xp), 0) AS sum_max_granted_xp
+                    COALESCE(SUM(max_granted_xp), 0) AS sum_max_granted_xp,
+                    COUNT(*) AS matches_count
                 FROM {self.table_name}
                 WHERE 
                     host = $HOST AND 
@@ -465,7 +466,7 @@ class MatchResultsProcessor(ResourceProcessor):
 
             query_params = {
                 '$HOST': str(self.user),
-                '$CREATED_TIME': now_ts - MATCH_REWARD_AGGREGATION_THRESHOLD_PERIOD,
+                '$CREATED_TIME': now_ts - MATCH_AGGREGATION_THRESHOLD_PERIOD,
             }
 
             result, code = self.yc.process_query(query, query_params)
@@ -474,14 +475,14 @@ class MatchResultsProcessor(ResourceProcessor):
                 if len(result) > 0:
                     if len(result[0].rows) > 0:
                         aggregated_reward_data = result[0].rows[0]
-                        sum_max_granted_silver = aggregated_reward_data["sum_max_granted_silver"] + max_silver
-                        sum_max_granted_xp = aggregated_reward_data["sum_max_granted_xp"] + max_xp
-                        if sum_max_granted_silver > MATCH_REWARD_AGGREGATION_MAX_VALUE_SILVER:
-                            send_telegram_message(f"AGGREGATED SILVER exceeded by host {self.user} "
-                                                  f"with {sum_max_granted_silver} in match {match_id}")
-                        if sum_max_granted_xp > MATCH_REWARD_AGGREGATION_MAX_VALUE_XP:
+                        sum_max_granted_xp = aggregated_reward_data["sum_max_granted_xp"]
+                        total_created_matches = aggregated_reward_data["matches_count"]
+                        if sum_max_granted_xp > MATCH_AGGREGATION_MAX_VALUE_XP:
                             send_telegram_message(f"AGGREGATED XP exceeded by host {self.user} "
-                                                  f"with {sum_max_granted_silver} in match {match_id}")
+                                                  f"with {sum_max_granted_xp} in match {match_id}")
+                        if total_created_matches > MATCH_AGGREGATION_MAX_VALUE_MATCH_COUNT:
+                            send_telegram_message(f"AGGREGATED MATCH COUNT exceeded by host {self.user} "
+                                                  f"with {total_created_matches} in match {match_id}")
                     else:
                         logger.error("Couldn't perform aggregated reward check, no rows")
                 else:
@@ -647,11 +648,11 @@ class MatchResultsProcessor(ResourceProcessor):
             queries_and_params.append((query, query_params))
         return queries_and_params
 
-    def __get_queries_to_notify_match_won_by_faction(self, faction):
+    def __get_queries_to_notify_match_won_by_faction(self, faction, mission):
         """Constructs queries to increase faction win count during campaign (for faction that won the match), only for dedicated servers"""
 
         queries_and_params = []
-        if CURRENT_CAMPAIGN_NAME:
+        if CURRENT_CAMPAIGN_NAME and self.is_mission_pvp(mission):
             if self.is_user_server_or_backend(allow_emulation=True):
                 query = f"""
                     DECLARE $batch AS List<Struct<campaign: Utf8, faction: Utf8, won_delta: Int64>>;
@@ -677,11 +678,11 @@ class MatchResultsProcessor(ResourceProcessor):
                 queries_and_params.append((query, query_params))
         return queries_and_params
 
-    def __get_queries_to_notify_chars_match_won(self, char_wins):
+    def __get_queries_to_notify_chars_match_won(self, char_wins, mission):
         """Constructs queries to increase character win counts in current campaign, only for dedicated servers"""
 
         queries_and_params = []
-        if CURRENT_CAMPAIGN_NAME:
+        if CURRENT_CAMPAIGN_NAME and self.is_mission_pvp(mission):
             if self.is_user_server_or_backend(allow_emulation=True):
                 for chunk in batch_iterator(char_wins.items(), 100):
                     batch = [
@@ -711,6 +712,19 @@ class MatchResultsProcessor(ResourceProcessor):
                     queries_and_params.append((query, query_params))
         return queries_and_params
 
+    def get_silver_reward_for_mission(self, mission, is_winner):
+        """Returns silver reward for given mission considering if it's victory or not"""
+
+        mission_mode = self.missions_data[mission]["mode"]
+        reward_list = MATCH_SILVER_REWARDS[mission_mode]
+        reward_list_index = 0 if is_winner else 1
+        return reward_list[reward_list_index]
+
+    def is_mission_pvp(self, mission):
+        """Returns True if mission is PvP"""
+
+        return self.missions_data[mission]["mode"] == "pvp"
+
 
 if __name__ == '__main__':
     import logging
@@ -728,7 +742,7 @@ if __name__ == '__main__':
 
     match_id = uuid.uuid4().hex
     r, s = match_proc.API_CREATE(
-        {"match_id": match_id, "mission": "test"})
+        {"match_id": match_id, "mission": "ThirdPersonMapTestingRoom"})
     print(s, r)
 
     time.sleep(2)
@@ -742,13 +756,12 @@ if __name__ == '__main__':
                 {
                     "player": player,
                     "char": char,
-                    "silver": 100000,
                     "xp": 10000,
                     "achievements": {
                         "sm_altweapon_bolter": 10
                     },
                     "dailies": {
-                        "weekly_captures": 100,
+                        "weekly_captures": 1,
                         "daily_wins": 1,
                         "non_existing_daily": 13,
                     },

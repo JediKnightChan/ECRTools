@@ -51,7 +51,10 @@ def deploy_new_cloud_function_version(headers, version_content=None, version_to_
         "BACKEND_API_KEY",
         "EOS_CLIENT_ID",
         "YDB_DB_PATH",
-        "PLAYER_API_KEY"
+        "PLAYER_API_KEY",
+        "TG_BOT_TOKEN",
+        "TG_CHAT_ID",
+        "USER_ALWAYS_SERVER_OR_BACKEND"
     ]
 
     env_dict = {}
