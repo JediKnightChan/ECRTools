@@ -4,6 +4,11 @@ import unreal
 import pandas as pd
 from io import BytesIO
 
+common_tables = {
+    "dailies": "/Game/Blueprints/ECR/Data/Backend/Dailies/DailyTasks",
+    "missions": "/Game/Blueprints/ECR/Data/Missions/GameMissionData"
+}
+
 faction_data = {
     "lsm": {
         "gameplay_items": "/Game/Blueprints/ECR/Data/Factions/GameplayItems/LSMGameplayItems",
@@ -65,3 +70,18 @@ for faction, faction_data_piece in faction_data.items():
 
     cosmetic_df = pd.concat(all_dfs)
     cosmetic_df.to_csv(cosmetic_export_fp, index=False)
+
+for table, table_path in common_tables.items():
+    table_asset = unreal.EditorAssetLibrary.load_asset(table_path)
+
+    if table == "dailies":
+        export_path = os.path.join(root_dir, f"../data_raw/dailies/dailies.csv").replace(
+            "\\", "/")
+    elif table == "missions":
+        export_path = os.path.join(root_dir, f"../data_raw/missions/missions.csv").replace(
+            "\\", "/")
+    else:
+        raise NotImplementedError
+
+    unreal.ECRPythonHelpersLibrary.export_data_table_as_csv(table_asset, export_path)
+

@@ -163,3 +163,40 @@ for faction, v in faction_files.items():
         lootbox_data[row["---"].lower()] = record
     with open(f"../data/lootboxes/lootboxes_{faction.lower()}.json", "w") as f:
         json.dump(lootbox_data, f, indent=4, ensure_ascii=False)
+
+# Saving dailies
+df = pd.read_csv(f"../data_raw/dailies/dailies.csv", encoding="utf-8")
+df = df.fillna("")
+dailies_data = {}
+
+for i, row in df.iterrows():
+    GOLD_REWARDS = {
+        "daily1": 25,
+        "daily2": 25,
+        "weekly": 100
+    }
+    record = {
+        "is_enabled": row["Is Enabled"],
+        "type": row["Type"],
+        "reward_gold": GOLD_REWARDS[row["Type"]],
+        "max_value": row["Max Value"],
+        "chance_weight": row["Chance Weight"]
+    }
+    dailies_data[row["---"].lower()] = record
+
+with open(f"../data/dailies/dailies.json", "w") as f:
+    json.dump(dailies_data, f, indent=4, ensure_ascii=False)
+
+# Saving missions
+df = pd.read_csv(f"../data_raw/missions/missions.csv", encoding="utf-8")
+df = df.fillna("")
+missions_data = {}
+
+for i, row in df.iterrows():
+    record = {
+        "mode": "pvp" if row["Is PVP"] else "pve"
+    }
+    missions_data[row["---"].lower()] = record
+
+with open(f"../data/missions/missions.json", "w") as f:
+    json.dump(missions_data, f, indent=4, ensure_ascii=False)

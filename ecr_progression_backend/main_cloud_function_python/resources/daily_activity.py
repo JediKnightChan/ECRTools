@@ -167,15 +167,17 @@ class DailyActivityProcessor(ResourceProcessor):
         """From possible dailies selects 1 random with given type"""
 
         options = []
+        weights = []
         for daily_name, daily_data in self.dailies_data.items():
             if daily_data["is_enabled"] and daily_data["type"] == daily_type:
                 options.append(daily_name)
+                weights.append(daily_data["chance_weight"])
 
         # Check for empty
         if len(options) == 0:
             raise Exception(f"No enabled dailies with type {daily_type}, couldn't select")
 
-        return random.choice(options)
+        return random.choices(options, weights=weights)[0]
 
 
 if __name__ == '__main__':
