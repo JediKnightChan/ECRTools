@@ -100,7 +100,7 @@ class MatchResultsProcessor(ResourceProcessor):
 
         schema = MatchCreateSchema(only=("match_id", "mission"))
         validated_data = schema.load(request_body)
-        mission = validated_data.get("mission")
+        mission = validated_data.get("mission").lower()
 
         # Check mission is correct
         if mission not in self.missions_data:
