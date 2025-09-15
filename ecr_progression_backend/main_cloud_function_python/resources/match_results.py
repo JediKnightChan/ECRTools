@@ -273,9 +273,10 @@ class MatchResultsProcessor(ResourceProcessor):
         tx_queries += self.__get_queries_for_batch_grant_daily_activity_rewards(dailies_gold_req)
 
         # If campaign is ongoing, and it's PvP, then queries to notify about win (for faction, char) are added
-        for faction, res in faction_results.items():
-            if res["is_winner"]:
-                tx_queries += self.__get_queries_to_notify_match_won_by_faction(faction, match_creation_data["mission"])
+        if len(faction_results) == 2:
+            # Change campaign results only for 1vs1 faction matches, though for char activity anything is counted
+            for faction, res in faction_results.items():
+                tx_queries += self.__get_queries_to_notify_match_played_by_faction(faction, match_creation_data["mission"], res["is_winner"])
         tx_queries += self.__get_queries_to_notify_chars_match_won(char_winners_req, match_creation_data["mission"])
 
         tx_queries += self.__get_queries_for_mark_match_finished(char_results, match_results["match_id"].hex, max_xp)
@@ -648,20 +649,21 @@ class MatchResultsProcessor(ResourceProcessor):
             queries_and_params.append((query, query_params))
         return queries_and_params
 
-    def __get_queries_to_notify_match_won_by_faction(self, faction, mission):
+    def __get_queries_to_notify_match_played_by_faction(self, faction, mission, did_win):
         """Constructs queries to increase faction win count during campaign (for faction that won the match), only for dedicated servers"""
 
         queries_and_params = []
         if CURRENT_CAMPAIGN_NAME and self.is_mission_pvp(mission):
             if self.is_user_server_or_backend(allow_emulation=True):
                 query = f"""
-                    DECLARE $batch AS List<Struct<campaign: Utf8, faction: Utf8, won_delta: Int64>>;
+                    DECLARE $batch AS List<Struct<campaign: Utf8, faction: Utf8, won_delta: Int64, played_delta: Int64>>;
 
-                    UPSERT INTO {self.campaign_table_name} (campaign, faction, won_matches)
+                    UPSERT INTO {self.campaign_table_name} (campaign, faction, won_matches, played_matches)
                     SELECT
                         b.campaign,
                         b.faction,
-                        COALESCE(t.won_matches, 0) + b.won_delta AS won_matches
+                        COALESCE(t.won_matches, 0) + b.won_delta AS won_matches,
+                        COALESCE(t.played_matches, 0) + b.played_delta AS played_matches
                     FROM AS_TABLE($batch) AS b
                     LEFT JOIN {self.campaign_table_name} AS t
                         ON b.campaign = t.campaign AND b.faction = t.faction;
@@ -671,7 +673,8 @@ class MatchResultsProcessor(ResourceProcessor):
                     "$batch": [{
                         "campaign": CURRENT_CAMPAIGN_NAME,
                         "faction": faction,
-                        "won_delta": 1
+                        "won_delta": 1 if did_win else 0,
+                        "played_delta": 1
                     }]
                 }
 
@@ -772,6 +775,10 @@ if __name__ == '__main__':
                 {
                     "faction": "LoyalSpaceMarines",
                     "is_winner": True
+                },
+                {
+                    "faction": "ChaosSpaceMarines",
+                    "is_winner": False
                 }
             ]
         }
