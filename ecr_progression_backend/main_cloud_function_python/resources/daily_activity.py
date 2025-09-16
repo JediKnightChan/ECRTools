@@ -179,6 +179,71 @@ class DailyActivityProcessor(ResourceProcessor):
 
         return random.choices(options, weights=weights)[0]
 
+    def _change_current_daily(self, char, daily_type, new_quest):
+        """Sets new quest for given char and daily"""
+
+        query = f"""
+            DECLARE $CHAR AS Int64;
+            DECLARE $DATE AS Utf8;
+            DECLARE $TYPE AS Utf8;
+            DECLARE $QUEST AS Utf8;
+             
+            UPDATE {self.table_name}
+            SET
+                quest = $QUEST
+            WHERE
+                char = $CHAR AND
+                type = $TYPE AND
+                date = $DATE
+            ;
+        """
+
+        now = datetime.datetime.now(datetime.timezone.utc)
+        daily_key, weekly_key = self.get_daily_and_weekly_key_for_timestamp(now)
+
+        query_params = {
+            "$CHAR": char,
+            "$DATE": weekly_key if daily_type == "weekly" else daily_key,
+            "$TYPE": daily_type,
+            "$QUEST": new_quest
+        }
+
+        result, code = self.yc.process_query(query, query_params)
+        if code != 0:
+            return {"success": False}, 500
+        else:
+            return {"success": True}, 200
+
+    def _clear_current_dailies(self, char):
+        """Clears current dailies and weekly for given char"""
+
+        query = f"""
+            DECLARE $CHAR AS Int64;
+            DECLARE $DATE_DAILY AS Utf8;
+            DECLARE $DATE_WEEKLY AS Utf8;
+
+            DELETE FROM {self.table_name}
+            WHERE
+                char = $CHAR AND
+                date IN ($DATE_DAILY, $DATE_WEEKLY)
+            ;
+        """
+
+        now = datetime.datetime.now(datetime.timezone.utc)
+        daily_key, weekly_key = self.get_daily_and_weekly_key_for_timestamp(now)
+
+        query_params = {
+            "$CHAR": char,
+            "$DATE_DAILY": daily_key,
+            "$DATE_WEEKLY": weekly_key
+        }
+
+        result, code = self.yc.process_query(query, query_params)
+        if code != 0:
+            return {"success": False}, 500
+        else:
+            return {"success": True}, 200
+
 
 if __name__ == '__main__':
     from tools.s3_connection import S3Connector
@@ -194,3 +259,9 @@ if __name__ == '__main__':
 
     r, s = daily_proc.API_GET({"char": char})
     print(s, r)
+
+    # r, s = daily_proc._change_current_daily(char, "daily2", "daily_kills_bolter_tyranids")
+    # print(s, r)
+
+    # r, s = daily_proc._clear_current_dailies(char)
+    # print(s, r)
