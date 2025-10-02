@@ -1,13 +1,12 @@
+import json
 import math
 import os
 import typing
+import datetime
 
-from common import ResourceProcessor, api_view, permission_required, APIPermission
+from common import CURRENT_CAMPAIGN_NAME, ResourceProcessor, api_view, permission_required, APIPermission
 from tools.common_schemas import ExcludeSchema, ECR_FACTIONS
 from marshmallow import fields
-
-# Campaign status variables
-CURRENT_CAMPAIGN_NAME = os.getenv("CURRENT_CAMPAIGN_NAME", "TestCampaign")
 
 
 class FactionCampaignResultSchema(ExcludeSchema):
@@ -25,14 +24,48 @@ class CampaignProcessor(ResourceProcessor):
 
         self.table_name = self.get_table_name_for_contour("ecr_campaign_results")
 
+        campaigns_filepath = os.path.join(os.path.dirname(__file__), f"../data/campaigns/campaigns.json")
+        with open(campaigns_filepath, "r", encoding="utf-8") as f:
+            self.campaigns_data = json.load(f)
+
     @api_view
     @permission_required(APIPermission.ANYONE)
     def API_GET(self, request_body: dict) -> typing.Tuple[dict, int]:
-        """Retrieves campaign results"""
+        if CURRENT_CAMPAIGN_NAME and CURRENT_CAMPAIGN_NAME in self.campaigns_data:
+            # Active campaign is ongoing
+            faction_res = self._get_factions_results()
+            campaign_data = self._get_campaign_data(CURRENT_CAMPAIGN_NAME)
+            end_ts = datetime.datetime.fromisoformat(campaign_data["end_time_iso"]).timestamp()
+
+            return {
+                "success": True,
+                "data": {
+                    "is_active": True,
+                    "campaign": CURRENT_CAMPAIGN_NAME,
+                    "end_ts": end_ts,
+                    "scores": faction_res,
+                    **campaign_data
+                }
+            }, 200
+        else:
+            # No active campaign
+            return {
+                "success": True,
+                "data": {
+                    "is_active": False,
+                }
+            }, 200
+
+    def _get_campaign_data(self, campaign) -> dict:
+        """Retrieves campaign data from JSON file"""
+        return self.campaigns_data.get(campaign, None)
+
+    def _get_factions_results(self) -> dict[str, int]:
+        """Retrieves campaign results for active factions from DB"""
 
         query = f"""
             DECLARE $CAMPAIGN AS Utf8;
-    
+
             SELECT * FROM {self.table_name}
             WHERE
                 campaign = $CAMPAIGN
@@ -53,12 +86,7 @@ class CampaignProcessor(ResourceProcessor):
         play_amounts = {r["faction"]: r["played_matches"] for r in records}
         win_amounts = {r["faction"]: r["won_matches"] for r in records}
 
-        scores = self.calculate_faction_scores(play_amounts, win_amounts, ECR_FACTIONS)
-
-        return {
-            "campaign": CURRENT_CAMPAIGN_NAME,
-            "factions": scores,
-        }, 200
+        return self.calculate_faction_scores(play_amounts, win_amounts, ECR_FACTIONS)
 
     @staticmethod
     def calculate_faction_scores(

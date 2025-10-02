@@ -5,7 +5,7 @@ import traceback
 import typing
 import os
 
-from common import ResourceProcessor, permission_required, APIPermission, batch_iterator, api_view
+from common import ResourceProcessor, permission_required, APIPermission, api_view, CURRENT_CAMPAIGN_NAME
 from marshmallow import Schema, fields, validate, ValidationError
 
 from resources.combined_main_menu import CombinedMainMenuProcessor
@@ -62,7 +62,8 @@ class ProgressionStoreProcessor(ResourceProcessor):
     def __init__(self, logger, contour, user, yc, s3):
         super(ProgressionStoreProcessor, self).__init__(logger, contour, user, yc, s3)
 
-        self.ach_table_name = "ecr_achievements" if self.contour == "prod" else "ecr_achievements_dev"
+        self.ach_table_name = self.get_table_name_for_contour("ecr_achievements")
+        self.campaign_char_results_table_name = self.get_table_name_for_contour("ecr_campaign_results_chars")
 
     def API_CUSTOM_ACTION(self, action: str, request_body: dict) -> typing.Tuple[dict, int]:
         if action == "buy":
@@ -74,7 +75,8 @@ class ProgressionStoreProcessor(ResourceProcessor):
 
     @api_view
     @permission_required(APIPermission.ANYONE)
-    def API_GET(self, request_body: dict, include_achievements: bool = True) -> typing.Tuple[dict, int]:
+    def API_GET(self, request_body: dict, include_achievements: bool = True, include_campaign_progress: bool = True) -> \
+            typing.Tuple[dict, int]:
         """Gets unlocked progression for given character. Anyone can do it"""
 
         schema = CharPlayerSchema()
@@ -112,6 +114,33 @@ class ProgressionStoreProcessor(ResourceProcessor):
             else:
                 return self.internal_server_error_response
 
+        campaign_progress = -1
+        if include_campaign_progress and CURRENT_CAMPAIGN_NAME:
+            query = f"""
+                DECLARE $CHAR AS Int64;
+                DECLARE $CAMPAIGN AS Utf8;
+
+                SELECT * FROM {self.campaign_char_results_table_name}
+                WHERE
+                    char = $CHAR AND
+                    campaign = $CAMPAIGN
+                LIMIT 1;
+            """
+
+            query_params = {
+                '$CHAR': validated_data.get("char"),
+                '$CAMPAIGN': CURRENT_CAMPAIGN_NAME,
+            }
+
+            result, code = self.yc.process_query(query, query_params)
+            if code != 0 or len(result) == 0:
+                raise Exception("Failed to get campaign progress")
+
+            if len(result[0].rows) == 0:
+                campaign_progress = 0
+            else:
+                campaign_progress = result[0].rows[0]["won_matches"]
+
         # Check if file with unlocked cosmetics data exists
         if self.s3.check_exists(progression_path):
             content = self.s3.get_file_from_s3(progression_path)
@@ -123,10 +152,25 @@ class ProgressionStoreProcessor(ResourceProcessor):
             except ValidationError:
                 return {"success": False, "error_code": 2, "error": "Unlocked progression data malformed"}, 500
 
-            return {"success": True, "data": {**data, "quest_status": achievements}}, 200
+            return {
+                "success": True,
+                "data": {
+                    **data,
+                    "campaign_progress": campaign_progress,
+                    "quest_status": achievements
+                }
+            }, 200
         else:
-            return {"success": True, "data": {"unlocked_gameplay_items": [], "unlocked_cosmetic_items": [],
-                                              "unlocked_advancements": [], "quest_status": achievements}}, 200
+            return {
+                "success": True,
+                "data": {
+                    "unlocked_gameplay_items": [],
+                    "unlocked_cosmetic_items": [],
+                    "unlocked_advancements": [],
+                    "campaign_progress": campaign_progress,
+                    "quest_status": achievements
+                }
+            }, 200
 
     @permission_required(APIPermission.OWNING_PLAYER_ONLY)
     def API_BUY(self, request_body: dict) -> typing.Tuple[dict, int]:

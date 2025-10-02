@@ -7,7 +7,8 @@ import json
 
 from marshmallow import fields, validate, ValidationError
 
-from common import ResourceProcessor, AdminUser, batch_iterator, permission_required, api_view, APIPermission
+from common import ResourceProcessor, CURRENT_CAMPAIGN_NAME, batch_iterator, permission_required, api_view, \
+    APIPermission
 from resources.daily_activity import DailyActivityProcessor, DailyActivitySchema
 from tools.common_schemas import ExcludeSchema, ECR_FACTIONS
 from tools.challenge import verify_challenge
@@ -25,9 +26,6 @@ MATCH_SILVER_REWARDS = {
     "pvp": [200, 200],
     "pve": [300, 0]
 }
-
-# Campaign status variables
-CURRENT_CAMPAIGN_NAME = os.getenv("CURRENT_CAMPAIGN_NAME", "TestCampaign")
 
 
 class CharMatchResultsSchema(ExcludeSchema):
@@ -276,7 +274,9 @@ class MatchResultsProcessor(ResourceProcessor):
         if len(faction_results) == 2:
             # Change campaign results only for 1vs1 faction matches, though for char activity anything is counted
             for faction, res in faction_results.items():
-                tx_queries += self.__get_queries_to_notify_match_played_by_faction(faction, match_creation_data["mission"], res["is_winner"])
+                tx_queries += self.__get_queries_to_notify_match_played_by_faction(faction,
+                                                                                   match_creation_data["mission"],
+                                                                                   res["is_winner"])
         tx_queries += self.__get_queries_to_notify_chars_match_won(char_winners_req, match_creation_data["mission"])
 
         tx_queries += self.__get_queries_for_mark_match_finished(char_results, match_results["match_id"].hex, max_xp)
