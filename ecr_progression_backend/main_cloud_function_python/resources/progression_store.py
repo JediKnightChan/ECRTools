@@ -607,6 +607,36 @@ class ProgressionStoreProcessor(ResourceProcessor):
             self.logger.warning(f"Lootbox filepath {filepath} doesn't exist")
             return False, {}
 
+    def _external_unlock(self, player, char, gameplay_items_to_unlock, cosmetics_to_unlock,
+                                 advancements_to_unlock):
+        already_unlocked_data, s = self.API_GET({"player": player, "char": char}, include_achievements=False,
+                                                include_campaign_progress=False)
+
+        if s != 200:
+            return already_unlocked_data, s
+
+        unlocked_gameplay_items = already_unlocked_data["data"]["unlocked_gameplay_items"]
+        unlocked_cosmetic_items = already_unlocked_data["data"]["unlocked_cosmetic_items"]
+        unlocked_advancements = already_unlocked_data["data"]["unlocked_advancements"]
+
+        for item in gameplay_items_to_unlock:
+            item = item.lower()
+            if item not in unlocked_gameplay_items:
+                unlocked_gameplay_items.append(item)
+
+        for item in cosmetics_to_unlock:
+            item = item.lower()
+            if item not in unlocked_cosmetic_items:
+                unlocked_cosmetic_items.append(item)
+
+        for item in advancements_to_unlock:
+            item = item.lower()
+            if item not in unlocked_advancements:
+                unlocked_advancements.append(item)
+
+        self.update_unlocked_items(player, char, unlocked_gameplay_items, unlocked_cosmetic_items, unlocked_advancements)
+        return {"success": True}, 200
+
     def _get_item_data(self, item_id: str, item_type: str, faction: str) -> typing.Tuple[bool, dict]:
         if item_type == ProgressionItemType.GAMEPLAY_ITEM:
             filepath = f"../data/gameplay_items/gameplay_items_{faction.lower()}.json"
@@ -668,10 +698,11 @@ if __name__ == '__main__':
     s3 = S3Connector()
     store = ProgressionStoreProcessor(logger, "dev", player, yc, s3)
 
-    r, s = store.API_GET({"player": player, "char": char})
+    # r, s = store.API_GET({"player": player, "char": char})
     # r, s = store.API_BUY({"player": player, "char": char, "item": item_id, "item_type": item_type})
     # r, s = store.API_CLAIM_QUEST_REWARD({"player": player, "char": char, "quest_name": "ba_veteran_t1"})
     # r, s = store.API_OPEN_LOOTBOX({"player": player, "char": char, "lootbox_name": "chapterbundle_ultramarines"})
+    r, s = store._external_unlock(player, char, ["SM_Multi-melta_Unique01"], [], [])
     print(r, s)
 
     # store._clear_all_progression(player, char)
