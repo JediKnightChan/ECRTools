@@ -608,7 +608,7 @@ class ProgressionStoreProcessor(ResourceProcessor):
             return False, {}
 
     def _external_unlock(self, player, char, gameplay_items_to_unlock, cosmetics_to_unlock,
-                                 advancements_to_unlock):
+                         advancements_to_unlock):
         already_unlocked_data, s = self.API_GET({"player": player, "char": char}, include_achievements=False,
                                                 include_campaign_progress=False)
 
@@ -634,8 +634,25 @@ class ProgressionStoreProcessor(ResourceProcessor):
             if item not in unlocked_advancements:
                 unlocked_advancements.append(item)
 
-        self.update_unlocked_items(player, char, unlocked_gameplay_items, unlocked_cosmetic_items, unlocked_advancements)
+        self.update_unlocked_items(player, char, unlocked_gameplay_items, unlocked_cosmetic_items,
+                                   unlocked_advancements)
         return {"success": True}, 200
+
+    def _external_unlock_everything(self, player, char, faction):
+        with open(f"../data/gameplay_items/gameplay_items_{faction.lower()}.json", "r") as f:
+            gameplay_items_data = json.load(f)
+            gameplay_items = [el for el, data in gameplay_items_data.items()]
+
+        with open(f"../data/cosmetic_items/cosmetic_items_{faction.lower()}.json", "r") as f:
+            cosmetic_items_data = json.load(f)
+            cosmetic_items = [el for el, data in cosmetic_items_data.items()]
+
+        with open(f"../data/advancements/advancements_{faction.lower()}.json", "r") as f:
+            advancements_data = json.load(f)
+            advancements = [el for el, data in advancements_data.items()]
+
+        r, s = self._external_unlock(player, char, gameplay_items, cosmetic_items, advancements)
+        return r, s
 
     def _get_item_data(self, item_id: str, item_type: str, faction: str) -> typing.Tuple[bool, dict]:
         if item_type == ProgressionItemType.GAMEPLAY_ITEM:
@@ -689,7 +706,7 @@ if __name__ == '__main__':
     import logging
 
     player = 4
-    char = 2
+    char = 4
     item_id = "sm_node_wg1_ja_fuel"
     item_type = ProgressionItemType.ADVANCEMENT
 
@@ -702,7 +719,8 @@ if __name__ == '__main__':
     # r, s = store.API_BUY({"player": player, "char": char, "item": item_id, "item_type": item_type})
     # r, s = store.API_CLAIM_QUEST_REWARD({"player": player, "char": char, "quest_name": "ba_veteran_t1"})
     # r, s = store.API_OPEN_LOOTBOX({"player": player, "char": char, "lootbox_name": "chapterbundle_ultramarines"})
-    r, s = store._external_unlock(player, char, ["SM_Multi-melta_Unique01"], [], [])
+    # r, s = store._external_unlock(player, char, ["SM_Multi-melta_Unique01"], [], [])
+    r, s = store._external_unlock_everything(player, char, "ChaosSpaceMarines")
     print(r, s)
 
     # store._clear_all_progression(player, char)
