@@ -14,7 +14,7 @@ echo \
 sudo apt-get update
 
 # Install
-sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugi
+sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
 # Post installation
 sudo groupadd docker
