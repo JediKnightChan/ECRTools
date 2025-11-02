@@ -52,7 +52,7 @@ class MatchResultsSchema(ExcludeSchema):
 class MatchCreateSchema(ExcludeSchema):
     match_id = fields.UUID(required=True)
     token = fields.UUID(required=True)
-    host = fields.Int(required=True)
+    host = fields.Str(required=True)
     mission = fields.Str(required=True)
     created_ts = fields.Int(required=True)
     finished_ts = fields.Int(required=True)
