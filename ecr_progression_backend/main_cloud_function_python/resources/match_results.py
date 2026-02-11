@@ -552,34 +552,35 @@ class MatchResultsProcessor(ResourceProcessor):
         return queries_and_params
 
     def __get_queries_for_batch_grant_achievements_progress(self, ach_data: list):
-        """Constructs queries for batch granting achievements progress"""
+        """Constructs queries for batch granting achievements progress, dedicated servers only"""
 
         queries_and_params = []
-        for chunk in batch_iterator(ach_data, 200):
-            batch = [
-                {
-                    "char": ach_data_piece["char"],
-                    "name": ach_data_piece["name"],
-                    "progress_delta": max(ach_data_piece["progress_delta"], 0),
-                }
-                for ach_data_piece in chunk
-            ]
+        if self.is_user_server_or_backend(allow_emulation=True):
+            for chunk in batch_iterator(ach_data, 200):
+                batch = [
+                    {
+                        "char": ach_data_piece["char"],
+                        "name": ach_data_piece["name"],
+                        "progress_delta": max(ach_data_piece["progress_delta"], 0),
+                    }
+                    for ach_data_piece in chunk
+                ]
 
-            query = f"""
-                DECLARE $batch AS List<Struct<char: Int64, name: Utf8, progress_delta: Int64>>;
+                query = f"""
+                    DECLARE $batch AS List<Struct<char: Int64, name: Utf8, progress_delta: Int64>>;
+    
+                    UPSERT INTO {self.ach_table_name} (char, name, progress)
+                    SELECT
+                        b.char,
+                        b.name,
+                        COALESCE(t.progress, 0) + b.progress_delta AS progress
+                    FROM AS_TABLE($batch) AS b
+                    LEFT JOIN {self.ach_table_name} AS t
+                        ON b.char = t.char AND b.name = t.name;
+                """
 
-                UPSERT INTO {self.ach_table_name} (char, name, progress)
-                SELECT
-                    b.char,
-                    b.name,
-                    COALESCE(t.progress, 0) + b.progress_delta AS progress
-                FROM AS_TABLE($batch) AS b
-                LEFT JOIN {self.ach_table_name} AS t
-                    ON b.char = t.char AND b.name = t.name;
-            """
-
-            query_params = {"$batch": batch}
-            queries_and_params.append((query, query_params))
+                query_params = {"$batch": batch}
+                queries_and_params.append((query, query_params))
         return queries_and_params
 
     def __get_queries_for_batch_grant_daily_activity_progress(self, daily_progress):
