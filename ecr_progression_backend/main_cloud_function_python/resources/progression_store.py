@@ -1,14 +1,14 @@
 import datetime
 import json
 import random
-import traceback
 import typing
 import os
 
 from common import ResourceProcessor, permission_required, APIPermission, api_view, CURRENT_CAMPAIGN_NAME
 from marshmallow import Schema, fields, validate, ValidationError
 
-from resources.combined_main_menu import CombinedMainMenuProcessor
+from resources.player import PlayerProcessor
+from resources.character import CharacterProcessor
 from tools.common_schemas import CharPlayerSchema, ExcludeSchema
 
 
@@ -54,6 +54,7 @@ class UnlockedProgressionContentSchema(Schema):
     unlocked_gameplay_items = fields.List(fields.Str())
     unlocked_cosmetic_items = fields.List(fields.Str())
     unlocked_advancements = fields.List(fields.Str())
+    unlocked_titles = fields.List(fields.Str())
 
 
 class ProgressionStoreProcessor(ResourceProcessor):
@@ -167,6 +168,7 @@ class ProgressionStoreProcessor(ResourceProcessor):
                     "unlocked_gameplay_items": [],
                     "unlocked_cosmetic_items": [],
                     "unlocked_advancements": [],
+                    "unlocked_titles": [],
                     "campaign_progress": campaign_progress,
                     "quest_status": achievements
                 }
@@ -197,6 +199,7 @@ class ProgressionStoreProcessor(ResourceProcessor):
         unlocked_gameplay_items = already_unlocked_data["data"]["unlocked_gameplay_items"]
         unlocked_cosmetic_items = already_unlocked_data["data"]["unlocked_cosmetic_items"]
         unlocked_advancements = already_unlocked_data["data"]["unlocked_advancements"]
+        unlocked_titles = already_unlocked_data["data"]["unlocked_titles"]
 
         if item_type == ProgressionItemType.GAMEPLAY_ITEM:
             old_unlocked_items = unlocked_gameplay_items.copy()
@@ -217,17 +220,20 @@ class ProgressionStoreProcessor(ResourceProcessor):
             # Already unlocked this
             return {"success": False, "error_code": 3, "error": "Already unlocked"}, 400
 
-        main_menu_proc = CombinedMainMenuProcessor(self.logger, self.contour, self.user, self.yc, self.s3)
+        player_proc = PlayerProcessor(self.logger, self.contour, self.user, self.yc, self.s3)
+        player_data, player_s = player_proc.API_GET({"id": player})
+        if player_s != 200:
+            return player_data, player_s
 
-        main_menu_data, main_menu_s = main_menu_proc.API_GET({"id": player})
-        if main_menu_s != 200:
-            return main_menu_data, main_menu_s
+        player_level = player_proc.get_level_from_xp(player_data["data"]["xp"])
 
-        player_data = main_menu_data["data"]["player"]
-        player_level = main_menu_proc.player_processor.get_level_from_xp(player_data["xp"])
+        character_proc = CharacterProcessor(self.logger, self.contour, self.user, self.yc, self.s3)
+        character_data, character_s = character_proc.API_LIST({"player": player})
+        if character_s != 200:
+            return character_data, character_s
 
         char_data = None
-        for char_data_piece in main_menu_data["data"]["characters"]:
+        for char_data_piece in character_data["data"]:
             if char_data_piece["id"] == char:
                 char_data = char_data_piece
 
@@ -272,13 +278,14 @@ class ProgressionStoreProcessor(ResourceProcessor):
             # For advancement, unlock granted gameplay items too
             if item_type == ProgressionItemType.ADVANCEMENT:
                 for granted_gameplay_item in item_data.get("granted_gameplay_items", []):
+                    granted_gameplay_item = granted_gameplay_item.lower()
                     unlocked_gameplay_items.append(granted_gameplay_item)
 
             self.update_unlocked_items(player, char, unlocked_gameplay_items,
-                                       unlocked_cosmetic_items, unlocked_advancements)
-            r, s = main_menu_proc.character_processor.modify_currency(char, -item_cost_xp, -item_cost_silver,
-                                                                      -item_cost_gold, log_action,
-                                                                      f"{item_id} for {char}")
+                                       unlocked_cosmetic_items, unlocked_advancements, unlocked_titles)
+            r, s = character_proc.modify_currency(char, -item_cost_xp, -item_cost_silver,
+                                                  -item_cost_gold, log_action,
+                                                  f"{item_id} for {char}")
             if s == 204:
                 return {"success": True, "cost": [item_cost_xp, item_cost_silver, item_cost_gold]}, 200
             else:
@@ -315,15 +322,15 @@ class ProgressionStoreProcessor(ResourceProcessor):
         unlocked_gameplay_items = already_unlocked_data["data"]["unlocked_gameplay_items"]
         unlocked_cosmetic_items = already_unlocked_data["data"]["unlocked_cosmetic_items"]
         unlocked_advancements = already_unlocked_data["data"]["unlocked_advancements"]
+        unlocked_titles = already_unlocked_data["data"]["unlocked_titles"]
 
-        main_menu_proc = CombinedMainMenuProcessor(self.logger, self.contour, self.user, self.yc, self.s3)
-
-        main_menu_data, main_menu_s = main_menu_proc.API_GET({"id": player})
-        if main_menu_s != 200:
-            return main_menu_data, main_menu_s
+        character_proc = CharacterProcessor(self.logger, self.contour, self.user, self.yc, self.s3)
+        character_data, character_s = character_proc.API_LIST({"player": player})
+        if character_s != 200:
+            return character_data, character_s
 
         char_data = None
-        for char_data_piece in main_menu_data["data"]["characters"]:
+        for char_data_piece in character_data["data"]:
             if char_data_piece["id"] == char:
                 char_data = char_data_piece
 
@@ -339,15 +346,21 @@ class ProgressionStoreProcessor(ResourceProcessor):
         if self._check_quest(quest_name, already_unlocked_data["data"]["quest_status"], quest_data):
             # Grant item rewards
             for reward_gameplay_item in quest_data["reward_gameplay_items"]:
+                reward_gameplay_item = reward_gameplay_item.lower()
                 if reward_gameplay_item not in unlocked_gameplay_items:
                     unlocked_gameplay_items.append(reward_gameplay_item)
 
             for reward_cosmetic_item in quest_data["reward_cosmetic_items"]:
+                reward_cosmetic_item = reward_cosmetic_item.lower()
                 if reward_cosmetic_item not in unlocked_cosmetic_items:
                     unlocked_cosmetic_items.append(reward_cosmetic_item)
 
+            reward_title = quest_data["reward_title"].lower()
+            if reward_title and reward_title not in unlocked_titles:
+                unlocked_titles.append(reward_title)
+
             self.update_unlocked_items(player, char, unlocked_gameplay_items,
-                                       unlocked_cosmetic_items, unlocked_advancements)
+                                       unlocked_cosmetic_items, unlocked_advancements, unlocked_titles)
 
             # Grant currencies
             reward_gold = quest_data["reward_gold"]
@@ -355,9 +368,9 @@ class ProgressionStoreProcessor(ResourceProcessor):
             reward_free_xp = quest_data["reward_free_xp"]
 
             if reward_gold != 0 or reward_silver != 0 or reward_free_xp != 0:
-                r, s = main_menu_proc.character_processor.modify_currency(char, reward_free_xp, reward_silver,
-                                                                          reward_gold, "quest_reward",
-                                                                          f"{quest_name} for {char}")
+                r, s = character_proc.modify_currency(char, reward_free_xp, reward_silver,
+                                                      reward_gold, "quest_reward",
+                                                      f"{quest_name} for {char}")
                 if s != 200:
                     return r, s
 
@@ -415,15 +428,15 @@ class ProgressionStoreProcessor(ResourceProcessor):
         unlocked_gameplay_items = already_unlocked_data["data"]["unlocked_gameplay_items"]
         unlocked_cosmetic_items = already_unlocked_data["data"]["unlocked_cosmetic_items"]
         unlocked_advancements = already_unlocked_data["data"]["unlocked_advancements"]
+        unlocked_titles = already_unlocked_data["data"]["unlocked_titles"]
 
-        main_menu_proc = CombinedMainMenuProcessor(self.logger, self.contour, self.user, self.yc, self.s3)
-
-        main_menu_data, main_menu_s = main_menu_proc.API_GET({"id": player})
-        if main_menu_s != 200:
-            return main_menu_data, main_menu_s
+        character_proc = CharacterProcessor(self.logger, self.contour, self.user, self.yc, self.s3)
+        character_data, character_s = character_proc.API_LIST({"player": player})
+        if character_s != 200:
+            return character_data, character_s
 
         char_data = None
-        for char_data_piece in main_menu_data["data"]["characters"]:
+        for char_data_piece in character_data["data"]:
             if char_data_piece["id"] == char:
                 char_data = char_data_piece
 
@@ -452,10 +465,12 @@ class ProgressionStoreProcessor(ResourceProcessor):
 
             if lootbox_data["type"] == LootboxType.SUPPLY_CRATE:
                 for won_item in won_items:
+                    won_item = won_item.lower()
                     if won_item not in unlocked_gameplay_items:
                         unlocked_gameplay_items.append(won_item)
             elif lootbox_data["type"] == LootboxType.COSMETIC_BUNDLE_ONE_ITEM:
                 for won_item in won_items:
+                    won_item = won_item.lower()
                     if won_item not in unlocked_cosmetic_items:
                         unlocked_cosmetic_items.append(won_item)
             else:
@@ -463,10 +478,10 @@ class ProgressionStoreProcessor(ResourceProcessor):
 
             # Can afford, buy
             self.update_unlocked_items(player, char, unlocked_gameplay_items,
-                                       unlocked_cosmetic_items, unlocked_advancements)
-            r, s = main_menu_proc.character_processor.modify_currency(char, 0, -lootbox_cost_silver,
-                                                                      -lootbox_cost_gold, "buy_lootbox",
-                                                                      f"{lootbox_name} (won {won_items}) for {char}")
+                                       unlocked_cosmetic_items, unlocked_advancements, unlocked_titles)
+            r, s = character_proc.modify_currency(char, 0, -lootbox_cost_silver,
+                                                  -lootbox_cost_gold, "buy_lootbox",
+                                                  f"{lootbox_name} (won {won_items}) for {char}")
 
             if s == 204:
                 return {"success": True, "cost": [0, lootbox_cost_silver, lootbox_cost_gold],
@@ -482,7 +497,8 @@ class ProgressionStoreProcessor(ResourceProcessor):
                 "error_code": 4}, 400
 
     def update_unlocked_items(self, player, char, unlocked_gameplay_items,
-                              unlocked_cosmetic_items, unlocked_advancements):
+                              unlocked_cosmetic_items, unlocked_advancements,
+                              unlocked_titles):
         progression_path = self.s3_paths.get_unlocked_progression_s3_path(
             player,
             char
@@ -491,7 +507,8 @@ class ProgressionStoreProcessor(ResourceProcessor):
         new_data = {
             "unlocked_gameplay_items": list(set(unlocked_gameplay_items)),
             "unlocked_cosmetic_items": list(set(unlocked_cosmetic_items)),
-            "unlocked_advancements": list(set(unlocked_advancements))
+            "unlocked_advancements": list(set(unlocked_advancements)),
+            "unlocked_titles": list(set(unlocked_titles)),
         }
 
         schema = UnlockedProgressionContentSchema()
@@ -550,6 +567,7 @@ class ProgressionStoreProcessor(ResourceProcessor):
             with open(final_filepath) as f:
                 item_data = json.load(f)
                 for item, item_piece in item_data.items():
+                    item = item.lower()
                     if item_piece["is_lootbox_granted"] and item not in unlocked_items:
                         if lootbox_main_rarity:
                             if item_piece["rarity"] == lootbox_main_rarity:
@@ -608,7 +626,7 @@ class ProgressionStoreProcessor(ResourceProcessor):
             return False, {}
 
     def _external_unlock(self, player, char, gameplay_items_to_unlock, cosmetics_to_unlock,
-                         advancements_to_unlock):
+                         advancements_to_unlock, titles_to_unlock):
         already_unlocked_data, s = self.API_GET({"player": player, "char": char}, include_achievements=False,
                                                 include_campaign_progress=False)
 
@@ -618,6 +636,7 @@ class ProgressionStoreProcessor(ResourceProcessor):
         unlocked_gameplay_items = already_unlocked_data["data"]["unlocked_gameplay_items"]
         unlocked_cosmetic_items = already_unlocked_data["data"]["unlocked_cosmetic_items"]
         unlocked_advancements = already_unlocked_data["data"]["unlocked_advancements"]
+        unlocked_titles = already_unlocked_data["data"]["unlocked_titles"]
 
         for item in gameplay_items_to_unlock:
             item = item.lower()
@@ -634,24 +653,48 @@ class ProgressionStoreProcessor(ResourceProcessor):
             if item not in unlocked_advancements:
                 unlocked_advancements.append(item)
 
+        for item in titles_to_unlock:
+            item = item.lower()
+            if item not in unlocked_titles:
+                unlocked_titles.append(item)
+
         self.update_unlocked_items(player, char, unlocked_gameplay_items, unlocked_cosmetic_items,
-                                   unlocked_advancements)
+                                   unlocked_advancements, unlocked_titles)
         return {"success": True}, 200
 
-    def _external_unlock_everything(self, player, char, faction):
-        with open(f"../data/gameplay_items/gameplay_items_{faction.lower()}.json", "r") as f:
+    def _external_unlock_everything(self, player, char):
+        character_proc = CharacterProcessor(self.logger, self.contour, self.user, self.yc, self.s3)
+        character_data, character_s = character_proc.API_LIST({"player": player})
+        if character_s != 200:
+            return character_data, character_s
+
+        char_data = None
+        for char_data_piece in character_data["data"]:
+            if char_data_piece["id"] == char:
+                char_data = char_data_piece
+
+        if char_data is None:
+            return {"error": f"No character {char}", "error_code": 1}, 404
+
+        faction = char_data["faction"]
+
+        with open(f"../data/gameplay_items/gameplay_items_{faction.lower()}.json", "r", encoding="utf-8") as f:
             gameplay_items_data = json.load(f)
             gameplay_items = [el for el, data in gameplay_items_data.items()]
 
-        with open(f"../data/cosmetic_items/cosmetic_items_{faction.lower()}.json", "r") as f:
+        with open(f"../data/cosmetic_items/cosmetic_items_{faction.lower()}.json", "r", encoding="utf-8") as f:
             cosmetic_items_data = json.load(f)
             cosmetic_items = [el for el, data in cosmetic_items_data.items()]
 
-        with open(f"../data/advancements/advancements_{faction.lower()}.json", "r") as f:
+        with open(f"../data/advancements/advancements_{faction.lower()}.json", "r", encoding="utf-8") as f:
             advancements_data = json.load(f)
             advancements = [el for el, data in advancements_data.items()]
 
-        r, s = self._external_unlock(player, char, gameplay_items, cosmetic_items, advancements)
+        with open(f"../data/quests/quests_{faction.lower()}.json", "r", encoding="utf-8") as f:
+            quests_data = json.load(f)
+            titles = [data["reward_title"] for el, data in quests_data.items() if data["reward_title"]]
+
+        r, s = self._external_unlock(player, char, gameplay_items, cosmetic_items, advancements, titles)
         return r, s
 
     def _get_item_data(self, item_id: str, item_type: str, faction: str) -> typing.Tuple[bool, dict]:
@@ -677,7 +720,7 @@ class ProgressionStoreProcessor(ResourceProcessor):
             return False, {}
 
     def _clear_all_progression(self, player, char, clear_quest_status=True):
-        self.update_unlocked_items(player, char, [], [], [])
+        self.update_unlocked_items(player, char, [], [], [], [])
 
         if clear_quest_status:
             # Quest already existed, updating progress
@@ -706,7 +749,7 @@ if __name__ == '__main__':
     import logging
 
     player = 4
-    char = 4
+    char = 2
     item_id = "sm_node_wg1_ja_fuel"
     item_type = ProgressionItemType.ADVANCEMENT
 
@@ -714,13 +757,13 @@ if __name__ == '__main__':
     yc = YDBConnector(logger)
     s3 = S3Connector()
     store = ProgressionStoreProcessor(logger, "dev", player, yc, s3)
-
-    # r, s = store.API_GET({"player": player, "char": char})
+    store._clear_all_progression(player, char)
+    r, s = store.API_GET({"player": player, "char": char})
     # r, s = store.API_BUY({"player": player, "char": char, "item": item_id, "item_type": item_type})
     # r, s = store.API_CLAIM_QUEST_REWARD({"player": player, "char": char, "quest_name": "ba_veteran_t1"})
     # r, s = store.API_OPEN_LOOTBOX({"player": player, "char": char, "lootbox_name": "chapterbundle_ultramarines"})
     # r, s = store._external_unlock(player, char, ["SM_Multi-melta_Unique01"], [], [])
-    r, s = store._external_unlock_everything(player, char, "ChaosSpaceMarines")
+    # r, s = store._external_unlock_everything(player, char)
     print(r, s)
 
     # store._clear_all_progression(player, char)

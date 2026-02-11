@@ -4,6 +4,7 @@ from common import ResourceProcessor, permission_required, APIPermission, api_vi
 from resources.campaign import CampaignProcessor
 from resources.character import CharacterProcessor
 from resources.player import PlayerProcessor
+from resources.progression_store import ProgressionStoreProcessor
 
 
 class CombinedMainMenuProcessor(ResourceProcessor):
@@ -14,6 +15,7 @@ class CombinedMainMenuProcessor(ResourceProcessor):
 
         self.player_processor = PlayerProcessor(self.logger, self.contour, self.user, self.yc, self.s3)
         self.character_processor = CharacterProcessor(self.logger, self.contour, self.user, self.yc, self.s3)
+        self.progression_processor = ProgressionStoreProcessor(self.logger, self.contour, self.user, self.yc, self.s3)
         self.campaign_processor = CampaignProcessor(self.logger, self.contour, self.user, self.yc, self.s3)
 
     @api_view
@@ -33,8 +35,16 @@ class CombinedMainMenuProcessor(ResourceProcessor):
         if s3 != 200:
             return r3, s3
 
+        char_to_progression = {}
+        for char_piece in r2["data"]:
+            r4, s4 = self.progression_processor.API_GET({"player": request_body.get("id"), "char": char_piece["id"]})
+            if s4 != 200:
+                return r4, s4
+            char_to_progression[char_piece["id"]] = r4["data"]
+
         return {"success": True,
-                "data": {"player": r1.get("data"), "characters": r2.get("data"), "campaign": r3.get("data")}}, 200
+                "data": {"player": r1.get("data"), "characters": r2.get("data"), "campaign": r3.get("data"),
+                         "progression": char_to_progression}}, 200
 
     @api_view
     def API_GET_FOR_SELF(self, request_body: dict) -> typing.Tuple[dict, int]:

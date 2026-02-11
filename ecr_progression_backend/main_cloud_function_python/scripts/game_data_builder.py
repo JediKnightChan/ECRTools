@@ -97,7 +97,7 @@ for faction, v in faction_files.items():
         }
 
         cosmetic_items_data[row["---"].lower()] = record
-    with open(f"../data/cosmetic_items/cosmetic_items_{faction.lower()}.json", "w") as f:
+    with open(f"../data/cosmetic_items/cosmetic_items_{faction.lower()}.json", "w", encoding="utf-8") as f:
         json.dump(cosmetic_items_data, f, indent=4, ensure_ascii=False)
 
     # Saving advancements
@@ -133,6 +133,7 @@ for faction, v in faction_files.items():
             "is_enabled": row["Is Enabled"],
             "reward_gameplay_items": [i.lower() for i in unreal_list_to_list(row["Reward Gameplay Items"])],
             "reward_cosmetic_items": [i.lower() for i in unreal_list_to_list(row["Reward Cosmetic Items"])],
+            "reward_title": row["Reward Title"].lower(),
             "reward_free_xp": row["Reward Free XP"],
             "reward_silver": row["Reward Silver"],
             "reward_gold": row["Reward Gold"],
