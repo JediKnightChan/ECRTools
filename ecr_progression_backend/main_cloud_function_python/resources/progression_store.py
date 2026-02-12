@@ -568,7 +568,7 @@ class ProgressionStoreProcessor(ResourceProcessor):
                 item_data = json.load(f)
                 for item, item_piece in item_data.items():
                     item = item.lower()
-                    if item_piece["is_lootbox_granted"] and item not in unlocked_items and item["is_enabled"]:
+                    if item_piece["is_lootbox_granted"] and item not in unlocked_items and item_piece["is_enabled"]:
                         if lootbox_main_rarity:
                             if item_piece["rarity"] == lootbox_main_rarity:
                                 lootbox_available = True
