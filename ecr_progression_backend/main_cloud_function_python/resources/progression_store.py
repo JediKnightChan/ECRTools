@@ -568,7 +568,7 @@ class ProgressionStoreProcessor(ResourceProcessor):
                 item_data = json.load(f)
                 for item, item_piece in item_data.items():
                     item = item.lower()
-                    if item_piece["is_lootbox_granted"] and item not in unlocked_items:
+                    if item_piece["is_lootbox_granted"] and item not in unlocked_items and item["is_enabled"]:
                         if lootbox_main_rarity:
                             if item_piece["rarity"] == lootbox_main_rarity:
                                 lootbox_available = True
@@ -760,10 +760,10 @@ if __name__ == '__main__':
 
     # r, s = store.API_GET({"player": player, "char": char})
     # r, s = store.API_BUY({"player": player, "char": char, "item": item_id, "item_type": item_type})
-    r, s = store.API_CLAIM_QUEST_REWARD({"player": player, "char": char, "quest_name": "Title_WarMachine"})
+    # r, s = store.API_CLAIM_QUEST_REWARD({"player": player, "char": char, "quest_name": "Title_WarMachine"})
     # r, s = store.API_OPEN_LOOTBOX({"player": player, "char": char, "lootbox_name": "chapterbundle_ultramarines"})
     # r, s = store._external_unlock(player, char, ["SM_Multi-melta_Unique01"], [], [])
     # r, s = store._external_unlock_everything(player, char)
-    print(r, s)
+    # print(r, s)
 
-    # store._clear_all_progression(player, char)
+    store._clear_all_progression(player, char)
