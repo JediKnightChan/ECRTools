@@ -343,15 +343,20 @@ if __name__ == '__main__':
     s3 = S3Connector()
 
     player = 4
+    char = 2
     char_proc = CharacterProcessor(logger, "dev", player, yc, s3)
     # r, s = char_proc.API_CREATE(
     #     {"player": player, "name": "Bane Of Loyalists", "faction": "ChaosSpaceMarines"})
 
     # r, s = char_proc.API_LIST({"player": player})
-    r, s = char_proc.API_GET({"id": 2})
+    r, s = char_proc.API_GET({"id": char})
     print(s, r)
     # r, s = char_proc.API_MODIFY({"player": player, "id": 1, "name": "Bane of Loyalists"})
     # r, s = char_proc._delete_character(1)
-    r, s = char_proc.modify_currency(8, 50000, 50000, 5000, "api_test", "")
+    r, s = char_proc.modify_currency(char, 500000, 50000, 5000, "api_test", "")
+    print(s, r)
+
+    r, s = char_proc.API_GET({"id": char})
+    print(s, r)
     # r, s = char_proc.batch_modify_currency({2: {"player": 4, "free_xp": 100, "silver": 100, "gold": 100}}, "api_test", "")
     # print(s, r)

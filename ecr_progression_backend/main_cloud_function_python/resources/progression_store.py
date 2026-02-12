@@ -371,7 +371,7 @@ class ProgressionStoreProcessor(ResourceProcessor):
                 r, s = character_proc.modify_currency(char, reward_free_xp, reward_silver,
                                                       reward_gold, "quest_reward",
                                                       f"{quest_name} for {char}")
-                if s != 200:
+                if s != 204:
                     return r, s
 
             # Marking quest as reward claimed
@@ -757,10 +757,10 @@ if __name__ == '__main__':
     yc = YDBConnector(logger)
     s3 = S3Connector()
     store = ProgressionStoreProcessor(logger, "dev", player, yc, s3)
-    store._clear_all_progression(player, char)
-    r, s = store.API_GET({"player": player, "char": char})
+
+    # r, s = store.API_GET({"player": player, "char": char})
     # r, s = store.API_BUY({"player": player, "char": char, "item": item_id, "item_type": item_type})
-    # r, s = store.API_CLAIM_QUEST_REWARD({"player": player, "char": char, "quest_name": "ba_veteran_t1"})
+    r, s = store.API_CLAIM_QUEST_REWARD({"player": player, "char": char, "quest_name": "Title_WarMachine"})
     # r, s = store.API_OPEN_LOOTBOX({"player": player, "char": char, "lootbox_name": "chapterbundle_ultramarines"})
     # r, s = store._external_unlock(player, char, ["SM_Multi-melta_Unique01"], [], [])
     # r, s = store._external_unlock_everything(player, char)

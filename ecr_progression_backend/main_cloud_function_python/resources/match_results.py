@@ -740,7 +740,7 @@ if __name__ == '__main__':
     yc = YDBConnector(logger)
     s3 = S3Connector()
 
-    player = 4
+    player = "server"
     char = 2
     match_proc = MatchResultsProcessor(logger, "dev", player, yc, s3)
 
@@ -758,11 +758,11 @@ if __name__ == '__main__':
             "challenge": "",
             "char_results": [
                 {
-                    "player": player,
+                    "player": 4,
                     "char": char,
                     "xp": 10000,
                     "achievements": {
-                        "sm_altweapon_bolter": 10
+                        "title_theemperorsfinest": 10000
                     },
                     "dailies": {
                         "weekly_captures": 1,
