@@ -323,15 +323,17 @@ class MatchResultsProcessor(ResourceProcessor):
 
         # Achievements
         for ach_name, ach_progress in char_result["achievements"].items():
-            if ach_name in self.all_achievements_names:
+            if ach_name.lower() in self.all_achievements_names:
                 achievements_req.append({
                     "char": char_id,
-                    "name": ach_name,
+                    "name": ach_name.lower(),
                     "progress_delta": ach_progress,
                 })
 
         # Dailies and weeklies
         for daily_quest, progress_delta in char_result["dailies"].items():
+            daily_quest = daily_quest.lower()
+
             if daily_quest not in self.dap.dailies_data or progress_delta <= 0:
                 continue
 
