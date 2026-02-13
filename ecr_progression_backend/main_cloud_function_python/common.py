@@ -1,4 +1,7 @@
+import datetime
+import json
 import os
+import time
 import traceback
 import typing
 import logging
@@ -137,6 +140,10 @@ class ResourceProcessor:
         self.s3 = s3
         self.yc = yc
 
+        campaigns_filepath = os.path.join(os.path.dirname(__file__), f"data/campaigns/campaigns.json")
+        with open(campaigns_filepath, "r", encoding="utf-8") as f:
+            self.campaigns_data = json.load(f)
+
     @property
     def action_not_allowed_response(self) -> typing.Tuple[dict, int]:
         return {"error": "Not allowed to use this action"}, 403
@@ -195,3 +202,16 @@ class ResourceProcessor:
 
     def API_CUSTOM_ACTION(self, action: str, request_body: dict) -> typing.Tuple[dict, int]:
         return self.action_not_allowed_response
+
+    def is_campaign_ongoing(self):
+        """Checks if current campaign (a long in-game event, stimulating players to engage) is ongoing"""
+
+        if not CURRENT_CAMPAIGN_NAME:
+            return False
+
+        campaign_data = self.campaigns_data.get(CURRENT_CAMPAIGN_NAME, None)
+        if not campaign_data:
+            return False
+
+        end_ts = datetime.datetime.fromisoformat(campaign_data["end_time_iso"]).timestamp()
+        return time.time() < end_ts

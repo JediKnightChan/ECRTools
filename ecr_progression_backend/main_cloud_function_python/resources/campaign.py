@@ -24,15 +24,11 @@ class CampaignProcessor(ResourceProcessor):
 
         self.table_name = self.get_table_name_for_contour("ecr_campaign_results")
 
-        campaigns_filepath = os.path.join(os.path.dirname(__file__), f"../data/campaigns/campaigns.json")
-        with open(campaigns_filepath, "r", encoding="utf-8") as f:
-            self.campaigns_data = json.load(f)
-
     @api_view
     @permission_required(APIPermission.ANYONE)
     def API_GET(self, request_body: dict) -> typing.Tuple[dict, int]:
         if CURRENT_CAMPAIGN_NAME and CURRENT_CAMPAIGN_NAME in self.campaigns_data:
-            # Active campaign is ongoing
+            # Active campaign is ongoing or ending
             faction_res = self._get_factions_results()
             campaign_data = self._get_campaign_data(CURRENT_CAMPAIGN_NAME)
             end_ts = datetime.datetime.fromisoformat(campaign_data["end_time_iso"]).timestamp()
@@ -121,8 +117,8 @@ class CampaignProcessor(ResourceProcessor):
             p0 = 1.0 / len(factions)
 
         for f in factions:
-            w = float(wins.get(f, 0))
-            p = float(plays.get(f, 0))
+            w = float(wins.get(f, 1))
+            p = float(plays.get(f, 1))
             # regularized win rate
             p_hat = (w + alpha * p0) / (p + alpha) if (p + alpha) > 0 else p0
             # activity adjustment

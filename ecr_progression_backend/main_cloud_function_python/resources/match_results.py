@@ -656,7 +656,7 @@ class MatchResultsProcessor(ResourceProcessor):
         """Constructs queries to increase faction win count during campaign (for faction that won the match), only for dedicated servers"""
 
         queries_and_params = []
-        if CURRENT_CAMPAIGN_NAME and self.is_mission_pvp(mission):
+        if self.is_campaign_ongoing() and self.is_mission_pvp(mission):
             if self.is_user_server_or_backend(allow_emulation=True):
                 query = f"""
                     DECLARE $batch AS List<Struct<campaign: Utf8, faction: Utf8, won_delta: Int64, played_delta: Int64>>;
@@ -688,7 +688,7 @@ class MatchResultsProcessor(ResourceProcessor):
         """Constructs queries to increase character win counts in current campaign, only for dedicated servers"""
 
         queries_and_params = []
-        if CURRENT_CAMPAIGN_NAME and self.is_mission_pvp(mission):
+        if self.is_campaign_ongoing() and self.is_mission_pvp(mission):
             if self.is_user_server_or_backend(allow_emulation=True):
                 for chunk in batch_iterator(char_wins.items(), 100):
                     batch = [
