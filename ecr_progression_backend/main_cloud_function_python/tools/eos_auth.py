@@ -21,6 +21,10 @@ import os
 import sys
 
 
+# Default token max age: 72 hours (dirty fix around OnlineSubsystemEOS not being able to return refreshed token)
+DEFAULT_MAX_TOKEN_AGE = 72 * 60 * 60
+
+
 class EOSAuthVerifier:
     def __init__(self, logger):
         self.logger = logger
@@ -94,6 +98,9 @@ class EOSAuthVerifier:
                 key=public_key,
                 algorithms=[header_data['alg']],
                 audience=self.client_id,
+                options={
+                    "verify_exp": False,  # 🔴 disable built-in expiration check
+                }
             )
 
             # Check issuer (step 3)
@@ -103,10 +110,17 @@ class EOSAuthVerifier:
 
             # Check that iat is in the past (step 4)
             iat = payload.get("iat")
+            now = int(time.time())
             if not isinstance(iat, int):
                 raise ValueError(f"Non-number iat: {iat}")
-            if not (iat < time.time()):
+            if not (iat < now):
                 raise ValueError(f"Iat is not before current time: {iat}")
+
+            # Check expiration (step 5)
+            if now - iat > DEFAULT_MAX_TOKEN_AGE:
+                raise ValueError(
+                    f"Token expired by custom policy: age={now - iat}s max={DEFAULT_MAX_TOKEN_AGE}s"
+                )
 
             # Check that account in token is same as specified in request
             token_account_id = payload.get("sub", "")
