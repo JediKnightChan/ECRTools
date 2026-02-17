@@ -244,6 +244,7 @@ class MatchResultsProcessor(ResourceProcessor):
 
         char_results = {c["char"]: c for c in match_results["char_results"]}
         faction_results = {f["faction"]: f for f in match_results["faction_results"]}
+        no_winners_in_match = all(not r["is_winner"] for r in match_results["faction_results"])
 
         chars_old_progress = self.__get_chars_dailies_progress(char_results.keys(), daily_key, weekly_key)
         if chars_old_progress is None:
@@ -258,7 +259,8 @@ class MatchResultsProcessor(ResourceProcessor):
                 daily_key, weekly_key,
                 player_xp_req, char_currency_req,
                 achievements_req, dailies_req,
-                dailies_gold_req, char_winners_req
+                dailies_gold_req, char_winners_req,
+                no_winners_in_match
             )
             max_xp = max(max_xp, char_result["xp"])
 
@@ -271,7 +273,7 @@ class MatchResultsProcessor(ResourceProcessor):
         tx_queries += self.__get_queries_for_batch_grant_daily_activity_rewards(dailies_gold_req)
 
         # If campaign is ongoing, and it's PvP, then queries to notify about win (for faction, char) are added
-        if len(faction_results) == 2:
+        if len(faction_results) == 2 and not no_winners_in_match:
             # Change campaign results only for 1vs1 faction matches, though for char activity anything is counted
             for faction, res in faction_results.items():
                 tx_queries += self.__get_queries_to_notify_match_played_by_faction(faction,
@@ -298,13 +300,15 @@ class MatchResultsProcessor(ResourceProcessor):
             dailies_req: list,
             dailies_gold_req: dict,
             char_winners_req: dict,
+            no_winners_in_match: bool
     ) -> None:
         """Process a single character result and update batch request collections."""
 
         char_id = char_result["char"]
         player_id = char_result["player"]
         char_xp = max(0, char_result["xp"])
-        char_silver = self.get_silver_reward_for_mission(mission, char_result["is_winner"])
+        char_silver = self.get_silver_reward_for_mission(mission, char_result["is_winner"],
+                                                         no_winners_in_match=no_winners_in_match)
 
         # Limit checks
         self._check_reward_limits(char_id, player_id, char_xp, match_id)
@@ -718,8 +722,10 @@ class MatchResultsProcessor(ResourceProcessor):
                     queries_and_params.append((query, query_params))
         return queries_and_params
 
-    def get_silver_reward_for_mission(self, mission, is_winner):
+    def get_silver_reward_for_mission(self, mission, is_winner, no_winners_in_match=False):
         """Returns silver reward for given mission considering if it's victory or not"""
+        if no_winners_in_match:
+            return 0
 
         mission_mode = self.missions_data[mission]["mode"]
         reward_list = MATCH_SILVER_REWARDS[mission_mode]
@@ -762,16 +768,16 @@ if __name__ == '__main__':
                 {
                     "player": 4,
                     "char": char,
-                    "xp": 10000,
+                    "xp": 0,
                     "achievements": {
-                        "title_theemperorsfinest": 10000
+                        "title_theemperorsfinest": 0
                     },
                     "dailies": {
-                        "weekly_captures": 1,
-                        "daily_wins": 1,
+                        "weekly_captures": 0,
+                        "daily_wins": 0,
                         "non_existing_daily": 13,
                     },
-                    "is_winner": True
+                    "is_winner": False
                 }
             ],
             "faction_results": [
