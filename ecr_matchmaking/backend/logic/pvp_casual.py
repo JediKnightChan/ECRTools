@@ -15,13 +15,13 @@ def determine_team_size_casual(faction1_count, faction2_count, latest_ts, curren
     team_size = min(faction1_count, faction2_count, 16)
     max_team_size = max(faction1_count, faction2_count)
 
-    if team_size < 2:
-        # Not enough for any match: [0, 2)
+    if team_size < 1:
+        # Not enough for any match: [0, 1)
         return None, None, None, None
     elif team_size < 5:
         if current_ts - latest_ts > TIME_THRESHOLD_FOR_DUEL:
-            # Enough only for duel: [2, 5)
-            return 2, 2, 2, "duel"
+            # Enough only for duel: [1, 5)
+            return min(max_team_size, 5), 1, 5, "duel"
         return None, None, None, None  # Wait for more players
     elif team_size < 8:
         if current_ts - latest_ts > TIME_THRESHOLD_FOR_MEDIUM_SIZED_MATCH:
