@@ -4,7 +4,7 @@ from typing import Optional, Literal, List
 
 # Pydantic model for the request body
 class StartServerRequest(BaseModel):
-    game_version: str = Field(pattern=r'^\d{1,3}\.\d{1,3}\.\d{1,3}$')
+    game_version: str = Field(pattern=r'^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$')
     game_contour: Literal['prod', 'dev']
     game_map: str
     game_mode: str
