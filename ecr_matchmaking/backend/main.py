@@ -37,6 +37,8 @@ MATCH_CREATION_LOCK_TIMEOUT = 10  # Create a match attempt locks another attempt
 FULL_DEBUG_MODE = os.getenv("FULL_DEBUG_MODE") == "1"  # Whether to debug each matchmaking request
 INSTANT_CREATION_MODE = os.getenv("INSTANT_CREATION_MODE") == "1"  # Whether to create match even with 1 player in queue
 
+logger.info(f"Starting with FULL_DEBUG_MODE: {FULL_DEBUG_MODE}, INSTANT_CREATION_MODE: {INSTANT_CREATION_MODE}")
+
 # State
 cache = SimpleMemoryCache()
 
@@ -178,7 +180,9 @@ async def try_create_match(pool_id: str):
 
     if not outcome:
         if FULL_DEBUG_MODE:
-            logger.debug(f"Outcome None for faction counts {faction_counts}")
+            logger.debug(f"Outcome None for faction counts {faction_counts}, "
+                         f"pool {pool_name} with map {player_data_map}, latest ts {latest_ts}, "
+                         f"mode {matchmaking_config['pools']}")
 
         # Get faction counts dynamically
         return {"status": "waiting", "faction_counts": faction_counts}
