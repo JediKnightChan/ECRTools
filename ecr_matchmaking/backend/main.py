@@ -11,9 +11,9 @@ from fastapi import FastAPI, HTTPException, Request, BackgroundTasks
 from redis.asyncio import Redis
 
 from models.models import *
-from logic.pvp_casual import try_create_pvp_match_casual, try_create_instant_pvp_match
+from logic.pvp_casual import try_create_pvp_match_casual
 from logic.pvp_duels import try_create_pvp_match_duel
-from logic.pve import try_create_pve_match, try_create_instant_pve_match
+from logic.pve import try_create_pve_match
 from logic.game_server_utils import try_to_launch_match
 from logic.regions import get_region_group
 
@@ -34,6 +34,8 @@ logger.setLevel(logging.DEBUG)
 PLAYER_EXPIRATION = 30  # Player stays in queue for 30 seconds without additional requests
 MATCH_EXPIRATION = 300  # Matches expire after 5 minutes
 MATCH_CREATION_LOCK_TIMEOUT = 10  # Create a match attempt locks another attempts for 10 seconds
+FULL_DEBUG_MODE = os.getenv("FULL_DEBUG_MODE") == "1"  # Whether to debug each matchmaking request
+INSTANT_CREATION_MODE = os.getenv("INSTANT_CREATION_MODE") == "1"  # Whether to create match even with 1 player in queue
 
 # State
 cache = SimpleMemoryCache()
@@ -160,34 +162,40 @@ async def try_create_match(pool_id: str):
     # Update faction counts in cache
     await cache.set("faction_counts", faction_counts)
 
+    if FULL_DEBUG_MODE:
+        logger.debug(f"Trying to create match in pool {pool_name} with map {player_data_map}, latest ts {latest_ts}")
+
     if pool_name == "pvp_casual":
-        outcome = try_create_pvp_match_casual(player_data_map, latest_ts, matchmaking_config["pools"]["pvp"])
+        outcome = try_create_pvp_match_casual(player_data_map, latest_ts, matchmaking_config["pools"]["pvp"],
+                                              instant_creation=INSTANT_CREATION_MODE)
     elif pool_name == "pvp_duels":
         outcome = try_create_pvp_match_duel(player_data_map, latest_ts, matchmaking_config["pools"]["pvp"])
-    elif pool_name == "pvp_casual_instant":
-        outcome = try_create_instant_pvp_match(player_data_map, latest_ts, matchmaking_config["pools"]["pvp"])
     elif pool_name == "pve":
-        outcome = try_create_pve_match(player_data_map, latest_ts, matchmaking_config["pools"]["pve"])
-    elif pool_name == "pve_instant":
-        outcome = try_create_instant_pve_match(player_data_map, latest_ts, matchmaking_config["pools"]["pve"])
+        outcome = try_create_pve_match(player_data_map, latest_ts, matchmaking_config["pools"]["pve"],
+                                       instant_creation=INSTANT_CREATION_MODE)
     else:
         raise NotImplementedError
 
     if not outcome:
+        if FULL_DEBUG_MODE:
+            logger.debug(f"Outcome None for faction counts {faction_counts}")
+
         # Get faction counts dynamically
         return {"status": "waiting", "faction_counts": faction_counts}
 
     players_in_match, match_data = outcome
     mission_data = matchmaking_config["missions"].get(match_data["mission"])
     if not mission_data:
-        logger.error(f"Couldn't find mission data for {match_data['mission']} in matchmaking config keys ({list(matchmaking_config['missions'].keys())})")
+        logger.error(
+            f"Couldn't find mission data for {match_data['mission']} in matchmaking config keys ({list(matchmaking_config['missions'].keys())})")
         return {"status": "waiting", "faction_counts": faction_counts}
 
     resource_units_required = matchmaking_config["resource_units"][match_data["match_type"]]
     available_servers = await redis.zrangebyscore(GET_REDIS_GAME_SERVERS_QUEUE_KEY(), resource_units_required, "inf",
                                                   start=0, num=10)
 
-    logger.debug(f"Retrieved {len(available_servers)} available servers for match creation")
+    if FULL_DEBUG_MODE:
+        logger.debug(f"Retrieved {len(available_servers)} available servers for match creation")
 
     if not available_servers:
         # No servers available, need to launch new

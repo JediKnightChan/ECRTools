@@ -10,7 +10,7 @@ GAME_FACTIONS: Tuple[str, ...] = (
 class ReenterMatchmakingRequest(BaseModel):
     player_id: str
     region: str
-    pool_name: Literal['pvp_casual', 'pvp_duels', 'pvp_casual_instant', 'pve', 'pve_instant']
+    pool_name: Literal['pvp_casual', 'pvp_duels', 'pve']
     game_version: str = Field(pattern=r'^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$')
     game_contour: Literal['prod', 'dev']
 

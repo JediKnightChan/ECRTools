@@ -38,9 +38,5 @@ def determine_team_size_instant_pve(faction1_count, latest_ts, current_ts=None):
     return team_size, 1, 4, "raid4"
 
 
-def try_create_pve_match(player_data_map, latest_ts, matchmaking_config_for_mode):
-    return try_create_pve_match_common(player_data_map, latest_ts, matchmaking_config_for_mode, determine_team_size_pve)
-
-
-def try_create_instant_pve_match(player_data_map, latest_ts, matchmaking_config_for_mode):
-    return try_create_pve_match_common(player_data_map, latest_ts, matchmaking_config_for_mode, determine_team_size_instant_pve)
+def try_create_pve_match(player_data_map, latest_ts, matchmaking_config_for_mode, instant_creation=False):
+    return try_create_pve_match_common(player_data_map, latest_ts, matchmaking_config_for_mode, determine_team_size_instant_pve if instant_creation else determine_team_size_pve)

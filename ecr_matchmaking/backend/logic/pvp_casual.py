@@ -41,10 +41,8 @@ def determine_team_size_instant_pvp(faction1_count, faction2_count, latest_ts, c
     return max_team_size, 0, 8, "medium"
 
 
-def try_create_pvp_match_casual(player_data_map: dict, latest_ts: float, matchmaking_config_for_mode: dict):
+def try_create_pvp_match_casual(player_data_map: dict, latest_ts: float, matchmaking_config_for_mode: dict,
+                                instant_creation=False):
     return try_create_pvp_match_common(player_data_map, latest_ts, matchmaking_config_for_mode,
-                                       determine_team_size_casual)
-
-def try_create_instant_pvp_match(player_data_map: dict, latest_ts: float, matchmaking_config_for_mode: dict):
-    return try_create_pvp_match_common(player_data_map, latest_ts, matchmaking_config_for_mode,
-                                       determine_team_size_instant_pvp, ignore_faction_min_amount=True)
+                                       determine_team_size_instant_pvp if instant_creation else determine_team_size_casual,
+                                       ignore_faction_min_amount=instant_creation)
