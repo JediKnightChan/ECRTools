@@ -9,30 +9,29 @@ class TestMatchmaking(unittest.TestCase):
         current_ts = time.time()
 
         # Not enough players
-        self.assertEqual((None, None, None, None), determine_team_size_casual(1, 0, current_ts - 100, current_ts))
+        self.assertEqual((None, None, None, None), determine_team_size_casual(1, 0, 100))
 
         # Enough for duel, 1vs1
-        self.assertEqual((1, 1, 5, "duel"), determine_team_size_casual(1, 1, current_ts - 100, current_ts))
+        self.assertEqual((1, 1, 5, "duel"), determine_team_size_casual(1, 1, 100))
 
         # Enough for duel, past duel threshold
-        self.assertEqual((2, 1, 5, "duel"), determine_team_size_casual(2, 2, current_ts - 61, current_ts))
+        self.assertEqual((2, 1, 5, "duel"), determine_team_size_casual(2, 2, 61))
 
         # Enough for duel, but waiting
-        self.assertEqual((None, None, None, None), determine_team_size_casual(2, 2, current_ts - 30, current_ts))
+        self.assertEqual((None, None, None, None), determine_team_size_casual(2, 2, 30))
 
         # Enough for medium match, past threshold
-        self.assertEqual((6, 5, 8, "medium"), determine_team_size_casual(6, 6, current_ts - 46, current_ts))
+        self.assertEqual((6, 5, 8, "medium"), determine_team_size_casual(6, 6, 46))
 
         # Large battle (full teams)
-        self.assertEqual((12, 8, 16, "large"), determine_team_size_casual(10, 12, current_ts - 100, current_ts))
+        self.assertEqual((12, 8, 16, "large"), determine_team_size_casual(10, 12, 100))
 
         # Cap at max team size 16
-        self.assertEqual((16, 8, 16, "large"), determine_team_size_casual(20, 18, current_ts - 100, current_ts))
+        self.assertEqual((16, 8, 16, "large"), determine_team_size_casual(20, 18, 100))
 
     def test_try_create_pvp_match(self):
         """Test matchmaking with different party and faction setups."""
 
-        current_ts = time.time()
         matchmaking_config = {
             "group1": {
                 "duel": {"duel1": 1},
@@ -47,7 +46,7 @@ class TestMatchmaking(unittest.TestCase):
             "p2": {"faction": "A", "party_members": ["p2"], "desired_match_group": "group1"},
             "p3": {"faction": "B", "party_members": ["p3", "p4"], "desired_match_group": "group1"},
         }
-        match = try_create_pvp_match_casual(players, current_ts - 61, matchmaking_config)
+        match = try_create_pvp_match_casual(players, 61, matchmaking_config)
         self.assertIsNotNone(match)
         players_in_match, mission = match
         self.assertEqual({"p3", "p4", "p1", "p2"}, set(players_in_match))
@@ -73,7 +72,7 @@ class TestMatchmaking(unittest.TestCase):
             "p1": {"faction": "A", "party_members": ["p1"], "desired_match_group": "group1"},
             "p2": {"faction": "A", "party_members": ["p2"], "desired_match_group": "group1"},
         }
-        match = try_create_pvp_match_casual(players, current_ts - 100, matchmaking_config)
+        match = try_create_pvp_match_casual(players, 100, matchmaking_config)
         self.assertIsNone(match)
 
         # Test Case: Medium sized match
@@ -84,7 +83,7 @@ class TestMatchmaking(unittest.TestCase):
             "p6": {"faction": "B", "party_members": ["p6"], "desired_match_group": "group1"},
             "p7": {"faction": "B", "party_members": ["p7", "p8", "p9", "p10"], "desired_match_group": "group1"},
         }
-        match = try_create_pvp_match_casual(players, current_ts - 50, matchmaking_config)
+        match = try_create_pvp_match_casual(players, 50, matchmaking_config)
         self.assertIsNotNone(match)
         players_in_match, mission = match
         # All players got into queue
@@ -104,7 +103,7 @@ class TestMatchmaking(unittest.TestCase):
             "p23": {"faction": "B", "party_members": ["p23", "p24", "p25"], "desired_match_group": "group1"},
             "p27": {"faction": "B", "party_members": ["p27", "p28", "p29"], "desired_match_group": "group1"},
         }
-        match = try_create_pvp_match_casual(players, current_ts - 50, matchmaking_config)
+        match = try_create_pvp_match_casual(players, 50, matchmaking_config)
         self.assertIsNotNone(match)
         players_in_match, mission = match
         # All players got into queue, except last party who exceeded
@@ -115,12 +114,16 @@ class TestMatchmaking(unittest.TestCase):
         players = {
             "p1": {"faction": "A", "party_members": ["p1"], "desired_match_group": "group1"},
         }
-        match = try_create_pvp_match_casual(players, current_ts - 2, matchmaking_config, instant_creation=True)
+        match = try_create_pvp_match_casual(players, 2, matchmaking_config, instant_creation=True)
         self.assertIsNotNone(match)
         players_in_match, mission = match
         self.assertEqual({"p1", None}, set(players_in_match))
         self.assertEqual("medium1", mission["mission"])
 
+        c = {'pvp': {'PoolAlpha': {'large': {'PromethiumMineSupremacy': 1.0, 'CanyonWasteyardSupremacy': 1.0, 'CycladonComplexSupremacy': 0.25, 'PromethiumMineHoldTheLine': 0.25, 'CanyonWasteyardHoldTheLine': 0.25}, 'medium': {'CycladonComplexSupremacy': 1.0, 'PromethiumMineHoldTheLine': 1.0, 'CanyonWasteyardHoldTheLine': 1.0}, 'duel': {'CycladonComplexDuel': 1.0, 'PromethiumMineDuel': 1.0, 'CanyonWasteyardDuel': 1.0}}, 'PoolBeta': {'large': {'MedusaSupremacy': 1.0, 'OlipsisSupremacy': 1.0, 'ToriasSupremacy': 1.0, 'BlackBoltSupremacy': 1.0, 'MedusaHoldTheLine': 0.25, 'OlipsisHoldTheLine': 0.25, 'ToriasHoldTheLine': 0.25, 'BlackBoltHoldTheLine': 0.25}, 'medium': {'MedusaHoldTheLine': 1.0, 'OlipsisHoldTheLine': 1.0, 'ToriasHoldTheLine': 1.0, 'BlackBoltHoldTheLine': 1.0}, 'duel': {'MedusaDuel': 1.0, 'OlipsisDuel': 1.0, 'ToriasDuel': 1.0, 'BlackBoltDuel': 1.0}}, 'PoolGamma': {'large': {'CarmineAscentHoldTheLine': 1.0, 'MaggonStationHoldTheLine': 1.0, 'ZedekHoldTheLine': 1.0, 'RailgateRavineHoldTheLine': 1.0}}}, 'pve': {'Vein': {'raid4': {'ForgeOfTheMoltenVein': 1.0}}, 'Inferno': {'raid4': {'InfernoFoundry': 1.0}}, 'Abyss': {'raid4': {'TyrantOfTheAbyss': 1.0}}}}
+        players = {'34': {'desired_match_group': 'PoolAlpha', 'faction': 'LoyalSpaceMarines', 'party_members': ['34', '296b5f6beebf4a76a230f7c42ffe9e84|00025613597e40cf8c03f0a0c3b639b1'], 'region_group': 'RU'}, '36': {'desired_match_group': 'PoolAlpha', 'faction': 'LoyalSpaceMarines', 'party_members': ['36', 'f1ec6de28cf94037b87bb482c540dfa0|0002fb83e96243cf980465a07cff8a00'], 'region_group': 'EU'}, '38': {'desired_match_group': 'PoolAlpha', 'faction': 'ChaosSpaceMarines', 'party_members': ['38', 'bcfbe08295684f1584d549ff3980a56a|00027e499d4947199ab68569947a79f2'], 'region_group': 'RU'}, '33': {'desired_match_group': 'PoolAlpha', 'faction': 'ChaosSpaceMarines', 'party_members': ['33', 'c5a7eea3e4c14aecaf4b73a3891bf7d3|0002822ed1b24b3aa9e3aad230d7d601'], 'region_group': 'US'}}
+        match = try_create_pvp_match_casual(players, 100, c['pvp'])
+        print(match)
 
 if __name__ == "__main__":
     unittest.main()

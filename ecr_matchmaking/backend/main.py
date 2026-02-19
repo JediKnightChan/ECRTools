@@ -145,7 +145,8 @@ async def try_create_match(pool_id: str):
     player_data_map = {}
     faction_counts = {}
     region_group_counts = {}
-    latest_ts = 0
+    oldest_ts = int(time.time())
+
     for player_id, queued_ts in players_and_ts:
         player_key = GET_REDIS_PLAYER_KEY(pool_id, player_id)
         player_data = await redis.get(player_key)
@@ -159,21 +160,24 @@ async def try_create_match(pool_id: str):
         faction_counts[faction] = faction_counts.get(faction, 0) + 1
         region_group = player_info.get("region_group")
         region_group_counts[region_group] = region_group_counts.get(region_group, 0) + 1
-        latest_ts = max(latest_ts, queued_ts)
+        oldest_ts = min(oldest_ts, queued_ts)
+
+    # The largest time player spent in matchmaking right now
+    oldest_player_queue_time = time.time() - oldest_ts
 
     # Update faction counts in cache
     await cache.set("faction_counts", faction_counts)
 
     if FULL_DEBUG_MODE:
-        logger.debug(f"Trying to create match in pool {pool_name} with map {player_data_map}, latest ts {latest_ts}")
+        logger.debug(f"Trying to create match in pool {pool_name} with map {player_data_map}, oldest time {oldest_player_queue_time}")
 
     if pool_name == "pvp_casual":
-        outcome = try_create_pvp_match_casual(player_data_map, latest_ts, matchmaking_config["pools"]["pvp"],
+        outcome = try_create_pvp_match_casual(player_data_map, oldest_player_queue_time, matchmaking_config["pools"]["pvp"],
                                               instant_creation=INSTANT_CREATION_MODE)
     elif pool_name == "pvp_duels":
-        outcome = try_create_pvp_match_duel(player_data_map, latest_ts, matchmaking_config["pools"]["pvp"])
+        outcome = try_create_pvp_match_duel(player_data_map, oldest_player_queue_time, matchmaking_config["pools"]["pvp"])
     elif pool_name == "pve":
-        outcome = try_create_pve_match(player_data_map, latest_ts, matchmaking_config["pools"]["pve"],
+        outcome = try_create_pve_match(player_data_map, oldest_player_queue_time, matchmaking_config["pools"]["pve"],
                                        instant_creation=INSTANT_CREATION_MODE)
     else:
         raise NotImplementedError
@@ -181,7 +185,7 @@ async def try_create_match(pool_id: str):
     if not outcome:
         if FULL_DEBUG_MODE:
             logger.debug(f"Outcome None for faction counts {faction_counts}, "
-                         f"pool {pool_name} with map {player_data_map}, latest ts {latest_ts}, "
+                         f"pool {pool_name} with map {player_data_map}, oldest time {oldest_player_queue_time}, "
                          f"mode {matchmaking_config['pools']}")
 
         # Get faction counts dynamically

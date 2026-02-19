@@ -749,7 +749,7 @@ if __name__ == '__main__':
     import logging
 
     player = 4
-    char = 2
+    char = 4
     item_id = "sm_node_wg1_ja_fuel"
     item_type = ProgressionItemType.ADVANCEMENT
 

@@ -12,23 +12,21 @@ class TestMatchmakingPve(unittest.TestCase):
 
         # Not enough players
         self.assertEqual((None, None, None, None),
-                         determine_team_size_pve(1, current_ts - TIME_THRESHOLD_FOR_MATCH_ALONE + 1, current_ts))
+                         determine_team_size_pve(1, TIME_THRESHOLD_FOR_MATCH_ALONE - 1))
 
         # Enough for match with not full group, past threshold
         self.assertEqual((2, 2, 4, "raid4"),
-                         determine_team_size_pve(2, current_ts - TIME_THRESHOLD_FOR_MATCH_WITH_NOT_FULL_GROUP - 1,
-                                                 current_ts))
+                         determine_team_size_pve(2, TIME_THRESHOLD_FOR_MATCH_WITH_NOT_FULL_GROUP + 1))
 
         # Enough for match with not full group, but waiting
         self.assertEqual((None, None, None, None),
-                         determine_team_size_pve(3, current_ts - TIME_THRESHOLD_FOR_MATCH_WITH_NOT_FULL_GROUP + 1,
-                                                 current_ts))
+                         determine_team_size_pve(3, TIME_THRESHOLD_FOR_MATCH_WITH_NOT_FULL_GROUP - 1))
 
         # Enough for full group match
-        self.assertEqual((4, 4, 4, "raid4"), determine_team_size_pve(4, current_ts - 5, current_ts))
+        self.assertEqual((4, 4, 4, "raid4"), determine_team_size_pve(4, 5))
 
         # Cap at max team size 4
-        self.assertEqual((4, 4, 4, "raid4"), determine_team_size_pve(12, current_ts - 5, current_ts))
+        self.assertEqual((4, 4, 4, "raid4"), determine_team_size_pve(12, 5))
 
     def test_determine_team_size_instant_pve(self):
         """Test various team size conditions."""
@@ -36,28 +34,22 @@ class TestMatchmakingPve(unittest.TestCase):
 
         # 1 player
         self.assertEqual((1, 1, 4, "raid4"),
-                         determine_team_size_instant_pve(1, current_ts - TIME_THRESHOLD_FOR_MATCH_ALONE + 1,
-                                                         current_ts))
+                         determine_team_size_instant_pve(1, TIME_THRESHOLD_FOR_MATCH_ALONE - 1))
 
         # 3 player
         self.assertEqual((3, 1, 4, "raid4"),
-                         determine_team_size_instant_pve(3, current_ts - TIME_THRESHOLD_FOR_MATCH_ALONE + 1,
-                                                         current_ts))
+                         determine_team_size_instant_pve(3, TIME_THRESHOLD_FOR_MATCH_ALONE - 1))
 
         # 4 player
         self.assertEqual((4, 1, 4, "raid4"),
-                         determine_team_size_instant_pve(4, current_ts - TIME_THRESHOLD_FOR_MATCH_ALONE + 1,
-                                                         current_ts))
+                         determine_team_size_instant_pve(4, TIME_THRESHOLD_FOR_MATCH_ALONE - 1))
 
         # 100 player
         self.assertEqual((4, 1, 4, "raid4"),
-                         determine_team_size_instant_pve(100, current_ts - TIME_THRESHOLD_FOR_MATCH_ALONE + 1,
-                                                         current_ts))
+                         determine_team_size_instant_pve(100, TIME_THRESHOLD_FOR_MATCH_ALONE - 1))
 
     def test_try_create_pve_match(self):
         """Test matchmaking with different party and faction setups."""
-
-        current_ts = time.time()
 
         matchmaking_config = {
             "group1": {
@@ -71,7 +63,7 @@ class TestMatchmakingPve(unittest.TestCase):
             "p2": {"faction": "A", "party_members": ["p2"], "desired_match_group": "group1"},
             "p3": {"faction": "A", "party_members": ["p3", "p4"], "desired_match_group": "group1"},
         }
-        match = try_create_pve_match(players, current_ts - 5, matchmaking_config)
+        match = try_create_pve_match(players, 5, matchmaking_config)
         self.assertIsNotNone(match)
         players_in_match, mission = match
         self.assertEqual({"p3", "p4", "p1", "p2"}, set(players_in_match))
@@ -85,7 +77,7 @@ class TestMatchmakingPve(unittest.TestCase):
             "p6": {"faction": "A", "party_members": ["p6"], "desired_match_group": "group1"},
             "p7": {"faction": "A", "party_members": ["p7", "p8"], "desired_match_group": "group1"},
         }
-        match = try_create_pve_match(players, current_ts - 5, matchmaking_config)
+        match = try_create_pve_match(players, 5, matchmaking_config)
         self.assertIsNotNone(match)
         players_in_match, mission = match
         # Larger party prioritized, if not exceeding
@@ -97,7 +89,7 @@ class TestMatchmakingPve(unittest.TestCase):
             "p1": {"faction": "A", "party_members": ["p1"], "desired_match_group": "group1"},
             "p2": {"faction": "A", "party_members": ["p2"], "desired_match_group": "group1"},
         }
-        match = try_create_pve_match(players, current_ts - TIME_THRESHOLD_FOR_MATCH_WITH_NOT_FULL_GROUP + 5,
+        match = try_create_pve_match(players, TIME_THRESHOLD_FOR_MATCH_WITH_NOT_FULL_GROUP - 5,
                                      matchmaking_config)
         self.assertIsNone(match)
 
@@ -106,7 +98,7 @@ class TestMatchmakingPve(unittest.TestCase):
             "p1": {"faction": "A", "party_members": ["p1"], "desired_match_group": "group1"},
             "p2": {"faction": "A", "party_members": ["p2"], "desired_match_group": "group1"},
         }
-        match = try_create_pve_match(players, current_ts - TIME_THRESHOLD_FOR_MATCH_WITH_NOT_FULL_GROUP - 5,
+        match = try_create_pve_match(players, TIME_THRESHOLD_FOR_MATCH_WITH_NOT_FULL_GROUP + 5,
                                      matchmaking_config)
         self.assertIsNotNone(match)
         players_in_match, mission = match
@@ -120,7 +112,7 @@ class TestMatchmakingPve(unittest.TestCase):
             "p2": {"faction": "A", "party_members": ["p2", "p3", "p4", "p5"], "desired_match_group": "group1"},
             "p6": {"faction": "A", "party_members": ["p6"], "desired_match_group": "group1"},
         }
-        match = try_create_pve_match(players, current_ts - 5, matchmaking_config)
+        match = try_create_pve_match(players, 5, matchmaking_config)
         self.assertIsNotNone(match)
         players_in_match, mission = match
         # All players got into queue, except last party who exceeded
@@ -129,8 +121,6 @@ class TestMatchmakingPve(unittest.TestCase):
 
     def test_try_create_instant_pve_match(self):
         """Test matchmaking with different party and faction setups."""
-
-        current_ts = time.time()
 
         matchmaking_config = {
             "group1": {
@@ -144,7 +134,7 @@ class TestMatchmakingPve(unittest.TestCase):
             "p2": {"faction": "A", "party_members": ["p2"], "desired_match_group": "group1"},
             "p3": {"faction": "A", "party_members": ["p3", "p4"], "desired_match_group": "group1"},
         }
-        match = try_create_pve_match(players, current_ts - 5, matchmaking_config, instant_creation=True)
+        match = try_create_pve_match(players, 5, matchmaking_config, instant_creation=True)
         self.assertIsNotNone(match)
         players_in_match, mission = match
         self.assertEqual({"p3", "p4", "p1", "p2"}, set(players_in_match))
@@ -158,7 +148,7 @@ class TestMatchmakingPve(unittest.TestCase):
             "p6": {"faction": "A", "party_members": ["p6"], "desired_match_group": "group1"},
             "p7": {"faction": "A", "party_members": ["p7", "p8"], "desired_match_group": "group1"},
         }
-        match = try_create_pve_match(players, current_ts - 5, matchmaking_config, instant_creation=True)
+        match = try_create_pve_match(players, 5, matchmaking_config, instant_creation=True)
         self.assertIsNotNone(match)
         players_in_match, mission = match
         # Larger party prioritized, if not exceeding
@@ -170,7 +160,7 @@ class TestMatchmakingPve(unittest.TestCase):
             "p1": {"faction": "A", "party_members": ["p1"], "desired_match_group": "group1"},
             "p2": {"faction": "A", "party_members": ["p2"], "desired_match_group": "group1"},
         }
-        match = try_create_pve_match(players, current_ts - TIME_THRESHOLD_FOR_MATCH_WITH_NOT_FULL_GROUP + 5,
+        match = try_create_pve_match(players, TIME_THRESHOLD_FOR_MATCH_WITH_NOT_FULL_GROUP - 5,
                                              matchmaking_config, instant_creation=True)
         self.assertIsNotNone(match)
         players_in_match, mission = match
@@ -182,7 +172,7 @@ class TestMatchmakingPve(unittest.TestCase):
         players = {
             "p1": {"faction": "A", "party_members": ["p1"], "desired_match_group": "group1"}
         }
-        match = try_create_pve_match(players, current_ts - 5, matchmaking_config, instant_creation=True)
+        match = try_create_pve_match(players, 5, matchmaking_config, instant_creation=True)
         self.assertIsNotNone(match)
         players_in_match, mission = match
         # All players got into queue, except last party who exceeded
