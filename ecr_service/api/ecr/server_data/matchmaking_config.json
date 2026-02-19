@@ -1,30 +1,10 @@
 {
   "missions": {
-    "NexusDuel": {
-      "map": "/Game/Maps/Levels/NexusCitadel",
-      "mode": "pvp"
-    },
-    "NexusElimination": {
-      "map": "/Game/Maps/Levels/NexusCitadel",
-      "mode": "pvp"
-    },
-    "ValorousSalvationSupremacy": {
-      "map": "/Game/Maps/Levels/ValorousSalvation",
-      "mode": "pvp"
-    },
-    "ValorousSalvationElimination": {
-      "map": "/Game/Maps/Levels/ValorousSalvation",
-      "mode": "pvp"
-    },
-    "ValorousSalvationDuel": {
-      "map": "/Game/Maps/Levels/ValorousSalvation",
-      "mode": "pvp"
-    },
-    "PromethiumMineDomination": {
+    "PromethiumMineDuel": {
       "map": "/Game/Maps/Levels/PromethiumMine",
       "mode": "pvp"
     },
-    "PromethiumMineSupremacy": {
+    "PromethiumMineDomination": {
       "map": "/Game/Maps/Levels/PromethiumMine",
       "mode": "pvp"
     },
@@ -32,11 +12,15 @@
       "map": "/Game/Maps/Levels/PromethiumMine",
       "mode": "pvp"
     },
-    "CanyonWasteyardDomination": {
+    "PromethiumMineSupremacy": {
+      "map": "/Game/Maps/Levels/PromethiumMine",
+      "mode": "pvp"
+    },
+    "CanyonWasteyardDuel": {
       "map": "/Game/Maps/Levels/CanyonWasteyard",
       "mode": "pvp"
     },
-    "CanyonWasteyardSupremacy": {
+    "CanyonWasteyardDomination": {
       "map": "/Game/Maps/Levels/CanyonWasteyard",
       "mode": "pvp"
     },
@@ -44,8 +28,12 @@
       "map": "/Game/Maps/Levels/CanyonWasteyard",
       "mode": "pvp"
     },
-    "CanyonWasteyardElimination": {
+    "CanyonWasteyardSupremacy": {
       "map": "/Game/Maps/Levels/CanyonWasteyard",
+      "mode": "pvp"
+    },
+    "CycladonComplexDuel": {
+      "map": "/Game/Maps/Levels/CycladonComplex",
       "mode": "pvp"
     },
     "CycladonComplexDomination": {
@@ -56,8 +44,8 @@
       "map": "/Game/Maps/Levels/CycladonComplex",
       "mode": "pvp"
     },
-    "CycladonComplexDuel": {
-      "map": "/Game/Maps/Levels/CycladonComplex",
+    "RailgateDuel": {
+      "map": "/Game/Maps/Levels/RailgateRavine",
       "mode": "pvp"
     },
     "RailgateDomination": {
@@ -68,8 +56,116 @@
       "map": "/Game/Maps/Levels/RailgateRavine",
       "mode": "pvp"
     },
-    "RailgateDuel": {
-      "map": "/Game/Maps/Levels/RailgateRavine",
+    "MedusaDuel": {
+      "map": "/Game/Maps/Levels/MedusaRelay",
+      "mode": "pvp"
+    },
+    "MedusaDomination": {
+      "map": "/Game/Maps/Levels/MedusaRelay",
+      "mode": "pvp"
+    },
+    "MedusaHoldTheLine": {
+      "map": "/Game/Maps/Levels/MedusaRelay",
+      "mode": "pvp"
+    },
+    "MedusaSupremacy": {
+      "map": "/Game/Maps/Levels/MedusaRelay",
+      "mode": "pvp"
+    },
+    "OlipsisDuel": {
+      "map": "/Game/Maps/Levels/RefineryOlipsis",
+      "mode": "pvp"
+    },
+    "OlipsisDomination": {
+      "map": "/Game/Maps/Levels/RefineryOlipsis",
+      "mode": "pvp"
+    },
+    "OlipsisHoldTheLine": {
+      "map": "/Game/Maps/Levels/RefineryOlipsis",
+      "mode": "pvp"
+    },
+    "OlipsisSupremacy": {
+      "map": "/Game/Maps/Levels/RefineryOlipsis",
+      "mode": "pvp"
+    },
+    "BlackboltDuel": {
+      "map": "/Game/Maps/Levels/BlackboltDefense",
+      "mode": "pvp"
+    },
+    "BlackboltDomination": {
+      "map": "/Game/Maps/Levels/BlackboltDefense",
+      "mode": "pvp"
+    },
+    "BlackboltHoldTheLine": {
+      "map": "/Game/Maps/Levels/BlackboltDefense",
+      "mode": "pvp"
+    },
+    "BlackboltSupremacy": {
+      "map": "/Game/Maps/Levels/BlackboltDefense",
+      "mode": "pvp"
+    },
+    "ToriasRefineryDuel": {
+      "map": "/Game/Maps/Levels/ToriasRefinery",
+      "mode": "pvp"
+    },
+    "ToriasRefineryDomination": {
+      "map": "/Game/Maps/Levels/ToriasRefinery",
+      "mode": "pvp"
+    },
+    "ToriasRefineryHoldTheLine": {
+      "map": "/Game/Maps/Levels/ToriasRefinery",
+      "mode": "pvp"
+    },
+    "ToriasRefinerySupremacy": {
+      "map": "/Game/Maps/Levels/ToriasRefinery",
+      "mode": "pvp"
+    },
+    "CarmineAscentDuel": {
+      "map": "/Game/Maps/Levels/CarmineAscent",
+      "mode": "pvp"
+    },
+    "CarmineAscentDomination": {
+      "map": "/Game/Maps/Levels/CarmineAscent",
+      "mode": "pvp"
+    },
+    "CarmineAscentHoldTheLine": {
+      "map": "/Game/Maps/Levels/CarmineAscent",
+      "mode": "pvp"
+    },
+    "ZedekDuel": {
+      "map": "/Game/Maps/Levels/Zedek",
+      "mode": "pvp"
+    },
+    "ZedekDomination": {
+      "map": "/Game/Maps/Levels/Zedek",
+      "mode": "pvp"
+    },
+    "ZedekHoldTheLine": {
+      "map": "/Game/Maps/Levels/Zedek",
+      "mode": "pvp"
+    },
+    "MaggonStationDuel": {
+      "map": "/Game/Maps/Levels/MaggonStation",
+      "mode": "pvp"
+    },
+    "MaggonStationDomination": {
+      "map": "/Game/Maps/Levels/MaggonStation",
+      "mode": "pvp"
+    },
+    "MaggonStationHoldTheLine": {
+      "map": "/Game/Maps/Levels/MaggonStation",
+      "mode": "pvp"
+    },
+    "ValorousSalvationDuel": {
+      "map": "/Game/Maps/Levels/ValorousSalvation",
+      "mode": "pvp"
+    },
+    "ValorousSalvationDomination": {
+      "map": "/Game/Maps/Levels/ValorousSalvation",
+      "mode": "pvp"
+    },
+    "ValorousSalvationHoldTheLine": {
+      "map": "/Game/Maps/Levels/ValorousSalvation",
       "mode": "pvp"
     },
     "ForgeOfTheMoltenVein": {
@@ -86,41 +182,48 @@
           "CanyonWasteyardSupremacy": 1.0,
           "CycladonComplexSupremacy": 0.25,
           "PromethiumMineHoldTheLine": 0.25,
-          "CanyonWasteyardHoldTheLine": 0.25
+          "CanyonWasteyardHoldTheLine": 0.25,
+          "RailgateHoldTheLine": 0.25
         },
         "medium": {
-          "CycladonComplexSupremacy": 1.0,
           "PromethiumMineHoldTheLine": 1.0,
-          "CanyonWasteyardHoldTheLine": 1.0
+          "CanyonWasteyardHoldTheLine": 1.0,
+          "CycladonComplexSupremacy": 1.0,
+          "RailgateHoldTheLine": 1.0
         },
-        "duel": {
-          "CycladonComplexDuel": 1.0,
+        "low": {
           "PromethiumMineDuel": 1.0,
-          "CanyonWasteyardDuel": 1.0
+          "CanyonWasteyardDuel": 1.0,
+          "CycladonComplexDuel": 1.0,
+          "RailgateDuel": 1.0,
+          "PromethiumMineDomination": 1.0,
+          "CanyonWasteyardDomination": 1.0,
+          "CycladonComplexDomination": 1.0,
+          "RailgateDomination": 1.0
         }
       },
       "PoolBeta": {
         "large": {
           "MedusaSupremacy": 1.0,
           "OlipsisSupremacy": 1.0,
-          "ToriasSupremacy": 1.0,
           "BlackBoltSupremacy": 1.0,
+          "ToriasRefinerySupremacy": 1.0,
           "MedusaHoldTheLine": 0.25,
           "OlipsisHoldTheLine": 0.25,
-          "ToriasHoldTheLine": 0.25,
-          "BlackBoltHoldTheLine": 0.25
+          "BlackBoltHoldTheLine": 0.25,
+          "ToriasRefineryHoldTheLine": 0.25
         },
         "medium": {
           "MedusaHoldTheLine": 1.0,
           "OlipsisHoldTheLine": 1.0,
-          "ToriasHoldTheLine": 1.0,
-          "BlackBoltHoldTheLine": 1.0
+          "BlackBoltHoldTheLine": 1.0,
+          "ToriasRefineryHoldTheLine": 1.0
         },
-        "duel": {
+        "low": {
           "MedusaDuel": 1.0,
           "OlipsisDuel": 1.0,
-          "ToriasDuel": 1.0,
-          "BlackBoltDuel": 1.0
+          "BlackBoltDuel": 1.0,
+          "ToriasRefineryDuel": 1.0
         }
       },
       "PoolGamma": {
@@ -128,7 +231,23 @@
           "CarmineAscentHoldTheLine": 1.0,
           "MaggonStationHoldTheLine": 1.0,
           "ZedekHoldTheLine": 1.0,
-          "RailgateRavineHoldTheLine": 1.0
+          "ValorousSalvationHoldTheLine": 1.0
+        },
+        "medium": {
+          "CarmineAscentHoldTheLine": 1.0,
+          "MaggonStationHoldTheLine": 1.0,
+          "ZedekHoldTheLine": 1.0,
+          "ValorousSalvationHoldTheLine": 1.0
+        },
+        "low": {
+          "CarmineAscentDuel": 1.0,
+          "MaggonStationDuel": 1.0,
+          "ZedekDuel": 1.0,
+          "ValorousSalvationDuel": 1.0,
+          "CarmineAscentDomination": 1.0,
+          "MaggonStationDomination": 1.0,
+          "ZedekDomination": 1.0,
+          "ValorousSalvationDomination": 1.0
         }
       }
     },
