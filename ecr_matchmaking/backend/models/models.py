@@ -6,6 +6,8 @@ GAME_FACTIONS: Tuple[str, ...] = (
     'ChaosSpaceMarines'
 )
 
+MAX_PARTY_SIZE = 4
+
 
 class ReenterMatchmakingRequest(BaseModel):
     player_id: str
@@ -27,6 +29,15 @@ class ReenterMatchmakingRequest(BaseModel):
             raise ValueError(f"Invalid faction: {v}")
         return v
 
+    @validator('party_members')
+    def validate_party_members(cls, v):
+        if v is None:
+            return v
+        if len(v) > MAX_PARTY_SIZE:
+            raise ValueError(f"Party size exceeds maximum: {len(v)} > {MAX_PARTY_SIZE}")
+        return v
+
+
 class LeaveMatchmakingRequest(BaseModel):
     player_id: str
 
@@ -42,3 +53,10 @@ class RegisterGameServerStats(BaseModel):
     region: str
     match_id: str
     stats: dict
+
+
+class UpdateOngoingMatchRequest(BaseModel):
+    match_id: str
+    pool_id: str
+    faction_free_spots: dict
+    mission: str
