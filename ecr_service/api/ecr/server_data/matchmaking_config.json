@@ -271,7 +271,7 @@
   },
   "resource_units": {
     "raid4": 1,
-    "duel": 1,
+    "low": 1,
     "medium": 1,
     "large": 2
   }

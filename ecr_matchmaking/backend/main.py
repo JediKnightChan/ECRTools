@@ -32,7 +32,8 @@ logger.setLevel(logging.DEBUG)
 
 # Constants
 PLAYER_EXPIRATION = 30  # Player stays in queue for 30 seconds without additional requests
-MATCH_EXPIRATION = 300  # Matches expire after 5 minutes
+MATCH_EXPIRATION = 60  # Match assigned to player will expire after 60 seconds
+MATCH_INFO_EXPIRATION = 600  # Match information (free spots amount) will expire in 10 minutes
 MATCH_CREATION_LOCK_TIMEOUT = 10  # Create a match attempt locks another attempts for 10 seconds
 FULL_DEBUG_MODE = os.getenv("FULL_DEBUG_MODE") == "1"  # Whether to debug each matchmaking request
 INSTANT_CREATION_MODE = os.getenv("INSTANT_CREATION_MODE") == "1"  # Whether to create match even with 1 player in queue
@@ -41,6 +42,29 @@ logger.info(f"Starting with FULL_DEBUG_MODE: {FULL_DEBUG_MODE}, INSTANT_CREATION
 
 # State
 cache = SimpleMemoryCache()
+
+# Lua script for atomic match join (single-threaded decrement of free spots in match)
+JOIN_MATCH_LUA = """
+local match_key = KEYS[1]
+local faction_field = ARGV[1]
+
+local free = redis.call("HGET", match_key, faction_field)
+
+if not free then
+    return -1
+end
+
+free = tonumber(free)
+
+if free > 0 then
+    redis.call("HINCRBY", match_key, faction_field, -1)
+    return 1
+else
+    return 0
+end
+"""
+
+join_script = redis.register_script(JOIN_MATCH_LUA)
 
 
 def GET_REDIS_PLAYER_KEY(pool_id, player_id):
@@ -71,6 +95,16 @@ def GET_REDIS_GAME_SERVERS_QUEUE_KEY():
 def GET_REDIS_GAME_SERVER_KEY(server):
     """Stores information about server"""
     return f"game_server:{server}"
+
+
+def GET_REDIS_ONGOING_MATCH_KEY(match_id: str):
+    """Stores information about ongoing match (free spots)"""
+    return f"ongoing_match:{match_id}"
+
+
+def GET_REDIS_ONGOING_MATCH_POOL_KEY(pool_id: str):
+    """Stores a list of ongoing matches for a given pool"""
+    return f"ongoing_matches:{pool_id}"
 
 
 async def acquire_match_creation_lock(pool_id):
@@ -256,10 +290,52 @@ async def try_create_match(pool_id: str):
             })
             await redis.set(GET_REDIS_GAME_SERVER_KEY(successful_server), server_data)
 
+            # Register ongoing match with full capacity minus assigned players
+            ongoing_match_key = GET_REDIS_ONGOING_MATCH_KEY(match_id)
+            await redis.sadd(GET_REDIS_ONGOING_MATCH_POOL_KEY(pool_id), match_id)
+
+            faction_setup = match_data["faction_setup"]
+            max_team_size = match_data["max_team_size"]
+            faction_free_spots = {}
+
+            for faction, size in faction_setup.items():
+                faction_free_spots[f"faction:{faction}"] = max_team_size - size
+            await redis.hset(ongoing_match_key, mapping={
+                "pool_id": pool_id,
+                "mission": match_data["mission"],
+                **faction_free_spots
+            })
+            await redis.expire(ongoing_match_key, MATCH_INFO_EXPIRATION)
+
             return {"status": "match", **match_details}
         else:
             logger.error("No server could handle match launch request")
             return {"status": "waiting", "faction_counts": faction_counts}
+
+
+async def try_join_existing_match(pool_id: str, player_info: dict):
+    pool_set_key = GET_REDIS_ONGOING_MATCH_POOL_KEY(pool_id)
+    match_ids = await redis.smembers(pool_set_key)
+
+    faction = player_info["faction"]
+
+    for match_id in match_ids:
+        match_key = GET_REDIS_ONGOING_MATCH_KEY(match_id)
+
+        result = await join_script(
+            keys=[match_key],
+            args=[f"faction:{faction}"]
+        )
+
+        if result == 1:
+            mission = await redis.hget(match_key, "mission")
+            return {
+                "match_id": match_id,
+                "mission": mission
+            }
+        elif result == -1:
+            await redis.srem(pool_set_key, match_id)
+    return None
 
 
 @app.post("/reenter_matchmaking_queue")
@@ -292,18 +368,36 @@ async def reenter_matchmaking_queue(body: ReenterMatchmakingRequest):
         party_members.insert(0, player_id)
 
         # Set information about the player
-        await redis.setex(player_key, PLAYER_EXPIRATION, json.dumps({
+        player_info = {
             "desired_match_group": desired_match_group,
             "faction": faction,
             "party_members": party_members,
             "region_group": get_region_group(region),
             "entered_time": int(time.time())
-        }))
+        }
+        await redis.setex(player_key, PLAYER_EXPIRATION, json.dumps(player_info))
+    else:
+        player_info = json.loads(await redis.get(player_key))
 
     # Extend player expiration
     await redis.expire(player_key, PLAYER_EXPIRATION)
     # Set player last update time in player expire queue
     await redis.zadd(GET_REDIS_PLAYER_QUEUE_KEY(pool_id), {player_id: time.time()})
+
+    # Try to join existing match
+    existing_match = await try_join_existing_match(pool_id, player_info)
+    if existing_match:
+        # Assign match to player
+        await redis.setex(
+            GET_REDIS_MATCH_FOR_PLAYER_KEY(player_id),
+            MATCH_EXPIRATION,
+            json.dumps(existing_match)
+        )
+
+        await redis.delete(player_key)
+        await redis.zrem(GET_REDIS_PLAYER_QUEUE_KEY(pool_id), player_id)
+
+        return {"status": "match", **existing_match}
 
     # Try to create a match
     got_lock = await acquire_match_creation_lock(pool_id)
@@ -349,6 +443,29 @@ async def register_or_update_game_server(request: Request, body: RegisterGameSer
     })
     await redis.set(GET_REDIS_GAME_SERVER_KEY(server_ip), server_data)
     return {"status": "success", "message": "Server registered"}
+
+
+@app.post("/update_ongoing_match")
+async def update_ongoing_match(body: UpdateOngoingMatchRequest):
+    match_key = GET_REDIS_ONGOING_MATCH_KEY(body.match_id)
+    pool_set_key = GET_REDIS_ONGOING_MATCH_POOL_KEY(body.pool_id)
+
+    # Store match in pool set
+    await redis.sadd(pool_set_key, body.match_id)
+
+    # Store free spots per faction
+    data = {
+        "pool_id": body.pool_id,
+        "mission": body.mission,
+    }
+
+    for faction, free in body.faction_free_spots.items():
+        data[f"faction:{faction}"] = free
+
+    await redis.hset(match_key, mapping=data)
+    await redis.expire(match_key, MATCH_INFO_EXPIRATION)
+
+    return {"status": "success"}
 
 
 @app.post("/unregister_game_server")
