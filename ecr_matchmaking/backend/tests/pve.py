@@ -12,7 +12,7 @@ class TestMatchmakingPve(unittest.TestCase):
 
         # Not enough players
         self.assertEqual((None, None, None, None),
-                         determine_team_size_pve(1, TIME_THRESHOLD_FOR_MATCH_ALONE - 1))
+                         determine_team_size_pve(1, TIME_THRESHOLD_FOR_MATCH_ALONE - 1, ))
 
         # Enough for match with not full group, past threshold
         self.assertEqual((2, 2, 4, "raid4"),

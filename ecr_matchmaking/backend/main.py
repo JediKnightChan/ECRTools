@@ -49,17 +49,11 @@ def GET_REDIS_PLAYER_KEY(pool_id, player_id):
 
 
 def GET_REDIS_PLAYER_QUEUE_KEY(pool_id):
-    """This sorted set stores queued players by time they entered matchmaking"""
+    """This sorted set stores queued players by time they last connected to matchmaking"""
     return f"player_queue:{pool_id}"
 
 
-def GET_REDIS_PLAYER_EXPIRE_QUEUE_KEY(pool_id):
-    """This sorted set stores queued players by time they last connected to matchmaking
-    (for expiration of those who stopped connecting)"""
-    return f"player_expire_queue:{pool_id}"
-
-
-def GET_REDIS_MATCH_KEY(player_id):
+def GET_REDIS_MATCH_FOR_PLAYER_KEY(player_id):
     """This key stores data about match assigned to player"""
     return f"match:{player_id}"
 
@@ -109,30 +103,18 @@ async def remove_player_from_all_queues(player_id: str):
         # Remove player specific data
         await redis.delete(key)
         await redis.zrem(GET_REDIS_PLAYER_QUEUE_KEY(pool_id), player_id)
-        await redis.zrem(GET_REDIS_PLAYER_EXPIRE_QUEUE_KEY(pool_id), player_id)
-
-
-async def add_player_to_queue(player_id: str, pool_id: str, player_data: dict):
-    player_key = GET_REDIS_PLAYER_KEY(pool_id, player_id)
-
-    # Update player info in Redis
-    await redis.setex(player_key, PLAYER_EXPIRATION, json.dumps(player_data))
-
-    # Add player to queue
-    queue_key = GET_REDIS_PLAYER_QUEUE_KEY(pool_id)
-    await redis.zadd(queue_key, {player_id: time.time()})
 
 
 async def try_create_match(pool_id: str):
     queue_key = GET_REDIS_PLAYER_QUEUE_KEY(pool_id)
-    player_expire_queue_key = GET_REDIS_PLAYER_EXPIRE_QUEUE_KEY(pool_id)
+
     version_and_contour, pool_name = pool_id.split(":")
     matchmaking_config = await cache.get("matchmaking_config", None)
     if matchmaking_config is None:
         logger.critical("Matchmaking config not set in cache")
         return {"status": "server_error"}
 
-    expired_players = await redis.zrangebyscore(player_expire_queue_key, "-inf", time.time() - PLAYER_EXPIRATION)
+    expired_players = await redis.zrangebyscore(queue_key, "-inf", time.time() - PLAYER_EXPIRATION)
 
     # Remove expired players in batches of 1000
     for i in range(0, len(expired_players), 1000):
@@ -146,6 +128,7 @@ async def try_create_match(pool_id: str):
     faction_counts = {}
     region_group_counts = {}
     oldest_ts = int(time.time())
+    newest_ts = 0
 
     for player_id, queued_ts in players_and_ts:
         player_key = GET_REDIS_PLAYER_KEY(pool_id, player_id)
@@ -159,23 +142,30 @@ async def try_create_match(pool_id: str):
         faction = player_info.get("faction")
         faction_counts[faction] = faction_counts.get(faction, 0) + 1
         region_group = player_info.get("region_group")
+        entered_ts = player_info.get("entered_time")
         region_group_counts[region_group] = region_group_counts.get(region_group, 0) + 1
-        oldest_ts = min(oldest_ts, queued_ts)
+        oldest_ts = min(oldest_ts, entered_ts)
+        newest_ts = max(newest_ts, entered_ts)
 
     # The largest time player spent in matchmaking right now
     oldest_player_queue_time = time.time() - oldest_ts
+    newest_player_queue_time = time.time() - newest_ts
 
     # Update faction counts in cache
     await cache.set("faction_counts", faction_counts)
 
     if FULL_DEBUG_MODE:
-        logger.debug(f"Trying to create match in pool {pool_name} with map {player_data_map}, oldest time {oldest_player_queue_time}")
+        logger.debug(
+            f"Trying to create match in pool {pool_name} with map {player_data_map}, "
+            f"oldest time {oldest_player_queue_time}, newest time {newest_player_queue_time}")
 
     if pool_name == "pvp_casual":
-        outcome = try_create_pvp_match_casual(player_data_map, oldest_player_queue_time, matchmaking_config["pools"]["pvp"],
+        outcome = try_create_pvp_match_casual(player_data_map, oldest_player_queue_time, newest_player_queue_time,
+                                              matchmaking_config["pools"]["pvp"],
                                               instant_creation=INSTANT_CREATION_MODE)
     elif pool_name == "pvp_duels":
-        outcome = try_create_pvp_match_duel(player_data_map, oldest_player_queue_time, matchmaking_config["pools"]["pvp"])
+        outcome = try_create_pvp_match_duel(player_data_map, oldest_player_queue_time, newest_player_queue_time,
+                                            matchmaking_config["pools"]["pvp"])
     elif pool_name == "pve":
         outcome = try_create_pve_match(player_data_map, oldest_player_queue_time, matchmaking_config["pools"]["pve"],
                                        instant_creation=INSTANT_CREATION_MODE)
@@ -186,7 +176,7 @@ async def try_create_match(pool_id: str):
         if FULL_DEBUG_MODE:
             logger.debug(f"Outcome None for faction counts {faction_counts}, "
                          f"pool {pool_name} with map {player_data_map}, oldest time {oldest_player_queue_time}, "
-                         f"mode {matchmaking_config['pools']}")
+                         f"newest time {newest_player_queue_time}")
 
         # Get faction counts dynamically
         return {"status": "waiting", "faction_counts": faction_counts}
@@ -248,7 +238,8 @@ async def try_create_match(pool_id: str):
             # Notify players and remove them from queue
             for player_id in players_in_match:
                 if player_id is not None:
-                    await redis.setex(GET_REDIS_MATCH_KEY(player_id), MATCH_EXPIRATION, json.dumps(match_details))
+                    await redis.setex(GET_REDIS_MATCH_FOR_PLAYER_KEY(player_id), MATCH_EXPIRATION,
+                                      json.dumps(match_details))
                     await redis.delete(GET_REDIS_PLAYER_KEY(pool_id, player_id))
                     await redis.zrem(queue_key, player_id)
 
@@ -287,32 +278,32 @@ async def reenter_matchmaking_queue(body: ReenterMatchmakingRequest):
     party_members = body.party_members
 
     # Check if the player is already assigned to a match
-    match_data = await redis.get(GET_REDIS_MATCH_KEY(player_id))
+    match_data = await redis.get(GET_REDIS_MATCH_FOR_PLAYER_KEY(player_id))
     if match_data:
         match_details = json.loads(match_data)
         return {"status": "match", **match_details}
 
     # Reenter or add to the queue
     player_key = GET_REDIS_PLAYER_KEY(pool_id, player_id)
-    if desired_match_group and faction and party_members:
+    if not await redis.exists(player_key):
         # Even if player didn't mention himself in party, do it for him
         if player_id in party_members:
             party_members.remove(player_id)
         party_members.insert(0, player_id)
 
-        await add_player_to_queue(player_id, pool_id, {
+        # Set information about the player
+        await redis.setex(player_key, PLAYER_EXPIRATION, json.dumps({
             "desired_match_group": desired_match_group,
             "faction": faction,
             "party_members": party_members,
-            "region_group": get_region_group(region)
-        })
-    elif not await redis.exists(player_key):
-        raise HTTPException(status_code=400, detail="Player not in queue. Provide required parameters.")
+            "region_group": get_region_group(region),
+            "entered_time": int(time.time())
+        }))
 
     # Extend player expiration
     await redis.expire(player_key, PLAYER_EXPIRATION)
     # Set player last update time in player expire queue
-    await redis.zadd(GET_REDIS_PLAYER_EXPIRE_QUEUE_KEY(pool_id), {player_id: time.time()})
+    await redis.zadd(GET_REDIS_PLAYER_QUEUE_KEY(pool_id), {player_id: time.time()})
 
     # Try to create a match
     got_lock = await acquire_match_creation_lock(pool_id)
@@ -337,7 +328,7 @@ async def leave_matchmaking_queue(body: LeaveMatchmakingRequest):
 
     await remove_player_from_all_queues(player_id)
     # Remove match data if exists
-    await redis.delete(GET_REDIS_MATCH_KEY(player_id))
+    await redis.delete(GET_REDIS_MATCH_FOR_PLAYER_KEY(player_id))
     return {"status": "success", "message": "Player removed from queue"}
 
 

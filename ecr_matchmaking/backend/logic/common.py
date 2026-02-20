@@ -5,8 +5,9 @@ from typing import Callable
 from models.models import GAME_FACTIONS
 
 
-def try_create_pvp_match_common(player_data_map: dict, latest_ts: float, matchmaking_config_for_mode: dict,
-                                determine_team_size: Callable, ignore_faction_min_amount: bool = False):
+def try_create_pvp_match_common(player_data_map: dict, oldest_player_queue_time: float, newest_player_queue_time: float,
+                                matchmaking_config_for_mode: dict, determine_team_size: Callable,
+                                ignore_faction_min_amount: bool = False):
     """ Attempts to create a PvP match by balancing factions and handling party sizes"""
     # Group players by faction while considering party sizes
     faction_counts = {}
@@ -50,7 +51,9 @@ def try_create_pvp_match_common(player_data_map: dict, latest_ts: float, matchma
     faction2_count = total_faction_size(faction2_players)
 
     # Determine appropriate team size, minimal team size and match type
-    team_size, min_team_size, max_team_size, match_type = determine_team_size(faction1_count, faction2_count, latest_ts)
+    team_size, min_team_size, max_team_size, match_type = determine_team_size(faction1_count, faction2_count,
+                                                                              oldest_player_queue_time,
+                                                                              newest_player_queue_time)
     if not team_size:
         # Not enough players for a match
         return
