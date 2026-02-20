@@ -102,8 +102,11 @@ def try_create_pvp_match_common(player_data_map: dict, oldest_player_queue_time:
         return
     mission = random.choices(list(missions_to_weights.keys()), weights=list(missions_to_weights.values()), k=1)[0]
 
-    return players_in_match, {"mission": mission, "match_type": match_type, "faction_setup": f"{faction1}:{faction2}",
-                              "max_team_size": max_team_size}
+    faction_setup = f"{faction1}:{faction2}" if random.choice([True, False]) else f"{faction2}:{faction1}"
+    final_faction_counts = {faction1: faction1_used, faction2: faction2_used}
+
+    return players_in_match, {"mission": mission, "match_type": match_type, "faction_setup": faction_setup,
+                              "max_team_size": max_team_size, "faction_counts": final_faction_counts}
 
 
 def try_create_pve_match_common(player_data_map: dict, latest_ts: float, matchmaking_config_for_mode: dict,

@@ -294,11 +294,11 @@ async def try_create_match(pool_id: str):
             ongoing_match_key = GET_REDIS_ONGOING_MATCH_KEY(match_id)
             await redis.sadd(GET_REDIS_ONGOING_MATCH_POOL_KEY(pool_id), match_id)
 
-            faction_setup = match_data["faction_setup"]
+            faction_counts = match_data["faction_counts"]
             max_team_size = match_data["max_team_size"]
             faction_free_spots = {}
 
-            for faction, size in faction_setup.items():
+            for faction, size in faction_counts.items():
                 faction_free_spots[f"faction:{faction}"] = max_team_size - size
             await redis.hset(ongoing_match_key, mapping={
                 "pool_id": pool_id,
