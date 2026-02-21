@@ -462,6 +462,9 @@ async def update_ongoing_match(body: UpdateOngoingMatchRequest):
     for faction, free in body.faction_free_spots.items():
         data[f"faction:{faction}"] = free
 
+    if FULL_DEBUG_MODE:
+        logger.debug(f"Updating match info for {match_key}, data {data}")
+
     await redis.hset(match_key, mapping=data)
     await redis.expire(match_key, MATCH_INFO_EXPIRATION)
 
