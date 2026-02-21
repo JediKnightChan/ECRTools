@@ -7,7 +7,7 @@ import logging
 
 import httpx
 from aiocache import SimpleMemoryCache
-from fastapi import FastAPI, HTTPException, Request, BackgroundTasks
+from fastapi import FastAPI, Header, Request, BackgroundTasks
 from redis.asyncio import Redis
 
 from models.models import *
@@ -451,9 +451,13 @@ async def register_or_update_game_server(request: Request, body: RegisterGameSer
 
 
 @app.post("/update_ongoing_match")
-async def update_ongoing_match(body: UpdateOngoingMatchRequest):
+async def update_ongoing_match(
+    body: UpdateOngoingMatchRequest,
+    game_version: str = Header(None, alias="Game-Version"),
+    game_contour: str = Header(None, alias="Game-Contour"),
+):
     match_key = GET_REDIS_ONGOING_MATCH_KEY(body.match_id)
-    pool_set_key = GET_REDIS_ONGOING_MATCH_POOL_KEY(body.pool_id)
+    pool_set_key = GET_REDIS_ONGOING_MATCH_POOL_KEY(f"{game_version}-{game_contour}:{body.pool_id}")
 
     # Store match in pool set
     await redis.sadd(pool_set_key, body.match_id)
