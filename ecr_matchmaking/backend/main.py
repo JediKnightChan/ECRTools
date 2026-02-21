@@ -188,11 +188,6 @@ async def try_create_match(pool_id: str):
     # Update faction counts in cache
     await cache.set("faction_counts", faction_counts)
 
-    if FULL_DEBUG_MODE:
-        logger.debug(
-            f"Trying to create match in pool {pool_name} with map {player_data_map}, "
-            f"oldest time {oldest_player_queue_time}, newest time {newest_player_queue_time}")
-
     if pool_name == "pvp_casual":
         outcome = try_create_pvp_match_casual(player_data_map, oldest_player_queue_time, newest_player_queue_time,
                                               matchmaking_config["pools"]["pvp"],
@@ -319,6 +314,9 @@ async def try_join_existing_match(pool_id: str, player_info: dict):
 
     faction = player_info["faction"]
 
+    if FULL_DEBUG_MODE:
+        logger.debug(f"Trying to join match in pool {pool_id} with faction {faction}, found {len(match_ids)} matches")
+
     for match_id in match_ids:
         match_key = GET_REDIS_ONGOING_MATCH_KEY(match_id)
 
@@ -329,11 +327,18 @@ async def try_join_existing_match(pool_id: str, player_info: dict):
 
         if result == 1:
             mission = await redis.hget(match_key, "mission")
+
+            if FULL_DEBUG_MODE:
+                logger.debug(f"Found free spot in match {match_id}")
+
             return {
                 "match_id": match_id,
                 "mission": mission
             }
         elif result == -1:
+            if FULL_DEBUG_MODE:
+                logger.debug(f"Found expired match {match_id}, removing")
+
             await redis.srem(pool_set_key, match_id)
     return None
 
