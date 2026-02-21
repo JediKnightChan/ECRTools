@@ -33,7 +33,7 @@ logger.setLevel(logging.DEBUG)
 # Constants
 PLAYER_EXPIRATION = 30  # Player stays in queue for 30 seconds without additional requests
 MATCH_EXPIRATION = 60  # Match assigned to player will expire after 60 seconds
-MATCH_INFO_EXPIRATION = 600  # Match information (free spots amount) will expire in 10 minutes
+MATCH_INFO_EXPIRATION = 120  # Match information (free spots amount) will expire in 2 minutes
 MATCH_CREATION_LOCK_TIMEOUT = 10  # Create a match attempt locks another attempts for 10 seconds
 FULL_DEBUG_MODE = os.getenv("FULL_DEBUG_MODE") == "1"  # Whether to debug each matchmaking request
 INSTANT_CREATION_MODE = os.getenv("INSTANT_CREATION_MODE") == "1"  # Whether to create match even with 1 player in queue
