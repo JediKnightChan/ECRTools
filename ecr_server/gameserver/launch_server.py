@@ -3,6 +3,8 @@ import subprocess
 import os
 import sys
 
+from pathlib import Path
+
 logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -39,7 +41,19 @@ def main():
 
     game_port = get_env_var_or_exit("PORT")
 
-    launch_command = f"./LinuxServer/ECR/Binaries/Linux/ECRServer ECR {map} -mode={mode}" \
+    current_file_dir = Path(__file__).resolve().parent
+
+    executable_dev = "./LinuxServer/ECR/Binaries/Linux/ECRServer"
+    executable_prod = "./LinuxServer/ECR/Binaries/Linux/ECRServer-Linux-Shipping"
+
+    if os.path.exists(os.path.join(current_file_dir, executable_prod)):
+        executable = executable_prod
+    elif os.path.exists(os.path.join(current_file_dir, executable_dev)):
+        executable = executable_dev
+    else:
+        raise Exception("Couldn't find neither prod nor dev executable")
+
+    launch_command = f"{executable} ECR {map} -mode={mode}" \
                      f" -mission={mission} -region={region} -epicapp={epic_app}" \
                      f" -analytics-key={analytics_key} -log={log_file} -matchid={match_id} -factions={faction_setup}" \
                      f" -maxteamsize={max_team_size} -port={game_port}"
