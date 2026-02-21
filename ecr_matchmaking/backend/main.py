@@ -294,7 +294,7 @@ async def try_create_match(pool_id: str):
             faction_free_spots = {}
 
             for faction, size in faction_counts.items():
-                faction_free_spots[f"faction:{faction}"] = max_team_size - size
+                faction_free_spots[f"faction:{faction.lower()}"] = max_team_size - size
             await redis.hset(ongoing_match_key, mapping={
                 "pool_id": pool_id,
                 "mission": match_data["mission"],
@@ -322,7 +322,7 @@ async def try_join_existing_match(pool_id: str, player_info: dict):
 
         result = await join_script(
             keys=[match_key],
-            args=[f"faction:{faction}"]
+            args=[f"faction:{faction.lower()}"]
         )
 
         if result == 1:
@@ -469,7 +469,7 @@ async def update_ongoing_match(
     }
 
     for faction, free in body.faction_free_spots.items():
-        data[f"faction:{faction}"] = free
+        data[f"faction:{faction.lower()}"] = free
 
     if FULL_DEBUG_MODE:
         logger.debug(f"Updating match info for {match_key}, data {data}")
