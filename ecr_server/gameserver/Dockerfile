@@ -13,7 +13,7 @@ RUN rm -f LinuxServer.zip
 
 RUN chmod 755 LinuxServer/ECRServer.sh
 RUN chmod 755 LinuxServer/ECR/Binaries/Linux/ECRServer || true
-RUN chmod 755 LinuxServer/ECR/Binaries/Linux/ECRServer-Shipping || true
+RUN chmod 755 LinuxServer/ECR/Binaries/Linux/ECRServer-Linux-Shipping || true
 
 RUN useradd -ms /bin/bash ecr-server
 RUN chown -R ecr-server:ecr-server LinuxServer/
