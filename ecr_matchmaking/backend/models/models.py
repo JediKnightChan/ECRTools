@@ -12,7 +12,8 @@ MAX_PARTY_SIZE = 4
 class ReenterMatchmakingRequest(BaseModel):
     player_id: str
     region: str
-    pool_name: Literal['pvp_casual', 'pvp_duels', 'pve']
+    # pool_name: Literal['pvp_casual', 'pvp_duels', 'pve']
+    pool_name: Literal['pvp_casual', 'pvp_duels']
     game_version: str = Field(pattern=r'^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$')
     game_contour: Literal['prod', 'dev']
 
