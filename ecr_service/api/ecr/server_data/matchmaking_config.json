@@ -192,10 +192,6 @@
           "RailgateHoldTheLine": 1.0
         },
         "low": {
-          "PromethiumMineDuel": 1.0,
-          "CanyonWasteyardDuel": 1.0,
-          "CycladonComplexDuel": 1.0,
-          "RailgateDuel": 1.0,
           "PromethiumMineDomination": 1.0,
           "CanyonWasteyardDomination": 1.0,
           "CycladonComplexDomination": 1.0,
@@ -220,10 +216,10 @@
           "ToriasRefineryHoldTheLine": 1.0
         },
         "low": {
-          "MedusaDuel": 1.0,
-          "OlipsisDuel": 1.0,
-          "BlackBoltDuel": 1.0,
-          "ToriasRefineryDuel": 1.0
+          "MedusaDomination": 1.0,
+          "OlipsisDomination": 1.0,
+          "BlackBoltDomination": 1.0,
+          "ToriasRefineryDomination": 1.0
         }
       },
       "PoolGamma": {
@@ -240,10 +236,6 @@
           "ValorousSalvationHoldTheLine": 1.0
         },
         "low": {
-          "CarmineAscentDuel": 1.0,
-          "MaggonStationDuel": 1.0,
-          "ZedekDuel": 1.0,
-          "ValorousSalvationDuel": 1.0,
           "CarmineAscentDomination": 1.0,
           "MaggonStationDomination": 1.0,
           "ZedekDomination": 1.0,
@@ -273,6 +265,6 @@
     "raid4": 1,
     "low": 1,
     "medium": 1,
-    "large": 2
+    "large": 1
   }
 }
