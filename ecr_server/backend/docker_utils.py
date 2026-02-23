@@ -31,10 +31,6 @@ async def launch_game_docker(region, game_contour, game_version, game_map, game_
         container = await docker_client.containers.run(
             config={
                 "Image": f"{GAME_SERVER_IMAGE_NAME}:{game_version}-{game_contour}",
-                "ExposedPorts": {
-                    f"{port}/udp": {},
-                    f"{port}/tcp": {},
-                },
                 "Env": [
                     f"MAP={game_map}",
                     f"MODE={game_mode}",
@@ -54,13 +50,10 @@ async def launch_game_docker(region, game_contour, game_version, game_map, game_
                     "com.eternal-crusade.instancenum": f"{instance_number}",
                 },
                 "HostConfig": {
+                    "NetworkMode": "host",
                     "Binds": [
                         "ecr_server_game_data:/ecr-server/LinuxServer/ECR/Saved/Logs/"
                     ],
-                    "PortBindings": {
-                        f"{port}/udp": [{"HostPort": f"{port}"}],
-                        f"{port}/tcp": [{"HostPort": f"{port}"}],
-                    },
                 }
             },
             name=f"ecr-gameserver-{match_id}"
