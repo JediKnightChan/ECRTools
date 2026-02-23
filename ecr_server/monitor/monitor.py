@@ -73,6 +73,7 @@ def get_softirq():
         return None
 
     for line in data.splitlines():
+        line = line.strip()
         if line.startswith("NET_RX"):
             parts = line.split()[1:]
             return sum(map(int, parts))
