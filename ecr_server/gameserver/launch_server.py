@@ -38,6 +38,7 @@ def main():
     match_id = get_env_var_or_exit("MATCH_ID")
     faction_setup = get_env_var_or_exit("FACTIONS")
     max_team_size = get_env_var_or_exit("MAX_TEAM_SIZE")
+    want_trace = get_env_var_or_exit("WANT_TRACE") == "1"
 
     game_port = get_env_var_or_exit("PORT")
 
@@ -53,10 +54,16 @@ def main():
     else:
         raise Exception("Couldn't find neither prod nor dev executable")
 
+    if want_trace:
+        trace_file = log_file.replace(".log", ".utrace")
+        trace_part = f"-tracefile={trace_file} -trace=cpu,frame,net,replication"
+    else:
+        trace_part = ""
+
     launch_command = f"{executable} ECR {map} -mode={mode}" \
                      f" -mission={mission} -region={region} -epicapp={epic_app}" \
                      f" -analytics-key={analytics_key} -log={log_file} -matchid={match_id} -factions={faction_setup}" \
-                     f" -maxteamsize={max_team_size} -port={game_port}"
+                     f" -maxteamsize={max_team_size} -port={game_port} {trace_part}"
 
     launch_command_with_time = f"/usr/bin/time -v {launch_command}"
 
