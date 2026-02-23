@@ -11,7 +11,6 @@ GAME_SERVER_IMAGE_NAME = os.getenv("GAME_SERVER_IMAGE_NAME")
 if not GAME_SERVER_IMAGE_NAME:
     raise RuntimeError("GAME_SERVER_IMAGE_NAME env var must be set")
 
-LOG_DIR = "/logs"
 HOST_PROC = "/host_proc"
 
 # =========================
@@ -181,17 +180,17 @@ def get_conntrack():
 # Logging
 # =========================
 
-def get_log_file():
-    today = datetime.utcnow().strftime("%Y-%m-%d")
-    os.makedirs(LOG_DIR, exist_ok=True)
-    return os.path.join(LOG_DIR, f"host-monitor-{today}.log")
+def get_log_file(log_dir):
+    today = log_dir.utcnow().strftime("%Y-%m-%d")
+    os.makedirs(log_dir, exist_ok=True)
+    return os.path.join(log_dir, f"host-monitor-{today}.log")
 
 
 # =========================
 # Main loop
 # =========================
 
-def main(interval):
+def main(interval, logs_dir):
     prev_total = None
     prev_idle = None
     prev_softirq = None
@@ -256,7 +255,7 @@ def main(interval):
             "conntrack": conntrack
         }
 
-        with open(get_log_file(), "a") as f:
+        with open(get_log_file(logs_dir), "a") as f:
             f.write(json.dumps(record) + "\n")
 
         time.sleep(interval)
@@ -264,8 +263,8 @@ def main(interval):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--interval", type=float, default=5.0,
-                        help="Sampling interval in seconds")
+    parser.add_argument("--interval", type=int, default=5)
+    parser.add_argument("--logs_dir", type=str, default="/logs")
     args = parser.parse_args()
 
-    main(args.interval)
+    main(args.interval, args.logs_dir)
