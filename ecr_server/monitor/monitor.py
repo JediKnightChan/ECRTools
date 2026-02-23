@@ -6,10 +6,10 @@ from datetime import datetime
 import docker
 
 
-GAME_SERVER_IMAGE = os.getenv("GAME_SERVER_IMAGE")
+GAME_SERVER_IMAGE_NAME = os.getenv("GAME_SERVER_IMAGE_NAME")
 
-if not GAME_SERVER_IMAGE:
-    raise RuntimeError("GAME_SERVER_IMAGE env var must be set")
+if not GAME_SERVER_IMAGE_NAME:
+    raise RuntimeError("GAME_SERVER_IMAGE_NAME env var must be set")
 
 LOG_DIR = "/logs"
 HOST_PROC = "/host_proc"
@@ -38,7 +38,7 @@ def is_game_server_running():
         for c in containers:
             tags = c.image.tags or []
             for tag in tags:
-                if GAME_SERVER_IMAGE in tag:
+                if GAME_SERVER_IMAGE_NAME in tag:
                     return True
         return False
     except Exception:
