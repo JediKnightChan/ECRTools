@@ -2,7 +2,7 @@ import os
 import time
 import json
 import argparse
-from datetime import datetime
+import datetime
 import docker
 
 
@@ -181,7 +181,7 @@ def get_conntrack():
 # =========================
 
 def get_log_file(log_dir):
-    today = log_dir.utcnow().strftime("%Y-%m-%d")
+    today = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d")
     os.makedirs(log_dir, exist_ok=True)
     return os.path.join(log_dir, f"host-monitor-{today}.log")
 
@@ -201,7 +201,7 @@ def main(interval, logs_dir):
             time.sleep(interval)
             continue
 
-        now = datetime.utcnow().isoformat()
+        now = datetime.datetime.now(datetime.UTC).isoformat()
 
         total, idle = get_cpu_times()
         softirq = get_softirq()
