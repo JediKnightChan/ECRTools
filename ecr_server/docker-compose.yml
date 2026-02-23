@@ -40,6 +40,24 @@ services:
     network_mode: host
     env_file:
       - prod.env
+  # Monitor collects network and other stats relevant for understanding game server bottlenecks
+  host-monitor:
+    build:
+      context: .
+      dockerfile: monitor/Dockerfile
+    restart: always
+    network_mode: "host"
+    pid: "host"
+    volumes:
+      - /proc:/host_proc:ro
+      - /sys:/host_sys:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./logs:/logs
+    read_only: true
+    tmpfs:
+      - /tmp
+    env_file:
+      - prod.env
   # This container is only for building an image, actual game containers launch is orchestrated by backend
   gameserver:
     build:
