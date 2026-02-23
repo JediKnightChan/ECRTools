@@ -5,3 +5,4 @@ pyjwt==2.7.0
 ydb[yc]==3.8.1
 marshmallow==3.21.1
 python-json-logger==2.0.7
+requests==2.32.0

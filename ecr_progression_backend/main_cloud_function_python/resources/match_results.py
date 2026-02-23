@@ -4,6 +4,7 @@ import traceback
 import typing
 import uuid
 import json
+import requests
 
 from marshmallow import fields, validate, ValidationError
 
@@ -23,7 +24,7 @@ MATCH_AGGREGATION_MAX_VALUE_MATCH_COUNT = int(os.getenv("MATCH_REWARD_AGGREGATIO
 
 # Silver rewards for PvP and PvE modes for winning team / losing team
 MATCH_SILVER_REWARDS = {
-    "pvp": [200, 200],
+    "pvp": [300, 200],
     "pve": [300, 0]
 }
 
@@ -148,6 +149,9 @@ class MatchResultsProcessor(ResourceProcessor):
     def API_MODIFY(self, request_body: dict) -> typing.Tuple[dict, int]:
         """Applies match results (rewards) in the backend system. Usable by anyone, including players,
         challenge must be passed to verify results are not fake"""
+
+        if not self.is_user_server_or_backend() and not self.check_is_p2p_allowed_right_now():
+            return {"success": False}, 403
 
         match_results_schema = MatchResultsSchema()
         match_results = match_results_schema.load(request_body)
@@ -736,6 +740,14 @@ class MatchResultsProcessor(ResourceProcessor):
         """Returns True if mission is PvP"""
 
         return self.missions_data[mission]["mode"] == "pvp"
+
+    def check_is_p2p_allowed_right_now(self):
+        try:
+            r = requests.get("https://storage.yandexcloud.net/ecr-service/api/ecr/server_data/match_creation_v2.json")
+            return r.json()["allowed"]
+        except Exception as e:
+            logger.error("Couldn't check whther P2P allowed")
+            return True
 
 
 if __name__ == '__main__':
