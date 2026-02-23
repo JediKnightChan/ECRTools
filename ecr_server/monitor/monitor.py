@@ -4,6 +4,7 @@ import json
 import argparse
 import datetime
 import docker
+import gzip
 
 
 GAME_SERVER_IMAGE_NAME = os.getenv("GAME_SERVER_IMAGE_NAME")
@@ -184,7 +185,7 @@ def get_conntrack():
 def get_log_file(log_dir):
     today = datetime.datetime.utcnow().strftime("%Y-%m-%d")
     os.makedirs(log_dir, exist_ok=True)
-    return os.path.join(log_dir, f"host-monitor-{today}.log")
+    return os.path.join(log_dir, f"host-monitor-{today}.log.gz")
 
 
 # =========================
@@ -256,7 +257,7 @@ def main(interval, logs_dir):
             "conntrack": conntrack
         }
 
-        with open(get_log_file(logs_dir), "a") as f:
+        with gzip.open(get_log_file(logs_dir), "at") as f:  # append text mode
             f.write(json.dumps(record) + "\n")
 
         time.sleep(interval)
