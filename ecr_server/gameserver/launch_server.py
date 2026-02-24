@@ -55,10 +55,12 @@ def main():
         raise Exception("Couldn't find neither prod nor dev executable")
 
     if want_trace:
+        # Enable profiling by Unreal Insights and Network Profiler
         trace_file = log_file.replace(".log", ".utrace")
-        trace_part = f"-tracefile={trace_file} -trace=cpu,frame,net,replication"
+        trace_part = f"-tracefile={trace_file} -trace=cpu,frame,net,replication -NetTrace=1 networkprofiler=true"
     else:
-        trace_part = ""
+        # Still possible that net tracing could be requested by GM in game chat
+        trace_part = "-NetTrace=1"
 
     launch_command = f"{executable} ECR {map} -mode={mode}" \
                      f" -mission={mission} -region={region} -epicapp={epic_app}" \
