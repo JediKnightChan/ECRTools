@@ -39,7 +39,7 @@ def main():
     faction_setup = get_env_var_or_exit("FACTIONS")
     max_team_size = get_env_var_or_exit("MAX_TEAM_SIZE")
     want_trace = get_env_var_or_exit("WANT_TRACE") == "1"
-
+    contour = get_env_var_or_exit("CONTOUR")
     game_port = get_env_var_or_exit("PORT")
 
     current_file_dir = Path(__file__).resolve().parent
@@ -65,7 +65,7 @@ def main():
     launch_command = f"{executable} ECR {map} -mode={mode}" \
                      f" -mission={mission} -region={region} -epicapp={epic_app}" \
                      f" -analytics-key={analytics_key} -log={log_file} -matchid={match_id} -factions={faction_setup}" \
-                     f" -maxteamsize={max_team_size} -port={game_port} {trace_part}"
+                     f" -maxteamsize={max_team_size} -port={game_port} -contour={contour} {trace_part}"
 
     launch_command_with_time = f"/usr/bin/time -v {launch_command}"
 

@@ -45,6 +45,7 @@ async def launch_game_docker(region, game_contour, game_version, game_map, game_
                     f"PORT={port}",
                     f"LAUNCH_WITH_TIME={os.getenv('LAUNCH_WITH_TIME')}",
                     f"WANT_TRACE={os.getenv('WANT_TRACE')}",
+                    f"CONTOUR={game_contour}",
                 ],
                 "Labels": {
                     "com.eternal-crusade.resourceunits": f"{resource_units}",
