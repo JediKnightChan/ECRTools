@@ -180,10 +180,7 @@
         "large": {
           "PromethiumMineSupremacy": 1.0,
           "CanyonWasteyardSupremacy": 1.0,
-          "CycladonComplexSupremacy": 0.25,
-          "PromethiumMineHoldTheLine": 0.25,
-          "CanyonWasteyardHoldTheLine": 0.25,
-          "RailgateHoldTheLine": 0.25
+          "RailgateHoldTheLine": 1.0
         },
         "medium": {
           "PromethiumMineHoldTheLine": 1.0,
@@ -203,11 +200,7 @@
           "MedusaSupremacy": 1.0,
           "OlipsisSupremacy": 1.0,
           "BlackBoltSupremacy": 1.0,
-          "ToriasRefinerySupremacy": 1.0,
-          "MedusaHoldTheLine": 0.25,
-          "OlipsisHoldTheLine": 0.25,
-          "BlackBoltHoldTheLine": 0.25,
-          "ToriasRefineryHoldTheLine": 0.25
+          "ToriasRefinerySupremacy": 1.0
         },
         "medium": {
           "MedusaHoldTheLine": 1.0,

@@ -155,8 +155,8 @@ async def try_create_match(pool_id: str):
         batch = expired_players[i:i + 1000]
         await redis.zrem(queue_key, *batch)
 
-    # Fetch enough players to allow faction balancing (2 factions, max 16 players per team)
-    players_and_ts = await redis.zrange(queue_key, 0, 16 * 2 - 1, withscores=True)
+    # Fetch enough players to allow faction balancing (2 factions, max 20 players per team)
+    players_and_ts = await redis.zrange(queue_key, 0, 20 * 2 - 1, withscores=True)
 
     player_data_map = {}
     faction_counts = {}
