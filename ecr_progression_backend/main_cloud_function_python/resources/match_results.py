@@ -101,6 +101,10 @@ class MatchResultsProcessor(ResourceProcessor):
         validated_data = schema.load(request_body)
         mission = validated_data.get("mission").lower()
 
+        # Check that P2P is allowed right now
+        if not self.is_user_server_or_backend() and not self.check_is_p2p_allowed_right_now():
+            return {"success": False, "error": "P2P is disabled right now"}, 403
+
         # Check mission is correct
         if mission not in self.missions_data:
             return {"error": f"Mission {mission} is unknown"}, 400
@@ -150,8 +154,9 @@ class MatchResultsProcessor(ResourceProcessor):
         """Applies match results (rewards) in the backend system. Usable by anyone, including players,
         challenge must be passed to verify results are not fake"""
 
+        # Check that P2P is allowed right now
         if not self.is_user_server_or_backend() and not self.check_is_p2p_allowed_right_now():
-            return {"success": False}, 403
+            return {"success": False, "error": "P2P is disabled right now"}, 403
 
         match_results_schema = MatchResultsSchema()
         match_results = match_results_schema.load(request_body)
@@ -746,8 +751,8 @@ class MatchResultsProcessor(ResourceProcessor):
             r = requests.get("https://storage.yandexcloud.net/ecr-service/api/ecr/server_data/match_creation_v2.json")
             return r.json()["allowed"]
         except Exception as e:
-            logger.error("Couldn't check whther P2P allowed")
-            return True
+            logger.error("Couldn't check whether P2P allowed")
+            return False
 
 
 if __name__ == '__main__':
