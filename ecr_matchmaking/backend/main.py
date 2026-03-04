@@ -37,8 +37,10 @@ MATCH_INFO_EXPIRATION = 120  # Match information (free spots amount) will expire
 MATCH_CREATION_LOCK_TIMEOUT = 10  # Create a match attempt locks another attempts for 10 seconds
 FULL_DEBUG_MODE = os.getenv("FULL_DEBUG_MODE") == "1"  # Whether to debug each matchmaking request
 INSTANT_CREATION_MODE = os.getenv("INSTANT_CREATION_MODE") == "1"  # Whether to create match even with 1 player in queue
+DISABLE_CREATION_MODE = os.getenv("DISABLE_CREATION_MODE") == "1"  # Whether only to existing servers, not create new ones
 
-logger.info(f"Starting with FULL_DEBUG_MODE: {FULL_DEBUG_MODE}, INSTANT_CREATION_MODE: {INSTANT_CREATION_MODE}")
+logger.info(f"Starting with FULL_DEBUG_MODE: {FULL_DEBUG_MODE}, INSTANT_CREATION_MODE: {INSTANT_CREATION_MODE}, "
+            f"DISABLE_CREATION_MODE: {DISABLE_CREATION_MODE}")
 
 # State
 cache = SimpleMemoryCache()
@@ -223,6 +225,11 @@ async def try_create_match(pool_id: str):
 
     if FULL_DEBUG_MODE:
         logger.debug(f"Retrieved {len(available_servers)} available servers for match creation")
+
+    if DISABLE_CREATION_MODE:
+        if FULL_DEBUG_MODE:
+            logger.debug(f"Skipping creation due to DISABLE_CREATION_MODE")
+        return {"status": "waiting", "faction_counts": faction_counts}
 
     if not available_servers:
         # No servers available, need to launch new

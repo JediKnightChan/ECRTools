@@ -41,6 +41,9 @@ def main():
     want_trace = get_env_var_or_exit("WANT_TRACE") == "1"
     contour = get_env_var_or_exit("CONTOUR")
     game_port = get_env_var_or_exit("PORT")
+    enable_fast_shared = get_env_var_or_exit("FAST_SHARED")
+    enable_dynamic_update_freq = get_env_var_or_exit("DYN_UPDATE_FREQ")
+    max_server_travel = get_env_var_or_exit("MAX_SERVER_TRAVEL")
 
     current_file_dir = Path(__file__).resolve().parent
 
@@ -65,7 +68,9 @@ def main():
     launch_command = f"{executable} ECR {map} -mode={mode}" \
                      f" -mission={mission} -region={region} -epicapp={epic_app}" \
                      f" -analytics-key={analytics_key} -log={log_file} -matchid={match_id} -factions={faction_setup}" \
-                     f" -maxteamsize={max_team_size} -port={game_port} -contour={contour} {trace_part}"
+                     f" -maxteamsize={max_team_size} -port={game_port} -contour={contour}" \
+                     f" -fastshared={enable_fast_shared} -dynamicupdatefreq={enable_dynamic_update_freq}" \
+                     f" -maxservertravel={max_server_travel} {trace_part}"
 
     launch_command_with_time = f"/usr/bin/time -v {launch_command}"
 

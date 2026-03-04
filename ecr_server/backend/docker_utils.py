@@ -45,6 +45,9 @@ async def launch_game_docker(region, game_contour, game_version, game_map, game_
                     f"PORT={port}",
                     f"LAUNCH_WITH_TIME={os.getenv('LAUNCH_WITH_TIME')}",
                     f"WANT_TRACE={os.getenv('WANT_TRACE')}",
+                    f"FAST_SHARED={os.getenv('FAST_SHARED')}",
+                    f"DYN_UPDATE_FREQ={os.getenv('DYN_UPDATE_FREQ')}",
+                    f"MAX_SERVER_TRAVEL={os.getenv('MAX_SERVER_TRAVEL')}",
                     f"CONTOUR={game_contour}",
                 ],
                 "Labels": {
