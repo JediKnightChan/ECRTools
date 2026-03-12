@@ -70,7 +70,7 @@ def main():
                      f" -mission={mission} -region={region} -epicapp={epic_app}" \
                      f" -analytics-key={analytics_key} -log={log_file} -matchid={match_id} -factions={faction_setup}" \
                      f" -maxteamsize={max_team_size} -port={game_port} -contour={contour} -repgraph={enable_rep_graph}" \
-                     f" -fastshared={enable_fast_shared} -dynamicupdatefreq={enable_dyn_update_freq}"\ 
+                     f" -fastshared={enable_fast_shared} -dynamicupdatefreq={enable_dyn_update_freq}" \ 
                      f" -maxservertravel={max_server_travel} {trace_part}"
 
     launch_command_with_time = f"/usr/bin/time -v {launch_command}"
