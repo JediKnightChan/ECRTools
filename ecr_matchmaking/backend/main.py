@@ -276,8 +276,8 @@ async def try_create_match(pool_id: str):
                 if player_id is not None:
                     await redis.setex(GET_REDIS_MATCH_FOR_PLAYER_KEY(player_id), MATCH_EXPIRATION,
                                       json.dumps(match_details))
-                    await redis.delete(GET_REDIS_PLAYER_KEY(pool_id, player_id))
-                    await redis.zrem(queue_key, player_id)
+
+                    await remove_player_from_all_queues(player_id)
 
             # Update data abut game server
             free_resource_units = server_response["free_resource_units"]
@@ -353,15 +353,16 @@ async def try_join_existing_match(pool_id: str, player_info: dict):
 @app.post("/reenter_matchmaking_queue")
 async def reenter_matchmaking_queue(body: ReenterMatchmakingRequest):
     player_id = body.player_id
-    pool_name = body.pool_name
+    pool_names = body.pools
     game_version = body.game_version
     game_contour = body.game_contour
     region = body.region
 
-    pool_id = f"{game_version}-{game_contour}:{pool_name}"
+    pool_ids = []
+    for pool_name in set(pool_names):
+        pool_ids.append(f"{game_version}-{game_contour}:{pool_name}")
 
     # Parameters expected to be set only during first entry
-    desired_match_group = body.desired_match_group
     faction = body.faction
     party_members = body.party_members
 
@@ -371,61 +372,79 @@ async def reenter_matchmaking_queue(body: ReenterMatchmakingRequest):
         match_details = json.loads(match_data)
         return {"status": "match", **match_details}
 
-    # Reenter or add to the queue
-    player_key = GET_REDIS_PLAYER_KEY(pool_id, player_id)
-    if not await redis.exists(player_key):
-        # Even if player didn't mention himself in party, do it for him
-        if player_id in party_members:
-            party_members.remove(player_id)
-        party_members.insert(0, player_id)
+    waiting_responses = []
 
-        # Set information about the player
-        player_info = {
-            "desired_match_group": desired_match_group,
-            "faction": faction,
-            "party_members": party_members,
-            "region_group": get_region_group(region),
-            "entered_time": int(time.time())
-        }
-        await redis.setex(player_key, PLAYER_EXPIRATION, json.dumps(player_info))
-    else:
-        player_info = json.loads(await redis.get(player_key))
+    for pool_id in pool_ids:
+        # Reenter or add to the queue
+        player_key = GET_REDIS_PLAYER_KEY(pool_id, player_id)
+        if not await redis.exists(player_key):
+            # Even if player didn't mention himself in party, do it for him
+            if player_id in party_members:
+                party_members.remove(player_id)
+            party_members.insert(0, player_id)
 
-    # Extend player expiration
-    await redis.expire(player_key, PLAYER_EXPIRATION)
-    # Set player last update time in player expire queue
-    await redis.zadd(GET_REDIS_PLAYER_QUEUE_KEY(pool_id), {player_id: time.time()})
+            # Set information about the player
+            player_info = {
+                "faction": faction,
+                "party_members": party_members,
+                "region_group": get_region_group(region),
+                "entered_time": int(time.time())
+            }
+            await redis.setex(player_key, PLAYER_EXPIRATION, json.dumps(player_info))
+        else:
+            player_info = json.loads(await redis.get(player_key))
 
-    # Try to join existing match
-    existing_match = await try_join_existing_match(pool_id, player_info)
-    if existing_match:
-        # Assign match to player
-        await redis.setex(
-            GET_REDIS_MATCH_FOR_PLAYER_KEY(player_id),
-            MATCH_EXPIRATION,
-            json.dumps(existing_match)
-        )
+        # Extend player expiration
+        await redis.expire(player_key, PLAYER_EXPIRATION)
+        # Set player last update time in player expire queue
+        await redis.zadd(GET_REDIS_PLAYER_QUEUE_KEY(pool_id), {player_id: time.time()})
 
-        await redis.delete(player_key)
-        await redis.zrem(GET_REDIS_PLAYER_QUEUE_KEY(pool_id), player_id)
+        # Try to join existing match
+        existing_match = await try_join_existing_match(pool_id, player_info)
+        if existing_match:
+            # Assign match to player
+            await redis.setex(
+                GET_REDIS_MATCH_FOR_PLAYER_KEY(player_id),
+                MATCH_EXPIRATION,
+                json.dumps(existing_match)
+            )
 
-        return {"status": "match", **existing_match}
+            await redis.delete(player_key)
+            await redis.zrem(GET_REDIS_PLAYER_QUEUE_KEY(pool_id), player_id)
 
-    # Try to create a match
-    got_lock = await acquire_match_creation_lock(pool_id)
-    if got_lock:
-        try:
-            res = await try_create_match(pool_id)
-        except Exception as e:
-            res = {"status": "server_error"}
-            traceback.print_exc()
-        finally:
-            # Release lock after execution
-            await release_match_creation_lock(pool_id)
-    else:
-        faction_counts = await cache.get("faction_counts")
-        res = {"status": "waiting", "faction_counts": faction_counts}
-    return res
+            # Remove player from other pool queues
+            await remove_player_from_all_queues(player_id)
+
+            return {"status": "match", **existing_match}
+
+        # Try to create a match
+        got_lock = await acquire_match_creation_lock(pool_id)
+        if got_lock:
+            try:
+                res = await try_create_match(pool_id)
+            except Exception as e:
+                res = {"status": "server_error"}
+                traceback.print_exc()
+            finally:
+                # Release lock after execution
+                await release_match_creation_lock(pool_id)
+        else:
+            faction_counts = await cache.get("faction_counts")
+            res = {"status": "waiting", "faction_counts": faction_counts}
+
+        # If match created, return immediately
+        if res.get("status") == "match":
+            return res
+
+        waiting_responses.append({
+            "pool_id": pool_id,
+            **res
+        })
+
+    return {
+        "status": "waiting",
+        "pools": waiting_responses
+    }
 
 
 @app.post("/leave_matchmaking_queue")

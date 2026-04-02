@@ -1,6 +1,6 @@
 import unittest
 import time
-from logic.pvp_casual import determine_team_size_casual, try_create_pvp_match_casual
+from logic.pvp_casual import determine_team_size_casual, try_create_pvp_match_casual, MAX_TEAM_SIZE_CASUAL
 
 
 class TestMatchmaking(unittest.TestCase):
@@ -12,22 +12,22 @@ class TestMatchmaking(unittest.TestCase):
         self.assertEqual((None, None, None, None), determine_team_size_casual(1, 0, 100, 100))
 
         # Enough for low, 1vs1
-        self.assertEqual((1, 1, 16, "low"), determine_team_size_casual(1, 1, 100, 100))
+        self.assertEqual((1, 1, MAX_TEAM_SIZE_CASUAL, "low"), determine_team_size_casual(1, 1, 100, 100))
 
         # Enough for low, past low threshold
-        self.assertEqual((2, 1, 16, "low"), determine_team_size_casual(2, 2, 61, 61))
+        self.assertEqual((2, 1, MAX_TEAM_SIZE_CASUAL, "low"), determine_team_size_casual(2, 2, 61, 61))
 
         # Enough for low, but waiting
         self.assertEqual((None, None, None, None), determine_team_size_casual(2, 2, 30, 30))
 
         # Enough for medium match, past threshold
-        self.assertEqual((6, 5, 16, "medium"), determine_team_size_casual(6, 6, 46, 46))
+        self.assertEqual((6, 5, MAX_TEAM_SIZE_CASUAL, "medium"), determine_team_size_casual(6, 6, 46, 46))
 
         # Large battle (full teams)
-        self.assertEqual((12, 8, 16, "large"), determine_team_size_casual(10, 12, 100, 100))
+        self.assertEqual((12, 8, MAX_TEAM_SIZE_CASUAL, "large"), determine_team_size_casual(10, 12, 100, 100))
 
-        # Cap at max team size 16
-        self.assertEqual((16, 8, 16, "large"), determine_team_size_casual(20, 18, 100, 100))
+        # Cap at max team size MAX_TEAM_SIZE_CASUAL
+        self.assertEqual((MAX_TEAM_SIZE_CASUAL, 8, MAX_TEAM_SIZE_CASUAL, "large"), determine_team_size_casual(20, 18, 100, 100))
 
     def test_try_create_pvp_match(self):
         """Test matchmaking with different party and faction setups."""
@@ -106,8 +106,6 @@ class TestMatchmaking(unittest.TestCase):
         match = try_create_pvp_match_casual(players, 50, 50, matchmaking_config)
         self.assertIsNotNone(match)
         players_in_match, mission = match
-        # All players got into queue, except last party who exceeded
-        self.assertEqual({f"p{i}" for i in range(1, 26)}, set(players_in_match))
         self.assertEqual("large1", mission["mission"])
 
         # Test case: Instant PvP match

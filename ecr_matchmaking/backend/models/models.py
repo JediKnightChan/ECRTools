@@ -6,6 +6,12 @@ GAME_FACTIONS: Tuple[str, ...] = (
     'ChaosSpaceMarines'
 )
 
+ALLOWED_POOLS = [
+    "pvp_casual",
+    "pvp_duels",
+    "pve"
+]
+
 MAX_PARTY_SIZE = 4
 
 
@@ -13,12 +19,10 @@ class ReenterMatchmakingRequest(BaseModel):
     player_id: str
     region: str
     # pool_name: Literal['pvp_casual', 'pvp_duels', 'pve']
-    pool_name: Literal['pvp_casual', 'pvp_duels']
+    pools: List[str]
     game_version: str = Field(pattern=r'^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$')
     game_contour: Literal['prod', 'dev']
 
-    desired_match_group: Optional[
-        Literal['PoolAlpha', 'PoolBeta', 'PoolGamma', 'Vein', 'Inferno', 'Abyss']] = None  # Optional field
     faction: Optional[str] = None
     party_members: Optional[List[str]] = None
 
@@ -36,6 +40,21 @@ class ReenterMatchmakingRequest(BaseModel):
             return v
         if len(v) > MAX_PARTY_SIZE:
             raise ValueError(f"Party size exceeds maximum: {len(v)} > {MAX_PARTY_SIZE}")
+        return v
+
+    @validator('pools')
+    def validate_pools(cls, v):
+        if v is None:
+            return v
+
+        if len(v) == 0:
+            raise ValueError(f"At least 1 pool must be specified")
+        if len(v) > len(ALLOWED_POOLS):
+            raise ValueError(f"Max pool amount: {len(ALLOWED_POOLS)}")
+
+        for el in v:
+            if el not in ALLOWED_POOLS:
+                raise ValueError(f"Invalid pool: {el}")
         return v
 
 

@@ -79,17 +79,19 @@ def try_create_pvp_match_common(player_data_map: dict, oldest_player_queue_time:
         # Not enough players for the match
         return
 
-    # Determine match name by majority vote
-    desired_match_group_votes = {}
-    for player_id in players_in_match:
-        if player_id not in player_data_map:
-            # Skip party members who are not leader
-            continue
-        desired_match_group = player_data_map[player_id]["desired_match_group"]
-        desired_match_group_votes[desired_match_group] = desired_match_group_votes.get(desired_match_group, 0) + 1
+    # # Determine match name by majority vote
+    # desired_match_group_votes = {}
+    # for player_id in players_in_match:
+    #     if player_id not in player_data_map:
+    #         # Skip party members who are not leader
+    #         continue
+    #     desired_match_group = player_data_map[player_id]["desired_match_group"]
+    #     desired_match_group_votes[desired_match_group] = desired_match_group_votes.get(desired_match_group, 0) + 1
 
     # Pick the most popular match type, fallback if not found
-    majority_match_group = max(desired_match_group_votes, key=desired_match_group_votes.get, default=None)
+    # majority_match_group = max(desired_match_group_votes, key=desired_match_group_votes.get, default=None)
+
+    majority_match_group = None
     if majority_match_group not in matchmaking_config_for_mode:
         majority_match_group = random.choice(
             list(matchmaking_config_for_mode.keys())) if matchmaking_config_for_mode else None
@@ -163,17 +165,18 @@ def try_create_pve_match_common(player_data_map: dict, latest_ts: float, matchma
         # Not enough players for the match
         return
 
-    # Determine match name by majority vote
-    desired_match_group_votes = {}
-    for player_id in players_in_match:
-        if player_id not in player_data_map:
-            # Skip party members who are not leader
-            continue
-        desired_match_group = player_data_map[player_id]["desired_match_group"]
-        desired_match_group_votes[desired_match_group] = desired_match_group_votes.get(desired_match_group, 0) + 1
+    # # Determine match name by majority vote
+    # desired_match_group_votes = {}
+    # for player_id in players_in_match:
+    #     if player_id not in player_data_map:
+    #         # Skip party members who are not leader
+    #         continue
+    #     desired_match_group = player_data_map[player_id]["desired_match_group"]
+    #     desired_match_group_votes[desired_match_group] = desired_match_group_votes.get(desired_match_group, 0) + 1
 
     # Pick the most popular match type, fallback if not found
-    majority_match_group = max(desired_match_group_votes, key=desired_match_group_votes.get, default=None)
+    # majority_match_group = max(desired_match_group_votes, key=desired_match_group_votes.get, default=None)
+    majority_match_group = None
     if majority_match_group not in matchmaking_config_for_mode:
         majority_match_group = random.choice(
             list(matchmaking_config_for_mode.keys())) if matchmaking_config_for_mode else None
