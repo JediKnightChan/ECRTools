@@ -12,7 +12,7 @@ from marshmallow import ValidationError
 from tools.s3_path_builder import S3PathBuilder
 
 # Campaign status variables
-CURRENT_CAMPAIGN_NAME = os.getenv("CURRENT_CAMPAIGN_NAME", "TestCampaign")
+CURRENT_CAMPAIGN_NAME = os.getenv("CURRENT_CAMPAIGN_NAME", "")
 
 
 def batch_iterator(iterable, n):

@@ -358,9 +358,12 @@ class MatchResultsProcessor(ResourceProcessor):
             # Date key differs for dailies and weeklies
             date_key = weekly_key if quest_type == "weekly" else daily_key
 
-            # Daily wins capped at +1 per match
+            # Daily matches set as +2 per match, if won, +1 if lost
             if daily_quest == "daily_wins":
-                progress_delta = min(progress_delta, 1)
+                if char_result.get("is_winner"):
+                    progress_delta = 2
+                else:
+                    progress_delta = 1
 
             dailies_req.append({
                 "char": char_id,
